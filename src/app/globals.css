@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --primary: 221 83% 41%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 40%;
+    --accent: 210 40% 92%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 72% 42%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 71% 30%;
+    --success-foreground: 0 0% 100%;
+    --warning: 32 95% 38%;
+    --warning-foreground: 0 0% 100%;
+    --border: 214 32% 88%;
+    --input: 214 32% 88%;
+    --ring: 221 83% 41%;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+.dev-auth-banner {
+  @apply sticky top-0 z-50 w-full bg-warning px-4 py-2 text-center text-sm font-medium text-warning-foreground;
+}
+
+.markdown-body h2 {
+  @apply mb-2 mt-6 text-lg font-semibold;
+}
+.markdown-body h3 {
+  @apply mb-2 mt-4 text-base font-semibold;
+}
+.markdown-body p {
+  @apply mb-3 leading-relaxed;
+}
+.markdown-body ul {
+  @apply mb-3 list-disc space-y-1 pl-6;
+}
+.markdown-body ol {
+  @apply mb-3 list-decimal space-y-1 pl-6;
+}
+.markdown-body a {
+  @apply text-primary underline underline-offset-2;
+}

@@ -1,0 +1,668 @@
+// Service Desk data model (Section 13).
+//
+// Design notes:
+// - Internal primary keys are UUIDs (non-sequential, public-safe). Tickets
+//   additionally get a separate human-readable `ticketNumber`.
+// - Authorization is never stored as a comma-separated string: roles are a
+//   normalized join table (UserRole), department scoping is a normalized
+//   join table (DepartmentMembership).
+// - Customer-visible messages (ConversationMessage) and internal notes
+//   (InternalNote) are separate tables, not a "visibility" flag on one
+//   table, so a bug can't leak internal notes through a shared query path.
+// - AuditEvent rows are append-only from the application's perspective:
+//   no service function updates or deletes them.
+// - Nothing is hard-deleted. Departments/franchises/articles use isActive
+//   or status fields; tickets flow through the state machine (Cancelled)
+//   instead of being removed.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Note: the pg_trgm extension and the KnowledgeArticle full-text search
+// column/indexes are managed by idempotent raw SQL in
+// scripts/db-search-setup.sql (run via `pnpm db:search:setup`, wired into
+// `pnpm db:migrate`) rather than by Prisma migrations. Prisma's DSL doesn't
+// have first-class support for tsvector generated columns/trigger-based
+// maintenance, and fighting it for a prototype isn't worth the risk --
+// this is the same approach Prisma's own docs recommend for full-text
+// search. See docs/ARCHITECTURE.md "Knowledge search".
+
+// ---------------------------------------------------------------------------
+// Identity & authorization
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String   @id @default(uuid())
+  // Immutable Entra identifiers (Section 3). entraObjectId is the durable
+  // identity key; email is display-only and must never be the sole
+  // authorization identifier.
+  entraObjectId String   @unique
+  entraTenantId String
+  email         String
+  displayName   String
+  isActive      Boolean  @default(true)
+  isDevAccount  Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  roles                 UserRole[]
+  departmentMemberships DepartmentMembership[]
+  submittedTickets      Ticket[]                   @relation("TicketSubmitter")
+  assignedTickets       Ticket[]                   @relation("TicketAssignee")
+  resolvedTickets       Ticket[]                   @relation("TicketResolver")
+  conversationMessages  ConversationMessage[]
+  internalNotes         InternalNote[]
+  uploadedAttachments   Attachment[]
+  statusChanges         TicketStatusHistory[]
+  assignmentChanges     TicketAssignmentHistory[]
+  departmentChanges     TicketDepartmentHistory[]
+  createdTicketLinks    TicketLink[]
+  authoredArticles      KnowledgeArticle[]         @relation("ArticleAuthor")
+  reviewedArticles      KnowledgeArticle[]         @relation("ArticleReviewer")
+  articleRevisions      KnowledgeArticleRevision[]
+  knowledgeLinks        TicketKnowledgeLink[]
+  similarityChecks      KnowledgeSimilarityCheck[]
+  knowledgeFeedback     KnowledgeFeedback[]
+  deflectionEvents      DeflectionEvent[]
+  auditEvents           AuditEvent[]
+  appSettingUpdates     AppSetting[]
+
+  @@index([entraTenantId])
+  @@index([email])
+}
+
+enum RoleName {
+  CUSTOMER
+  TRIAGE_AGENT
+  DEPARTMENT_AGENT
+  DEPARTMENT_MANAGER
+  KNOWLEDGE_MANAGER
+  ADMINISTRATOR
+}
+
+model Role {
+  id    String     @id @default(uuid())
+  name  RoleName   @unique
+  users UserRole[]
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  userId    String
+  roleId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([roleId])
+}
+
+enum DepartmentKey {
+  TECHNOLOGY_SUPPORT
+  TRAINING
+  ACCOUNTING_SERVICES
+  MARKETING
+  LEGAL
+}
+
+model Department {
+  id        String        @id @default(uuid())
+  key       DepartmentKey @unique
+  name      String
+  isActive  Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  memberships           DepartmentMembership[]
+  ticketsCurrent        Ticket[]                  @relation("TicketDepartment")
+  ticketsSubmittedTo    Ticket[]                  @relation("TicketSubmittedDepartment")
+  ticketsSuggested      Ticket[]                  @relation("TicketSuggestedDepartment")
+  knowledgeArticles     KnowledgeArticle[]
+  departmentHistoryFrom TicketDepartmentHistory[] @relation("DeptHistoryFrom")
+  departmentHistoryTo   TicketDepartmentHistory[] @relation("DeptHistoryTo")
+
+  @@index([isActive])
+}
+
+model DepartmentMembership {
+  id           String   @id @default(uuid())
+  userId       String
+  departmentId String
+  isManager    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, departmentId])
+  @@index([departmentId])
+}
+
+model Franchise {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tickets Ticket[]
+
+  @@index([isActive])
+}
+
+model ProjectReference {
+  id            String   @id @default(uuid())
+  projectNumber String   @unique
+  label         String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  @@index([isActive])
+}
+
+model Tag {
+  id   String @id @default(uuid())
+  name String @unique
+
+  ticketTags  TicketTag[]
+  articleTags KnowledgeArticleTag[]
+}
+
+// ---------------------------------------------------------------------------
+// Tickets
+// ---------------------------------------------------------------------------
+
+enum TicketStatus {
+  DRAFT
+  SUBMITTED
+  IN_TRIAGE
+  WAITING_FOR_CUSTOMER
+  QUEUED
+  ASSIGNED
+  IN_PROGRESS
+  PENDING
+  RESOLUTION_REVIEW
+  RESOLVED
+  CLOSED
+  REOPENED
+  CANCELLED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Ticket {
+  id           String @id @default(uuid())
+  ticketNumber String @unique
+
+  // Submitter identity is snapshotted so it survives later profile changes
+  // (Section 13: "Preserve the submitter identity even if a display name or
+  // email later changes").
+  submittedById  String
+  submittedName  String
+  submittedEmail String
+
+  franchiseId String
+  subject     String
+  description String
+
+  submittedDepartmentId        String
+  departmentId                 String
+  suggestedDepartmentId        String?
+  suggestedDepartmentRationale String?
+
+  category                String?
+  priority                TicketPriority @default(MEDIUM)
+  priorityCustomerVisible Boolean        @default(true)
+
+  isProjectRelated Boolean @default(false)
+  projectNumber    String?
+
+  impact      String?
+  urgencyNote String?
+
+  status TicketStatus @default(SUBMITTED)
+
+  assigneeId String?
+
+  // Optimistic concurrency (Section 10).
+  version Int @default(1)
+
+  resolutionSummary String?
+  resolutionSteps   String?
+  resolvedById      String?
+  resolvedAt        DateTime?
+  closedAt          DateTime?
+
+  // Set whenever resolutionSummary/resolutionSteps are (re)entered; used to
+  // decide whether a later KnowledgeSimilarityCheck/TicketKnowledgeLink is
+  // still "current" for the resolution gate (Section 11.3).
+  resolutionEnteredAt  DateTime?
+  lastKnowledgeCheckAt DateTime?
+
+  attemptedArticleIds String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  submitter           User        @relation("TicketSubmitter", fields: [submittedById], references: [id])
+  franchise           Franchise   @relation(fields: [franchiseId], references: [id])
+  department          Department  @relation("TicketDepartment", fields: [departmentId], references: [id])
+  submittedDepartment Department  @relation("TicketSubmittedDepartment", fields: [submittedDepartmentId], references: [id])
+  suggestedDepartment Department? @relation("TicketSuggestedDepartment", fields: [suggestedDepartmentId], references: [id])
+  assignee            User?       @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  resolvedBy          User?       @relation("TicketResolver", fields: [resolvedById], references: [id])
+
+  urls                 TicketUrl[]
+  attachments          Attachment[]
+  conversationMessages ConversationMessage[]
+  internalNotes        InternalNote[]
+  outboundEmails       OutboundEmail[]
+  statusHistory        TicketStatusHistory[]
+  assignmentHistory    TicketAssignmentHistory[]
+  departmentHistory    TicketDepartmentHistory[]
+  linksFrom            TicketLink[]               @relation("LinkSource")
+  linksTo              TicketLink[]               @relation("LinkTarget")
+  ticketTags           TicketTag[]
+  knowledgeLinks       TicketKnowledgeLink[]
+  similarityChecks     KnowledgeSimilarityCheck[]
+  knowledgeFeedback    KnowledgeFeedback[]
+
+  @@index([status])
+  @@index([departmentId])
+  @@index([assigneeId])
+  @@index([submittedById])
+  @@index([createdAt])
+  @@index([projectNumber])
+}
+
+model TicketUrl {
+  id        String   @id @default(uuid())
+  ticketId  String
+  url       String
+  hostname  String
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+}
+
+model TicketTag {
+  ticketId String
+  tagId    String
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([ticketId, tagId])
+}
+
+enum AttachmentScanStatus {
+  PENDING
+  CLEAN
+  REJECTED
+  SCAN_UNAVAILABLE
+}
+
+model Attachment {
+  id                    String  @id @default(uuid())
+  ticketId              String?
+  conversationMessageId String?
+  knowledgeArticleId    String?
+  uploadedById          String
+
+  originalFilename String
+  storedFilename   String @unique
+  contentType      String
+  sizeBytes        Int
+  checksumSha256   String
+
+  scanStatus AttachmentScanStatus @default(PENDING)
+  scanNote   String?
+
+  createdAt DateTime @default(now())
+
+  ticket              Ticket?              @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  conversationMessage ConversationMessage? @relation(fields: [conversationMessageId], references: [id], onDelete: Cascade)
+  knowledgeArticle    KnowledgeArticle?    @relation(fields: [knowledgeArticleId], references: [id], onDelete: Cascade)
+  uploadedBy          User                 @relation(fields: [uploadedById], references: [id])
+
+  @@index([ticketId])
+  @@index([scanStatus])
+}
+
+model ConversationMessage {
+  id             String   @id @default(uuid())
+  ticketId       String
+  authorId       String
+  isFromCustomer Boolean
+  body           String
+  createdAt      DateTime @default(now())
+
+  ticket         Ticket          @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author         User            @relation(fields: [authorId], references: [id])
+  attachments    Attachment[]
+  outboundEmails OutboundEmail[]
+
+  @@index([ticketId])
+}
+
+model InternalNote {
+  id        String   @id @default(uuid())
+  ticketId  String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId])
+}
+
+enum EmailDeliveryStatus {
+  QUEUED
+  CAPTURED_DEV
+  SENT
+  FAILED
+}
+
+model OutboundEmail {
+  id                    String              @id @default(uuid())
+  ticketId              String?
+  conversationMessageId String?
+  toEmail               String
+  subject               String
+  bodyText              String
+  status                EmailDeliveryStatus @default(QUEUED)
+  providerMessageId     String?
+  failureReason         String?
+  sentAt                DateTime?
+  createdAt             DateTime            @default(now())
+
+  ticket              Ticket?              @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  conversationMessage ConversationMessage? @relation(fields: [conversationMessageId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+  @@index([status])
+}
+
+model TicketStatusHistory {
+  id          String        @id @default(uuid())
+  ticketId    String
+  fromStatus  TicketStatus?
+  toStatus    TicketStatus
+  changedById String
+  reason      String?
+  createdAt   DateTime      @default(now())
+
+  ticket    Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  changedBy User   @relation(fields: [changedById], references: [id])
+
+  @@index([ticketId])
+}
+
+model TicketAssignmentHistory {
+  id             String   @id @default(uuid())
+  ticketId       String
+  fromAssigneeId String?
+  toAssigneeId   String?
+  changedById    String
+  createdAt      DateTime @default(now())
+
+  ticket    Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  changedBy User   @relation(fields: [changedById], references: [id])
+
+  @@index([ticketId])
+}
+
+model TicketDepartmentHistory {
+  id               String   @id @default(uuid())
+  ticketId         String
+  fromDepartmentId String?
+  toDepartmentId   String
+  changedById      String
+  reason           String?
+  createdAt        DateTime @default(now())
+
+  ticket         Ticket      @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  fromDepartment Department? @relation("DeptHistoryFrom", fields: [fromDepartmentId], references: [id])
+  toDepartment   Department  @relation("DeptHistoryTo", fields: [toDepartmentId], references: [id])
+  changedBy      User        @relation(fields: [changedById], references: [id])
+
+  @@index([ticketId])
+}
+
+enum TicketLinkType {
+  DUPLICATE
+  RELATED
+}
+
+model TicketLink {
+  id             String         @id @default(uuid())
+  ticketId       String
+  linkedTicketId String
+  linkType       TicketLinkType
+  createdById    String
+  createdAt      DateTime       @default(now())
+
+  ticket       Ticket @relation("LinkSource", fields: [ticketId], references: [id], onDelete: Cascade)
+  linkedTicket Ticket @relation("LinkTarget", fields: [linkedTicketId], references: [id], onDelete: Cascade)
+  createdBy    User   @relation(fields: [createdById], references: [id])
+
+  @@unique([ticketId, linkedTicketId, linkType])
+  @@index([linkedTicketId])
+}
+
+// ---------------------------------------------------------------------------
+// Knowledge base
+// ---------------------------------------------------------------------------
+
+enum KnowledgeArticleStatus {
+  DRAFT
+  IN_REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+model KnowledgeArticle {
+  id           String                 @id @default(uuid())
+  articleKey   String                 @unique
+  slug         String
+  departmentId String
+  title        String
+  summary      String
+  status       KnowledgeArticleStatus @default(DRAFT)
+  audience     String?
+
+  filePath    String @unique
+  contentHash String
+  revision    Int    @default(1)
+
+  // Maintained by a Postgres trigger from title+summary+tags -- see
+  // scripts/db-search-setup.sql. Never written to via Prisma Client.
+  searchVector Unsupported("tsvector")?
+
+  supersedesArticleId String?
+
+  createdById  String
+  reviewedById String?
+
+  helpfulCount    Int @default(0)
+  notHelpfulCount Int @default(0)
+  usageCount      Int @default(0)
+  deflectionCount Int @default(0)
+
+  lastVerifiedAt DateTime?
+  publishedAt    DateTime?
+  archivedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  department Department @relation(fields: [departmentId], references: [id])
+  createdBy  User       @relation("ArticleAuthor", fields: [createdById], references: [id])
+  reviewedBy User?      @relation("ArticleReviewer", fields: [reviewedById], references: [id])
+
+  revisions        KnowledgeArticleRevision[]
+  tags             KnowledgeArticleTag[]
+  ticketLinks      TicketKnowledgeLink[]
+  feedback         KnowledgeFeedback[]
+  deflectionEvents DeflectionEvent[]
+  attachments      Attachment[]
+
+  @@unique([departmentId, slug])
+  @@index([status])
+  @@index([departmentId])
+}
+
+model KnowledgeArticleRevision {
+  id              String   @id @default(uuid())
+  articleId       String
+  revision        Int
+  contentSnapshot String
+  changeSummary   String?
+  editedById      String
+  createdAt       DateTime @default(now())
+
+  article  KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  editedBy User             @relation(fields: [editedById], references: [id])
+
+  @@unique([articleId, revision])
+}
+
+model KnowledgeArticleTag {
+  articleId String
+  tagId     String
+
+  article KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tag     Tag              @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, tagId])
+}
+
+enum KnowledgeOutcomeType {
+  LINKED_EXISTING
+  PROPOSED_UPDATE
+  NEW_DRAFT
+  EXCEPTION
+}
+
+model TicketKnowledgeLink {
+  id          String               @id @default(uuid())
+  ticketId    String
+  // Nullable: an EXCEPTION outcome (Section 11.3) may have no article at
+  // all -- the resolution was judged unsuitable for reusable documentation.
+  articleId   String?
+  outcomeType KnowledgeOutcomeType
+  createdById String
+  reason      String?
+  createdAt   DateTime             @default(now())
+
+  ticket    Ticket            @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  article   KnowledgeArticle? @relation(fields: [articleId], references: [id])
+  createdBy User              @relation(fields: [createdById], references: [id])
+
+  @@index([ticketId])
+  @@index([articleId])
+}
+
+model KnowledgeSimilarityCheck {
+  id                  String   @id @default(uuid())
+  ticketId            String?
+  performedById       String
+  // Normalized keywords only -- never the raw ticket description
+  // (Section 11.2.7: "without unnecessarily retaining sensitive ticket text").
+  normalizedQuery     String
+  candidateArticleIds String[]
+  selectedAction      String?
+  createdAt           DateTime @default(now())
+
+  ticket      Ticket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  performedBy User    @relation(fields: [performedById], references: [id])
+
+  @@index([ticketId])
+}
+
+model KnowledgeFeedback {
+  id         String   @id @default(uuid())
+  articleId  String
+  ticketId   String?
+  userId     String?
+  wasHelpful Boolean
+  createdAt  DateTime @default(now())
+
+  article KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  ticket  Ticket?          @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  user    User?            @relation(fields: [userId], references: [id])
+
+  @@index([articleId])
+}
+
+model DeflectionEvent {
+  id         String   @id @default(uuid())
+  articleId  String
+  userId     String?
+  occurredAt DateTime @default(now())
+
+  article KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user    User?            @relation(fields: [userId], references: [id])
+
+  @@index([articleId])
+}
+
+// ---------------------------------------------------------------------------
+// Audit & settings
+// ---------------------------------------------------------------------------
+
+model AuditEvent {
+  id               String   @id @default(uuid())
+  actorId          String?
+  actorDisplayName String
+  action           String
+  entityType       String
+  entityId         String
+  previousValue    Json?
+  newValue         Json?
+  metadata         Json?
+  createdAt        DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// Backs atomic human-readable ticket number generation (Section 10, 13) via
+// a single-row `UPDATE ... SET value = value + 1 RETURNING value`, which
+// Postgres serializes safely under concurrent transactions without needing
+// a raw SQL sequence object.
+model TicketNumberCounter {
+  id    Int @id @default(1)
+  value Int @default(0)
+}
+
+model AppSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       Json
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+
+  updatedBy User? @relation(fields: [updatedById], references: [id])
+}

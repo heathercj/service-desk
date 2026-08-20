@@ -1,0 +1,44 @@
+# SAST (Section 16). Semgrep Community Edition only -- no CodeQL, since
+# private-repository availability can require a paid license. Runs entirely
+# against the checked-out source; nothing is uploaded to a third-party
+# service by this workflow (Semgrep App/Cloud sync is NOT configured).
+name: SAST (Semgrep)
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  semgrep:
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep:1.104.0
+    steps:
+      - uses: actions/checkout@v4 # v4.2.2
+
+      - name: Run Semgrep
+        run: |
+          semgrep scan \
+            --config auto \
+            --config p/typescript \
+            --config p/react \
+            --config p/nextjs \
+            --error \
+            --severity ERROR \
+            --sarif --output semgrep-results.sarif \
+            .
+        env:
+          SEMGREP_SEND_METRICS: "off"
+
+      - name: Upload SARIF
+        if: always()
+        uses: actions/upload-artifact@v4 # v4.6.0
+        with:
+          name: semgrep-results
+          path: semgrep-results.sarif
+          retention-days: 14

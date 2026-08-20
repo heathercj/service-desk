@@ -1,0 +1,2 @@
+10015	IGNORE	(Re-examine Cache-control Directives -- most routes are auth-gated dynamic pages already sent no-store by Next.js; revisit if static asset caching changes)
+10027	IGNORE	(Information Disclosure - Suspicious Comments -- prototype source comments reference section numbers from the spec, not secrets; reviewed manually)

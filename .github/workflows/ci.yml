@@ -1,0 +1,79 @@
+# Core CI: format, lint, typecheck, unit tests, production build.
+#
+# Note on action pinning (Section 16): this prototype pins GitHub Actions to
+# version tags rather than full commit SHAs. Pinning to a wrong/misremembered
+# SHA is worse than a well-known tag; production hardening should switch to
+# SHA pins (Dependabot can propose the exact SHA for each tag it already
+# tracks) -- see docs/PRODUCTION_READINESS.md.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      DATABASE_URL: "postgresql://service_desk:service_desk_dev_password@localhost:5432/service_desk?schema=public"
+      AUTH_SECRET: "ci-only-not-a-real-secret-00000000000000000000"
+      ENTRA_TENANT_ID: "11111111-1111-1111-1111-111111111111"
+      ENABLE_DEV_AUTH: "false"
+
+    services:
+      postgres:
+        image: postgres:16.6-alpine
+        env:
+          POSTGRES_USER: service_desk
+          POSTGRES_PASSWORD: service_desk_dev_password
+          POSTGRES_DB: service_desk
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U service_desk -d service_desk"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4 # v4.2.2
+
+      - uses: pnpm/action-setup@v4 # v4.1.0
+        with:
+          version: 9.15.4
+
+      - uses: actions/setup-node@v4 # v4.4.0
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm format:check
+
+      - run: pnpm lint
+
+      - run: pnpm typecheck
+
+      - run: pnpm exec prisma generate
+
+      - run: pnpm test -- --coverage
+
+      - name: Apply migrations + knowledge search setup
+        run: pnpm exec prisma migrate deploy && pnpm db:search:setup
+
+      - run: pnpm test:integration
+
+      - run: pnpm exec tsx scripts/kb-validate.ts
+
+      - name: Production build (dev-auth disabled)
+        run: pnpm build

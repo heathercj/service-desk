@@ -1,0 +1,11 @@
+# Narrow, reviewed exceptions only (Section 16). Anything added here must
+# have a comment explaining why the finding is a false positive or
+# acceptable risk for this prototype.
+
+.next/
+node_modules/
+coverage/
+playwright-report/
+test-results/
+knowledge-base/
+prisma/migrations/

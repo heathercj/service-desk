@@ -1,0 +1,81 @@
+# SCA (Section 16). OSV-Scanner is the primary control against the
+# committed lockfile; `pnpm audit` runs as supplementary information only.
+# A CycloneDX SBOM is generated and uploaded as an artifact (not committed).
+name: SCA
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Complete scheduled scan (Section 16), independent of any single PR.
+    - cron: "17 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  osv-scanner:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4 # v4.2.2
+
+      - name: Run OSV-Scanner against the committed lockfile
+        uses: google/osv-scanner-action/osv-scanner-action@v2.0.2
+        with:
+          scan-args: |-
+            --lockfile=pnpm-lock.yaml
+            --format=sarif
+            --output=osv-results.sarif
+
+      - name: Upload OSV-Scanner results
+        if: always()
+        uses: actions/upload-artifact@v4 # v4.6.0
+        with:
+          name: osv-scanner-results
+          path: osv-results.sarif
+          retention-days: 14
+
+  supplementary-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4 # v4.2.2
+
+      - uses: pnpm/action-setup@v4 # v4.1.0
+        with:
+          version: 9.15.4
+
+      - uses: actions/setup-node@v4 # v4.4.0
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: pnpm audit (supplementary only -- not the primary SCA gate)
+        run: pnpm audit --audit-level=high || true
+
+  sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4 # v4.2.2
+
+      - uses: pnpm/action-setup@v4 # v4.1.0
+        with:
+          version: 9.15.4
+
+      - uses: actions/setup-node@v4 # v4.4.0
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate CycloneDX SBOM
+        run: pnpm dlx @cyclonedx/cyclonedx-npm --output-format JSON --output-file sbom.cdx.json
+
+      - uses: actions/upload-artifact@v4 # v4.6.0
+        with:
+          name: sbom
+          path: sbom.cdx.json
+          retention-days: 30

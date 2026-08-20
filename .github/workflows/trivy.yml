@@ -1,0 +1,42 @@
+# Container and configuration scanning (Section 16): filesystem/dependency
+# scan as defense in depth, Dockerfile misconfiguration check, and a scan of
+# the built container image.
+name: Trivy
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  fs-and-config-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4 # v4.2.2
+
+      - name: Trivy filesystem + config scan
+        uses: aquasecurity/trivy-action@0.29.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+
+  image-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4 # v4.2.2
+
+      - name: Build image
+        run: docker build -t service-desk:ci .
+
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@0.29.0
+        with:
+          image-ref: service-desk:ci
+          scan-type: image
+          severity: HIGH,CRITICAL
+          exit-code: "1"

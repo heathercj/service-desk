@@ -1,0 +1,20 @@
+title = "Service Desk gitleaks config"
+
+[extend]
+useDefault = true
+
+# Narrow, documented exceptions only (Section 16). Each entry must explain
+# why it's a false positive, not just suppress a real finding.
+[allowlist]
+description = "Known-fake fixtures that look like secrets but are not"
+regexes = [
+  # .env.example placeholders are intentionally fake and clearly labelled.
+  '''replace-with-a-random-32-byte-base64-value''',
+  '''replace-with-app-registration-client-secret''',
+  # Deterministic, well-known EICAR-style antivirus test string used only
+  # to exercise the prototype malware-scan heuristic (src/lib/storage/malware-scan.ts).
+  '''X5O!P%@AP\[4\\PZX54\(P\^\)7CC\)7\}\$EICAR''',
+]
+paths = [
+  '''\.env\.example$''',
+]
