@@ -5,9 +5,15 @@ const isProd = process.env.NODE_ENV === "production";
 // Strict-by-default security headers (Section 15). CSP is intentionally
 // conservative: no inline scripts/styles beyond Next's hashed/nonce-based
 // requirements, no third-party origins, framing disabled.
+//
+// 'unsafe-eval' is added ONLY in development: Next.js's dev-mode bundler
+// (Fast Refresh / HMR) evaluates code via eval() to attach source maps.
+// Without it here, client components silently fail to hydrate under this
+// CSP in dev -- no console error beyond a CSP violation, no interactivity.
+// Production builds don't use eval and never get this relaxed.
 const contentSecurityPolicy = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self'",

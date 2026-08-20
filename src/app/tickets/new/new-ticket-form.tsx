@@ -24,9 +24,15 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 
+// `isProjectRelated` is deliberately NOT registered with react-hook-form:
+// RHF's `setValueAs` on a native radio group does not reliably coerce the
+// checked radio's string value to a boolean before zodResolver validates
+// it (observed live as "Expected boolean, received string"). Plain local
+// state for this one field is simpler and correct.
 const formSchema = createTicketObjectSchema.omit({
   urls: true,
   attemptedArticleIds: true,
+  isProjectRelated: true,
 });
 type FormValues = z.infer<typeof formSchema>;
 
@@ -51,6 +57,7 @@ export function NewTicketForm({
   const [urlsText, setUrlsText] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [attemptedArticleIds, setAttemptedArticleIds] = useState<string[]>([]);
+  const [isProjectRelated, setIsProjectRelated] = useState(false);
   const [deflected, setDeflected] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -60,7 +67,8 @@ export function NewTicketForm({
     register,
     handleSubmit,
     watch,
-    formState: { errors },
+    setFocus,
+    formState: { errors, isSubmitted },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -68,7 +76,6 @@ export function NewTicketForm({
       subject: "",
       description: "",
       departmentKey: "TECHNOLOGY_SUPPORT",
-      isProjectRelated: false,
       impact: "",
       urgencyNote: "",
       consentAcknowledged: false as unknown as true,
@@ -77,7 +84,6 @@ export function NewTicketForm({
 
   const subject = watch("subject");
   const description = watch("description");
-  const isProjectRelated = watch("isProjectRelated");
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -122,6 +128,7 @@ export function NewTicketForm({
     try {
       const parsed = createTicketSchema.safeParse({
         ...values,
+        isProjectRelated,
         urls: urlLines,
         attemptedArticleIds,
       });
@@ -148,6 +155,18 @@ export function NewTicketForm({
     }
   }
 
+  function onInvalid(formErrors: typeof errors) {
+    // Section 18: "Provide accessible validation summaries." Field-level
+    // messages alone aren't enough on a long form -- if the first invalid
+    // field is scrolled out of view, clicking Submit otherwise looks like
+    // it does nothing. Focusing the first invalid field scrolls it into
+    // view natively; the summary below covers screen-reader users too.
+    const firstField = Object.keys(formErrors)[0];
+    if (firstField) {
+      setFocus(firstField as keyof FormValues);
+    }
+  }
+
   if (deflected) {
     return (
       <Card className="mt-6">
@@ -168,7 +187,25 @@ export function NewTicketForm({
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-6" noValidate>
+    <form
+      onSubmit={handleSubmit(onSubmit, onInvalid)}
+      className="mt-6 space-y-6"
+      noValidate
+    >
+      {isSubmitted && Object.keys(errors).length > 0 && (
+        <div
+          role="alert"
+          className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
+        >
+          <p className="font-medium">Please fix the following before submitting:</p>
+          <ul className="mt-1 list-disc pl-5">
+            {Object.entries(errors).map(([field, err]) => (
+              <li key={field}>{String(err?.message ?? `${field} is invalid`)}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <Label>Name</Label>
@@ -293,21 +330,18 @@ export function NewTicketForm({
         <label className="flex items-center gap-2 text-sm">
           <input
             type="radio"
-            value="true"
-            {...register("isProjectRelated", {
-              setValueAs: (v) => v === "true" || v === true,
-            })}
+            name="isProjectRelated"
+            checked={isProjectRelated}
+            onChange={() => setIsProjectRelated(true)}
           />
           Yes
         </label>
         <label className="flex items-center gap-2 text-sm">
           <input
             type="radio"
-            value="false"
-            defaultChecked
-            {...register("isProjectRelated", {
-              setValueAs: (v) => v === "true" || v === true,
-            })}
+            name="isProjectRelated"
+            checked={!isProjectRelated}
+            onChange={() => setIsProjectRelated(false)}
           />
           No
         </label>

@@ -36,6 +36,12 @@ Track these items before any real deployment.
 
 ## Should fix / revisit
 
+- [ ] `createDraftArticle` has no collision handling if two articles slugify
+      to the same `(department, slug)`/`filePath` (e.g. two workers drafting
+      similarly-titled articles same-day) -- currently bubbles up as a raw
+      database unique-constraint error instead of a friendly "an article
+      with this title already exists, try a more specific title" message.
+
 - [ ] The production build emits a benign warning that `jose` (a
       transitive dependency of Auth.js, used for JWT handling) references
       a Node.js API not supported in the Edge Runtime, because

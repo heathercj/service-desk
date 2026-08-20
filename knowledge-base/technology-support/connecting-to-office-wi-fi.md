@@ -1,7 +1,7 @@
 ---
-id: KB-SEED-connecting-to-office-wifi
+id: KB-SEED-connecting-to-office
 title: Connecting to office Wi-Fi
-slug: connecting-to-office-wifi
+slug: connecting-to-office-wi-fi
 summary: How to join the corporate Wi-Fi network from a new or reimaged laptop.
 department: TECHNOLOGY_SUPPORT
 status: published
@@ -21,5 +21,5 @@ revision: 1
 2. Sign in with your normal work credentials.
 3. Accept the certificate prompt on first connection.
 
-If the certificate prompt does not appear, restart the laptop's Wi-Fi
-adapter and try again.
+If the certificate prompt does not appear, restart the laptop's Wi-Fi adapter and try
+again.

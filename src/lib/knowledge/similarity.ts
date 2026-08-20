@@ -65,7 +65,7 @@ export interface RecordSimilarityCheckInput {
  * of sensitive ticket content.
  */
 export async function recordSimilarityCheck(input: RecordSimilarityCheckInput) {
-  return db.knowledgeSimilarityCheck.create({
+  const check = await db.knowledgeSimilarityCheck.create({
     data: {
       ticketId: input.ticketId,
       performedById: input.performedById,
@@ -74,4 +74,16 @@ export async function recordSimilarityCheck(input: RecordSimilarityCheckInput) {
       selectedAction: input.selectedAction,
     },
   });
+
+  // The resolution gate (Section 11.3) checks Ticket.lastKnowledgeCheckAt
+  // to decide whether a knowledge check is "current" -- this must be kept
+  // in sync every time a check is actually performed against a ticket.
+  if (input.ticketId) {
+    await db.ticket.update({
+      where: { id: input.ticketId },
+      data: { lastKnowledgeCheckAt: new Date() },
+    });
+  }
+
+  return check;
 }

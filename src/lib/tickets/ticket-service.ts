@@ -13,6 +13,7 @@ import {
   canViewInternalNotes,
   canViewTicket,
   isDepartmentMember,
+  isKnowledgeManager,
   toPolicyActor,
 } from "@/lib/rbac/policies";
 import {
@@ -945,8 +946,13 @@ export async function retryResolutionAfterKnowledgeOutcome(
 
   return db.$transaction(async (tx) => {
     const ticket = await loadTicketOrThrow(ticketId, tx);
+    // Department members re-attempt resolution after linking/drafting an
+    // article themselves; a Knowledge Manager/Administrator re-attempts it
+    // as the direct consequence of approving an EXCEPTION outcome (Section
+    // 11.3) without necessarily belonging to the ticket's department.
     assertAuthorized(
-      isDepartmentMember(policyActor, ticket.departmentId),
+      isDepartmentMember(policyActor, ticket.departmentId) ||
+        isKnowledgeManager(policyActor),
       "Not authorized for this ticket's department",
     );
     if (ticket.status !== "RESOLUTION_REVIEW") return { ticket, gate: null };

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { ForbiddenError } from "@/lib/rbac/errors";
@@ -15,6 +16,7 @@ import {
   publishArticle,
   recordKnowledgeOutcome,
 } from "./knowledge-service";
+import { recordSimilarityCheck } from "./similarity";
 
 /** Requires a live Postgres connection -- see README. */
 describe("knowledge-service integration", () => {
@@ -73,7 +75,7 @@ describe("knowledge-service integration", () => {
     const km = await createTestUser({ roles: ["KNOWLEDGE_MANAGER"] });
 
     const existing = await createDraftArticle(km, {
-      title: "Printer offline recovery",
+      title: `Printer offline recovery ${randomUUID().slice(0, 8)}`,
       summary: "Steps to bring a printer back online after an offline status.",
       departmentKey: "TECHNOLOGY_SUPPORT",
       tags: ["printer"],
@@ -91,6 +93,16 @@ describe("knowledge-service integration", () => {
         "1. Power-cycled the printer. 2. Removed and re-added the print queue. 3. Confirmed print job succeeded.",
     });
     expect(resolveAttempt.gate.ok).toBe(false);
+
+    // Section 11.3 requires the similarity check itself, not just the
+    // outcome, to be current -- mirrors what the UI's "Run knowledge
+    // similarity check" button does before a worker can link/draft/except.
+    await recordSimilarityCheck({
+      ticketId: ticket.id,
+      performedById: agent.userId,
+      rawQueryText: "printer offline recovery",
+      candidateArticleIds: [existing.id],
+    });
 
     const outcome = await recordKnowledgeOutcome(agent, {
       ticketId: ticket.id,
@@ -116,7 +128,7 @@ describe("knowledge-service integration", () => {
     });
 
     const draft = await createDraftArticle(agent, {
-      title: "Print spooler recovery",
+      title: `Print spooler recovery ${randomUUID().slice(0, 8)}`,
       summary: "How to recover from a stuck print spooler causing offline printers.",
       departmentKey: "TECHNOLOGY_SUPPORT",
       tags: ["printer", "spooler"],
@@ -168,6 +180,13 @@ describe("knowledge-service integration", () => {
       resolutionSummary: "One-off hardware failure specific to this site's printer.",
       resolutionSteps:
         "1. Diagnosed a failed fuser unit. 2. Replaced the unit under warranty.",
+    });
+
+    await recordSimilarityCheck({
+      ticketId: ticket.id,
+      performedById: km.userId,
+      rawQueryText: "one-off hardware failure fuser unit",
+      candidateArticleIds: [],
     });
 
     const outcome = await recordKnowledgeOutcome(km, {
