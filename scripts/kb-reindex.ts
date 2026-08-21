@@ -58,6 +58,7 @@ async function main() {
           | "IN_REVIEW"
           | "PUBLISHED"
           | "ARCHIVED",
+        internalOnly: frontMatter.internalOnly,
         filePath: relativePath,
         contentHash,
         revision: frontMatter.revision,
@@ -71,6 +72,7 @@ async function main() {
           | "IN_REVIEW"
           | "PUBLISHED"
           | "ARCHIVED",
+        internalOnly: frontMatter.internalOnly,
         contentHash,
         revision: frontMatter.revision,
       },

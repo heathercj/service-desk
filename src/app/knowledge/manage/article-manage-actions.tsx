@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 export function ArticleManageActions({
   articleId,
   status,
+  internalOnly,
 }: {
   articleId: string;
   status: string;
+  internalOnly: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -18,6 +20,20 @@ export function ArticleManageActions({
     setBusy(true);
     try {
       await fetch(`/api/knowledge/articles/${articleId}/${action}`, { method: "POST" });
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleVisibility() {
+    setBusy(true);
+    try {
+      await fetch(`/api/knowledge/articles/${articleId}/visibility`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ internalOnly: !internalOnly }),
+      });
       router.refresh();
     } finally {
       setBusy(false);
@@ -51,6 +67,9 @@ export function ArticleManageActions({
           Restore
         </Button>
       )}
+      <Button size="sm" variant="outline" disabled={busy} onClick={toggleVisibility}>
+        {internalOnly ? "Make public" : "Mark internal only"}
+      </Button>
     </div>
   );
 }

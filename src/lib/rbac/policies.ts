@@ -26,6 +26,7 @@ export interface TicketAccessShape {
 export interface KnowledgeAccessShape {
   departmentId: string;
   status: "DRAFT" | "IN_REVIEW" | "PUBLISHED" | "ARCHIVED";
+  internalOnly?: boolean;
 }
 
 const CLOSED_LIKE_STATUSES = new Set(["CLOSED", "CANCELLED"]);
@@ -137,9 +138,12 @@ export function canViewKnowledgeArticle(
   actor: PolicyActor,
   article: KnowledgeAccessShape,
 ): boolean {
-  if (article.status === "PUBLISHED") return true;
-  // Draft/in-review/archived content is internal-only.
-  return canDraftOrLinkKnowledge(actor) || isKnowledgeManager(actor);
+  if (article.status !== "PUBLISHED") {
+    // Draft/in-review/archived content is internal-only.
+    return canDraftOrLinkKnowledge(actor) || isKnowledgeManager(actor);
+  }
+  if (article.internalOnly) return canDraftOrLinkKnowledge(actor);
+  return true;
 }
 
 export function canPublishArticle(actor: PolicyActor): boolean {
@@ -151,6 +155,10 @@ export function canArchiveArticle(actor: PolicyActor): boolean {
 }
 
 export function canRecordKnowledgeException(actor: PolicyActor): boolean {
+  return isKnowledgeManager(actor);
+}
+
+export function canSetArticleVisibility(actor: PolicyActor): boolean {
   return isKnowledgeManager(actor);
 }
 

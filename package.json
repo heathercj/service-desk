@@ -27,6 +27,7 @@
     "db:reset": "tsx scripts/db-reset.ts",
     "kb:reindex": "tsx scripts/kb-reindex.ts",
     "kb:validate": "tsx scripts/kb-validate.ts",
+    "sim:run": "tsx scripts/sim-run.ts",
     "security": "pnpm security:secrets && pnpm security:sca && pnpm security:sast && pnpm security:container",
     "security:sast": "semgrep --config auto --config p/typescript --config p/react --config p/nextjs --error --severity ERROR .",
     "security:sca": "osv-scanner scan --lockfile=pnpm-lock.yaml && pnpm audit --audit-level=high || true",

@@ -57,8 +57,13 @@ export default async function KnowledgeManagePage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline">{a.status}</Badge>
+                      {a.internalOnly && <Badge variant="warning">Internal only</Badge>}
                       {isManager && (
-                        <ArticleManageActions articleId={a.id} status={a.status} />
+                        <ArticleManageActions
+                          articleId={a.id}
+                          status={a.status}
+                          internalOnly={a.internalOnly}
+                        />
                       )}
                     </div>
                   </CardContent>

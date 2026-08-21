@@ -13,6 +13,7 @@ const schema = z.object({
   sourceTicketId: z.string().uuid().optional(),
   similarityCandidateArticleIds: z.array(z.string()).default([]),
   highSimilarityOverrideReason: z.string().trim().max(1000).optional(),
+  internalOnly: z.boolean().default(false),
 });
 
 export async function POST(req: NextRequest) {

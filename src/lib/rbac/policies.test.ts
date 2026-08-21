@@ -10,6 +10,7 @@ import {
   canReassign,
   canRecordKnowledgeException,
   canSelfAssign,
+  canSetArticleVisibility,
   canTransferDepartment,
   canViewDepartmentQueue,
   canViewDepartmentWorkload,
@@ -165,5 +166,37 @@ describe("knowledge base access", () => {
     expect(canRecordKnowledgeException(km)).toBe(true);
     expect(canPublishArticle(agent)).toBe(false);
     expect(canRecordKnowledgeException(agent)).toBe(false);
+  });
+
+  it("blocks a customer from a published internal-only article", () => {
+    const c = actor(["CUSTOMER"]);
+    expect(
+      canViewKnowledgeArticle(c, {
+        departmentId: TECH,
+        status: "PUBLISHED",
+        internalOnly: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("lets internal staff view a published internal-only article", () => {
+    const triage = actor(["TRIAGE_AGENT"]);
+    const agent = actor(["DEPARTMENT_AGENT"], [[TECH, false]]);
+    const manager = actor(["DEPARTMENT_MANAGER"], [[TECH, true]]);
+    const km = actor(["KNOWLEDGE_MANAGER"]);
+    const shape = { departmentId: TECH, status: "PUBLISHED" as const, internalOnly: true };
+    expect(canViewKnowledgeArticle(triage, shape)).toBe(true);
+    expect(canViewKnowledgeArticle(agent, shape)).toBe(true);
+    expect(canViewKnowledgeArticle(manager, shape)).toBe(true);
+    expect(canViewKnowledgeArticle(km, shape)).toBe(true);
+  });
+
+  it("restricts changing article visibility to knowledge managers and admins", () => {
+    const km = actor(["KNOWLEDGE_MANAGER"]);
+    const admin = actor(["ADMINISTRATOR"]);
+    const agent = actor(["DEPARTMENT_AGENT"], [[TECH, false]]);
+    expect(canSetArticleVisibility(km)).toBe(true);
+    expect(canSetArticleVisibility(admin)).toBe(true);
+    expect(canSetArticleVisibility(agent)).toBe(false);
   });
 });

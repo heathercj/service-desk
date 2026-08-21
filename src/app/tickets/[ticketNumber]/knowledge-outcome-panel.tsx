@@ -45,6 +45,7 @@ export function KnowledgeOutcomePanel({
   const [draftSummary, setDraftSummary] = useState("");
   const [draftBody, setDraftBody] = useState("");
   const [draftDept, setDraftDept] = useState(departmentKey);
+  const [draftInternalOnly, setDraftInternalOnly] = useState(false);
   const [exceptionReason, setExceptionReason] = useState("");
   const [showException, setShowException] = useState(false);
 
@@ -209,6 +210,15 @@ export function KnowledgeOutcomePanel({
                     rows={6}
                   />
                 </label>
+                <label className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={draftInternalOnly}
+                    onChange={(e) => setDraftInternalOnly(e.target.checked)}
+                  />
+                  Internal only -- never shown to customers (deflection suggestions or
+                  direct article links)
+                </label>
                 <Button
                   size="sm"
                   disabled={busy || !draftSummary.trim() || draftBody.trim().length < 20}
@@ -228,6 +238,7 @@ export function KnowledgeOutcomePanel({
                           sourceTicketId: ticketId,
                           similarityCandidateArticleIds:
                             results?.map((r) => r.articleId) ?? [],
+                          internalOnly: draftInternalOnly,
                         }),
                       });
                       if (!res.ok) {

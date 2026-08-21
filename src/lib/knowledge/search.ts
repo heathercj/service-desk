@@ -20,6 +20,7 @@ export interface KnowledgeSearchHit {
   summary: string;
   departmentId: string;
   status: string;
+  internalOnly: boolean;
   score: number;
   matchReasons: string[];
 }
@@ -28,6 +29,12 @@ export interface KnowledgeSearchOptions {
   statuses: Array<"DRAFT" | "IN_REVIEW" | "PUBLISHED" | "ARCHIVED">;
   departmentId?: string;
   limit?: number;
+  /**
+   * Include internal-only articles in results. Defaults to false so any new
+   * caller is customer-safe by default -- staff-only callers (duplicate
+   * checking, the ticket-detail "similar articles" panel) opt in explicitly.
+   */
+  includeInternalOnly?: boolean;
 }
 
 interface RawRow {
@@ -38,6 +45,7 @@ interface RawRow {
   summary: string;
   departmentId: string;
   status: string;
+  internalOnly: boolean;
   ts_score: number | null;
   title_sim: number;
   summary_sim: number;
@@ -57,6 +65,9 @@ export async function searchKnowledgeArticles(
   const departmentFilter = options.departmentId
     ? Prisma.sql`AND ka."departmentId" = ${options.departmentId}`
     : Prisma.empty;
+  const internalOnlyFilter = options.includeInternalOnly
+    ? Prisma.empty
+    : Prisma.sql`AND ka."internalOnly" = false`;
 
   const rows = await db.$queryRaw<RawRow[]>`
     SELECT
@@ -67,12 +78,14 @@ export async function searchKnowledgeArticles(
       ka.summary,
       ka."departmentId",
       ka.status::text AS status,
+      ka."internalOnly",
       ts_rank_cd(ka."searchVector", plainto_tsquery('english', ${query})) AS ts_score,
       similarity(ka.title, ${query}) AS title_sim,
       similarity(ka.summary, ${query}) AS summary_sim
     FROM "KnowledgeArticle" ka
     WHERE ka.status IN (${statuses})
       ${departmentFilter}
+      ${internalOnlyFilter}
       AND (
         ka."searchVector" @@ plainto_tsquery('english', ${query})
         OR similarity(ka.title, ${query}) > 0.15
@@ -103,6 +116,7 @@ export async function searchKnowledgeArticles(
       summary: row.summary,
       departmentId: row.departmentId,
       status: row.status,
+      internalOnly: row.internalOnly,
       score,
       matchReasons,
     };

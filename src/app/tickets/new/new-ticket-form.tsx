@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -36,6 +36,24 @@ const formSchema = createTicketObjectSchema.omit({
 });
 type FormValues = z.infer<typeof formSchema>;
 
+// Mirrors the server-side limits in attachment-policy.ts. This is just for
+// snappy client feedback -- uploadAttachment() re-enforces everything.
+const MAX_SCREENSHOTS = 8;
+const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024;
+
+async function uploadScreenshot(ticketId: string, file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`/api/tickets/${ticketId}/attachments`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? `Failed to upload ${file.name}`);
+  }
+}
+
 interface Suggestion {
   articleId: string;
   title: string;
@@ -61,6 +79,9 @@ export function NewTicketForm({
   const [deflected, setDeflected] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [screenshots, setScreenshots] = useState<File[]>([]);
+  const [screenshotError, setScreenshotError] = useState<string | null>(null);
+  const [createdTicketNumber, setCreatedTicketNumber] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
@@ -113,6 +134,32 @@ export function NewTicketForm({
     };
   }, [subject, description]);
 
+  function onScreenshotsChange(e: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = ""; // allow re-selecting the same file after removing it
+    setScreenshotError(null);
+    setScreenshots((prev) => {
+      const accepted: File[] = [];
+      for (const file of files) {
+        if (prev.length + accepted.length >= MAX_SCREENSHOTS) {
+          setScreenshotError(`You can attach up to ${MAX_SCREENSHOTS} screenshots.`);
+          break;
+        }
+        if (file.size > MAX_SCREENSHOT_BYTES) {
+          setScreenshotError(`"${file.name}" exceeds the 10 MB limit and was skipped.`);
+          continue;
+        }
+        accepted.push(file);
+      }
+      return [...prev, ...accepted];
+    });
+  }
+
+  function removeScreenshot(index: number) {
+    setScreenshotError(null);
+    setScreenshots((prev) => prev.filter((_, i) => i !== index));
+  }
+
   const urlLines = useMemo(
     () =>
       urlsText
@@ -149,6 +196,20 @@ export function NewTicketForm({
         return;
       }
       const data = await res.json();
+
+      if (screenshots.length > 0) {
+        const results = await Promise.allSettled(
+          screenshots.map((file) => uploadScreenshot(data.ticketId, file)),
+        );
+        const failedCount = results.filter((r) => r.status === "rejected").length;
+        if (failedCount > 0) {
+          setCreatedTicketNumber(data.ticketNumber);
+          setSubmitError(
+            `Ticket ${data.ticketNumber} was created, but ${failedCount} of ${screenshots.length} screenshot(s) failed to upload. Open the ticket below to try again.`,
+          );
+          return;
+        }
+      }
       router.push(`/tickets/${data.ticketNumber}`);
     } finally {
       setSubmitting(false);
@@ -248,10 +309,18 @@ export function NewTicketForm({
       </div>
 
       <div>
-        <Label htmlFor="description">Describe the issue</Label>
+        <Label htmlFor="description">
+          Describe the issue so that the technician can identify the process you were
+          trying to complete, the action that is being prevented, and if possible, share
+          any error messages you are seeing
+        </Label>
         <Textarea
           id="description"
           rows={6}
+          placeholder={
+            "e.g. I was trying to submit a change order in Buildertrend, but clicking " +
+            'Submit does nothing. I see the error "Session expired" in the top corner.'
+          }
           {...register("description")}
           aria-invalid={Boolean(errors.description)}
           aria-describedby="description-hint"
@@ -262,6 +331,45 @@ export function NewTicketForm({
         </p>
         {errors.description && (
           <p className="mt-1 text-sm text-destructive">{errors.description.message}</p>
+        )}
+      </div>
+
+      <div>
+        <Label htmlFor="screenshots">Screenshots (optional)</Label>
+        <input
+          id="screenshots"
+          type="file"
+          accept=".png,.jpg,.jpeg,.webp,.gif"
+          multiple
+          onChange={onScreenshotsChange}
+          className="block text-sm"
+        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          PNG, JPG, WEBP, or GIF -- up to 10 MB each, {MAX_SCREENSHOTS} total. Screenshots
+          are scanned before staff can view them.
+        </p>
+        {screenshotError && (
+          <p className="mt-1 text-sm text-destructive">{screenshotError}</p>
+        )}
+        {screenshots.length > 0 && (
+          <ul className="mt-2 space-y-1">
+            {screenshots.map((file, index) => (
+              <li
+                key={`${file.name}-${index}`}
+                className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1 text-sm"
+              >
+                <span className="truncate">{file.name}</span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => removeScreenshot(index)}
+                >
+                  Remove
+                </Button>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 
@@ -418,7 +526,12 @@ export function NewTicketForm({
           role="alert"
           className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
         >
-          {submitError}
+          {submitError}{" "}
+          {createdTicketNumber && (
+            <a href={`/tickets/${createdTicketNumber}`} className="underline">
+              Open ticket {createdTicketNumber}
+            </a>
+          )}
         </p>
       )}
 

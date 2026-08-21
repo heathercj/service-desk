@@ -28,6 +28,7 @@ export const knowledgeFrontMatterSchema = z.object({
   summary: z.string().min(10).max(500),
   department: z.enum(DEPARTMENT_KEYS),
   audience: z.string().max(80).optional(),
+  internalOnly: z.boolean().default(false),
   status: z.enum(KNOWLEDGE_STATUSES),
   tags: z.array(z.string().min(1).max(40)).max(15).default([]),
   createdDate: z.string().date(),

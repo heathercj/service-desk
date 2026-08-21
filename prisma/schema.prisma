@@ -489,6 +489,12 @@ model KnowledgeArticle {
   status       KnowledgeArticleStatus @default(DRAFT)
   audience     String?
 
+  // When true, never served to CUSTOMER-role viewers: not in ticket-form
+  // deflection suggestions, chat answers, or direct article URLs. Staff
+  // (triage, department agents/managers, knowledge managers, admins) can
+  // still view and link it.
+  internalOnly Boolean @default(false)
+
   filePath    String @unique
   contentHash String
   revision    Int    @default(1)

@@ -40,6 +40,9 @@ export class PostgresKnowledgeSearchProvider implements KnowledgeSearchProvider 
       statuses: ["DRAFT", "IN_REVIEW", "PUBLISHED", "ARCHIVED"],
       departmentId: input.departmentId,
       limit: input.limit ?? 8,
+      // Staff-only duplicate/linking check -- internal-only articles must
+      // still surface here so agents don't accidentally author a duplicate.
+      includeInternalOnly: true,
     });
   }
 }

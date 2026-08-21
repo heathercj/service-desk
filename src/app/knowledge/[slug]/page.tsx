@@ -33,6 +33,11 @@ export default async function KnowledgeArticlePage({
     <article className="mx-auto max-w-2xl space-y-4">
       <div>
         <Badge variant="outline">{article.department.name}</Badge>
+        {article.internalOnly && (
+          <Badge variant="warning" className="ml-2">
+            Internal only
+          </Badge>
+        )}
         <h1 className="mt-2 text-2xl font-semibold">{article.title}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{article.summary}</p>
       </div>

@@ -8,6 +8,7 @@ import {
   canDraftOrLinkKnowledge,
   canPublishArticle,
   canRecordKnowledgeException,
+  canSetArticleVisibility,
   canViewKnowledgeArticle,
   toPolicyActor,
 } from "@/lib/rbac/policies";
@@ -33,6 +34,7 @@ export interface CreateDraftArticleInput {
   sourceTicketId?: string;
   similarityCandidateArticleIds?: string[];
   highSimilarityOverrideReason?: string;
+  internalOnly?: boolean;
 }
 
 export async function createDraftArticle(
@@ -57,6 +59,7 @@ export async function createDraftArticle(
     summary: input.summary,
     department: input.departmentKey,
     status: "draft",
+    internalOnly: input.internalOnly ?? false,
     tags: input.tags,
     createdDate: today,
     updatedDate: today,
@@ -76,6 +79,7 @@ export async function createDraftArticle(
         title: input.title,
         summary: input.summary,
         status: "DRAFT",
+        internalOnly: input.internalOnly ?? false,
         filePath: file.relativePath,
         contentHash: file.contentHash,
         revision: 1,
@@ -244,6 +248,38 @@ export async function restoreArticle(actor: AuthContext, articleId: string) {
     entityId: articleId,
     previousValue: { status: "ARCHIVED" },
     newValue: { status: "PUBLISHED" },
+  });
+
+  return updated;
+}
+
+export async function setArticleVisibility(
+  actor: AuthContext,
+  articleId: string,
+  internalOnly: boolean,
+) {
+  const policyActor = toPolicyActor(actor);
+  assertAuthorized(
+    canSetArticleVisibility(policyActor),
+    "Only a knowledge manager can change article visibility",
+  );
+
+  const article = await db.knowledgeArticle.findUnique({ where: { id: articleId } });
+  if (!article) throw new NotFoundError("Article not found");
+
+  const updated = await db.knowledgeArticle.update({
+    where: { id: articleId },
+    data: { internalOnly },
+  });
+
+  await recordAuditEvent({
+    actorId: actor.userId,
+    actorDisplayName: actor.displayName,
+    action: "KNOWLEDGE_ARTICLE_VISIBILITY_CHANGED",
+    entityType: "KnowledgeArticle",
+    entityId: articleId,
+    previousValue: { internalOnly: article.internalOnly },
+    newValue: { internalOnly },
   });
 
   return updated;

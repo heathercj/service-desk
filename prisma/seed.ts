@@ -138,6 +138,7 @@ async function seedArticle(input: SeedArticleInput) {
     summary: input.summary,
     department: input.departmentKey,
     status: input.status,
+    internalOnly: false,
     tags: input.tags,
     createdDate: today,
     updatedDate: today,
