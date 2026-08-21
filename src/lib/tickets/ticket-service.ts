@@ -28,7 +28,7 @@ import { evaluateResolutionGate } from "@/lib/knowledge/resolution-gate";
 import { validateSubmittedUrls } from "@/lib/validation/url-safety";
 import type { CreateTicketInput } from "@/lib/validation/ticket-schemas";
 import { requireActiveDepartment } from "./department-lookup";
-import { suggestDepartment } from "./department-suggestion";
+import { DEFAULT_DEPARTMENT_KEY, suggestDepartment } from "./department-suggestion";
 import { assertTransition, isTransitionAllowed } from "./state-machine";
 import { nextTicketNumber } from "./ticket-number";
 
@@ -49,21 +49,18 @@ export async function createTicket(actor: AuthContext, input: CreateTicketInput)
   if (!franchise || !franchise.isActive)
     throw new NotFoundError("Franchise not found or inactive");
 
-  const department = await requireActiveDepartment(input.departmentKey);
-
   const urlCheck = validateSubmittedUrls(input.urls, {
     allowHttp: process.env.NODE_ENV !== "production",
   });
   if (!urlCheck.ok) throw new ForbiddenError(urlCheck.errors.join("; "));
 
+  // The customer no longer picks a department -- auto-route by keyword
+  // match, falling back to a default queue. Triage reviews and corrects
+  // this via "Confirm triage & route" (see department-suggestion.ts).
   const suggestion = suggestDepartment(input.subject, input.description);
-  let suggestedDepartmentId: string | null = null;
-  if (suggestion && suggestion.departmentKey !== input.departmentKey) {
-    const suggestedDept = await db.department.findUnique({
-      where: { key: suggestion.departmentKey },
-    });
-    suggestedDepartmentId = suggestedDept?.id ?? null;
-  }
+  const department = await requireActiveDepartment(
+    suggestion?.departmentKey ?? DEFAULT_DEPARTMENT_KEY,
+  );
 
   const ticket = await db.$transaction(async (tx) => {
     const ticketNumber = await nextTicketNumber(tx);
@@ -79,8 +76,9 @@ export async function createTicket(actor: AuthContext, input: CreateTicketInput)
         description: input.description,
         submittedDepartmentId: department.id,
         departmentId: department.id,
-        suggestedDepartmentId,
-        suggestedDepartmentRationale: suggestion?.rationale,
+        suggestedDepartmentRationale:
+          suggestion?.rationale ??
+          "No matching keywords in subject/description -- defaulted to Technology Support",
         isProjectRelated: input.isProjectRelated,
         projectNumber: input.isProjectRelated ? (input.projectNumber ?? null) : null,
         impact: input.impact,

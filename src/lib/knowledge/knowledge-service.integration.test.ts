@@ -34,7 +34,6 @@ describe("knowledge-service integration", () => {
       subject: "Printer shows offline in site office",
       description:
         "The printer has shown offline for two days and we cannot print change orders for the client.",
-      departmentKey: "TECHNOLOGY_SUPPORT",
       isProjectRelated: false,
       urls: [],
       consentAcknowledged: true,

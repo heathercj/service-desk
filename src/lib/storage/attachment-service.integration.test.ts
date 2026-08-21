@@ -35,7 +35,6 @@ describe("attachment-service integration", () => {
       subject: "Screenshot attached of the error",
       description:
         "See attached screenshot for the exact error message shown on screen when this happens.",
-      departmentKey: "TECHNOLOGY_SUPPORT",
       isProjectRelated: false,
       urls: [],
       consentAcknowledged: true,

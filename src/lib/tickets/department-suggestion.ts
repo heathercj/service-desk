@@ -75,6 +75,15 @@ const DEPARTMENT_KEYWORDS: Record<DepartmentKey, string[]> = {
   ],
 };
 
+/**
+ * Customers no longer pick a department when submitting a ticket: every
+ * ticket is auto-routed by keyword match, falling back to this department
+ * when nothing matches. Triage reviews and corrects routing via the
+ * existing "Confirm triage & route" action -- this is only the intake
+ * default, not a final decision.
+ */
+export const DEFAULT_DEPARTMENT_KEY: DepartmentKey = "TECHNOLOGY_SUPPORT";
+
 export interface DepartmentSuggestion {
   departmentKey: DepartmentKey;
   rationale: string;

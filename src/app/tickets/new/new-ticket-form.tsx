@@ -8,7 +8,6 @@ import { z } from "zod";
 import {
   createTicketObjectSchema,
   createTicketSchema,
-  DEPARTMENT_KEYS,
   MIN_DESCRIPTION_LENGTH,
 } from "@/lib/validation/ticket-schemas";
 import { Button } from "@/components/ui/button";
@@ -96,7 +95,6 @@ export function NewTicketForm({
       franchiseId: franchises[0]?.id ?? "",
       subject: "",
       description: "",
-      departmentKey: "TECHNOLOGY_SUPPORT",
       impact: "",
       urgencyNote: "",
       consentAcknowledged: false as unknown as true,
@@ -421,17 +419,6 @@ export function NewTicketForm({
           </CardContent>
         </Card>
       )}
-
-      <div>
-        <Label htmlFor="departmentKey">Department</Label>
-        <Select id="departmentKey" {...register("departmentKey")}>
-          {DEPARTMENT_KEYS.map((key) => (
-            <option key={key} value={key}>
-              {key.replaceAll("_", " ")}
-            </option>
-          ))}
-        </Select>
-      </div>
 
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">Is this related to a project?</legend>

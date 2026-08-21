@@ -19,9 +19,12 @@ import {
   buildEscalationMessage,
   buildCustomerFollowUp,
   buildReopenReason,
+  buildCustomerReflection,
+  buildStaffReflection,
   decideOutcome,
   decideReopen,
 } from "@/lib/simulation/response-engine";
+import { buildScorecard, type TicketRunRecord } from "@/lib/simulation/scorecard";
 import {
   simCreateTicket,
   simConfirmTriage,
@@ -194,13 +197,18 @@ async function assertSeeded() {
   }
 }
 
+interface TicketRunResult {
+  transcript: string;
+  record: TicketRunRecord;
+}
+
 async function runOneTicket(
   ids: Record<string, string>,
   rng: () => number,
   opts: SimOptions,
   index: number,
   franchiseId: string,
-): Promise<string> {
+): Promise<TicketRunResult> {
   const randomIndex = Math.min(
     Math.floor(rng() * CUSTOMER_PERSONAS.length),
     CUSTOMER_PERSONAS.length - 1,
@@ -264,6 +272,8 @@ async function runOneTicket(
   let resolvingActor = agentActor;
   let resolvingPersona: AgentPersona = agentPersona;
   let round = 1;
+  let completedRounds = 0;
+  let escalated = false;
   let outcome = decideOutcome(customer, rng, round);
 
   while (outcome === "follow_up" && round <= 2) {
@@ -292,10 +302,12 @@ async function runOneTicket(
     transcript.push(`${resolvingPersona.displayName}: ${followUpReply}`);
 
     round += 1;
+    completedRounds += 1;
     outcome = decideOutcome(customer, rng, round);
   }
 
   if (outcome === "escalate") {
+    escalated = true;
     const managerPersona = findDepartmentManagerPersona(scenario.departmentKey);
     const managerActor = await buildActor(requireId(ids, managerPersona.key));
 
@@ -328,6 +340,8 @@ async function runOneTicket(
   ticket = resolveResult.ticket;
   transcript.push(`${resolvingPersona.displayName} submitted resolution -> ${ticket.status}`);
 
+  let knowledgeOutcomeType: TicketRunRecord["knowledgeOutcomeType"] = "LINKED_EXISTING";
+
   if (ticket.status === "RESOLUTION_REVIEW") {
     const candidateArticle = await findPublishedArticle(ticket.departmentId);
 
@@ -349,6 +363,7 @@ async function runOneTicket(
         `${resolvingPersona.displayName} linked knowledge article "${candidateArticle.title}" -> ${ticket.status}`,
       );
     } else {
+      knowledgeOutcomeType = "EXCEPTION";
       const kmActor = await buildActor(requireId(ids, "knowledge-manager"));
       const outcomeResult = await simRecordKnowledgeOutcome(db, kmActor, {
         ticketId: ticket.id,
@@ -361,7 +376,9 @@ async function runOneTicket(
     }
   }
 
+  let reopened = false;
   if (ticket.status === "RESOLVED" && decideReopen(customer, rng)) {
+    reopened = true;
     const reason = buildReopenReason(customer, scenario);
     ticket = await simTransitionTicketStatus(db, customerActor, {
       ticketId: ticket.id,
@@ -370,12 +387,26 @@ async function runOneTicket(
       reason,
     });
     transcript.push(`${customer.displayName} reopened the ticket: ${reason}`);
-  } else if (ticket.status === "RESOLVED") {
-    transcript.push(`${customer.displayName} is satisfied with the resolution.`);
   }
 
   transcript.push(`Final status: ${ticket.status}`);
-  return transcript.join("\n");
+
+  const record: TicketRunRecord = {
+    customerKey: customer.key,
+    customerDisplayName: customer.displayName,
+    resolvingPersonaKey: resolvingPersona.key,
+    resolvingPersonaDisplayName: resolvingPersona.displayName,
+    rounds: completedRounds,
+    escalated,
+    knowledgeOutcomeType,
+    reopened,
+    finalStatus: ticket.status,
+  };
+
+  transcript.push(buildCustomerReflection(customer, record));
+  transcript.push(buildStaffReflection(resolvingPersona, record));
+
+  return { transcript: transcript.join("\n"), record };
 }
 
 async function main() {
@@ -391,10 +422,14 @@ async function main() {
   console.log(`Ensured ${Object.keys(ids).length} simulation persona users.`);
 
   const rng = createRng(opts.seed);
+  const records: TicketRunRecord[] = [];
   for (let i = 0; i < opts.count; i++) {
-    const transcript = await runOneTicket(ids, rng, opts, i, franchise.id);
+    const { transcript, record } = await runOneTicket(ids, rng, opts, i, franchise.id);
     console.log(transcript);
+    records.push(record);
   }
+
+  console.log(buildScorecard(records));
 }
 
 main()

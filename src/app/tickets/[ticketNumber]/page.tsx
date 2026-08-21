@@ -98,10 +98,16 @@ export default async function TicketDetailPage({
             <Field label="Category" value={ticket.category} />
           )}
           {isStaffView && ticket.impact && <Field label="Impact" value={ticket.impact} />}
-          {isStaffView && ticket.suggestedDepartment && (
+          {isStaffView && ticket.suggestedDepartmentRationale && (
             <Field
-              label="Suggested department"
-              value={`${ticket.suggestedDepartment.name}${ticket.suggestedDepartmentRationale ? ` -- ${ticket.suggestedDepartmentRationale}` : ""}`}
+              label={
+                ticket.suggestedDepartment ? "Suggested department" : "Auto-routed because"
+              }
+              value={
+                ticket.suggestedDepartment
+                  ? `${ticket.suggestedDepartment.name} -- ${ticket.suggestedDepartmentRationale}`
+                  : ticket.suggestedDepartmentRationale
+              }
             />
           )}
         </CardContent>

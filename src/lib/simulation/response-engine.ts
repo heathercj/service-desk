@@ -1,5 +1,6 @@
 import type { AgentPersona } from "./agent-personas";
 import type { CustomerPersona, TicketScenario } from "./customer-personas";
+import type { TicketRunRecord } from "./scorecard";
 
 /**
  * Pure, deterministic simulation logic -- no database/network access. Mirrors
@@ -97,4 +98,40 @@ export function decideOutcome(
 
 export function decideReopen(customer: CustomerPersona, rng: Rng): boolean {
   return rng() < customer.behavior.escalationThreshold * 0.5;
+}
+
+type ReflectionRecord = Pick<
+  TicketRunRecord,
+  "rounds" | "escalated" | "knowledgeOutcomeType" | "reopened"
+>;
+
+/** Customer's own reflection on the experience -- derived from what actually happened, not free-form opinion. */
+export function buildCustomerReflection(
+  customer: CustomerPersona,
+  record: ReflectionRecord,
+): string {
+  if (record.reopened) {
+    return `[reflection] ${customer.displayName}: This didn't actually stick -- I'm having to raise it again, which isn't what I expect.`;
+  }
+  if (record.escalated) {
+    return `[reflection] ${customer.displayName}: Glad it got sorted, but it shouldn't have needed a manager to step in for something like this.`;
+  }
+  if (record.rounds > 0) {
+    return `[reflection] ${customer.displayName}: Took a couple of tries to land, but we got there in the end.`;
+  }
+  return `[reflection] ${customer.displayName}: Fixed on the first reply -- exactly what I needed.`;
+}
+
+/** Resolving staff persona's reflection -- surfaces process friction (escalation, missing KB coverage), not customer sentiment. */
+export function buildStaffReflection(persona: AgentPersona, record: ReflectionRecord): string {
+  if (record.escalated) {
+    return `[reflection] ${persona.displayName}: This one needed escalation -- more friction than a routine ticket in this department should require.`;
+  }
+  if (record.knowledgeOutcomeType === "EXCEPTION") {
+    return `[reflection] ${persona.displayName}: Resolved it, but we still don't have a knowledge article covering this -- worth drafting one so the next agent doesn't start from scratch.`;
+  }
+  if (record.rounds > 0) {
+    return `[reflection] ${persona.displayName}: Needed a follow-up round before it landed, but ${persona.skills[0]} got us there.`;
+  }
+  return `[reflection] ${persona.displayName}: Straightforward -- resolved on the first reply using ${persona.skills[0]}.`;
 }

@@ -39,7 +39,6 @@ describe("ticket-service integration", () => {
       subject: "VPN will not connect from home network",
       description:
         "The VPN client fails to authenticate every time I try to connect from home, since yesterday.",
-      departmentKey: "TECHNOLOGY_SUPPORT",
       isProjectRelated: false,
       urls: [],
       consentAcknowledged: true,

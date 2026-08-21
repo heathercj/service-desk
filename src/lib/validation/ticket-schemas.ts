@@ -51,7 +51,6 @@ export const createTicketObjectSchema = z.object({
     )
     .max(MAX_DESCRIPTION_LENGTH)
     .transform(normalizeText),
-  departmentKey: z.enum(DEPARTMENT_KEYS),
   isProjectRelated: z.boolean(),
   projectNumber: z.string().trim().optional(),
   urls: z.array(urlSchema).max(MAX_URLS_PER_TICKET).default([]),
