@@ -11,7 +11,9 @@ import {
   confirmTriage,
   createTicket,
   getTicketForActor,
+  listDepartmentQueue,
   resolveTicket,
+  searchTickets,
   selfAssignTicket,
   transitionTicketStatus,
 } from "./ticket-service";
@@ -220,4 +222,174 @@ describe("ticket-service integration", () => {
     const stillBlocked = await getTicketForActor(agent, inProgress.id);
     expect(stillBlocked.ticket.status).toBe("RESOLUTION_REVIEW");
   });
+
+  it("lets triage assign a ticket directly to an agent while routing it", async () => {
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+    const agent = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+    });
+
+    const ticket = await createTicket(customer, await baseTicketInput(franchise.id));
+
+    const routed = await confirmTriage(triage, {
+      ticketId: ticket.id,
+      version: ticket.version,
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      priority: "MEDIUM",
+      tags: [],
+      assigneeId: agent.userId,
+    });
+
+    expect(routed.status).toBe("ASSIGNED");
+    expect(routed.assigneeId).toBe(agent.userId);
+  });
+
+  it("refuses to assign at triage to a user outside the target department", async () => {
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+    const outsider = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TRAINING" }],
+    });
+
+    const ticket = await createTicket(customer, await baseTicketInput(franchise.id));
+
+    await expect(
+      confirmTriage(triage, {
+        ticketId: ticket.id,
+        version: ticket.version,
+        departmentKey: "TECHNOLOGY_SUPPORT",
+        priority: "MEDIUM",
+        tags: [],
+        assigneeId: outsider.userId,
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("filters the department queue by assignee for the mine/others views", async () => {
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+    const agentA = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+    });
+    const agentB = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+    });
+    const techDeptId = await getDepartmentId("TECHNOLOGY_SUPPORT");
+
+    const ticketA = await createTicket(customer, await baseTicketInput(franchise.id));
+    const routedA = await confirmTriage(triage, {
+      ticketId: ticketA.id,
+      version: ticketA.version,
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      priority: "MEDIUM",
+      tags: [],
+      assigneeId: agentA.userId,
+    });
+    await transitionTicketStatus(agentA, {
+      ticketId: ticketA.id,
+      version: routedA.version,
+      toStatus: "IN_PROGRESS",
+    });
+
+    const ticketB = await createTicket(customer, await baseTicketInput(franchise.id));
+    const routedB = await confirmTriage(triage, {
+      ticketId: ticketB.id,
+      version: ticketB.version,
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      priority: "MEDIUM",
+      tags: [],
+      assigneeId: agentB.userId,
+    });
+    await transitionTicketStatus(agentB, {
+      ticketId: ticketB.id,
+      version: routedB.version,
+      toStatus: "IN_PROGRESS",
+    });
+
+    const resolvedTicket = await createTicket(customer, await baseTicketInput(franchise.id));
+    await confirmTriage(triage, {
+      ticketId: resolvedTicket.id,
+      version: resolvedTicket.version,
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      priority: "MEDIUM",
+      tags: [],
+    });
+    await db.ticket.update({
+      where: { id: resolvedTicket.id },
+      data: { status: "RESOLVED" },
+    });
+
+    const mine = await listDepartmentQueue(agentA, techDeptId, {
+      status: ["IN_PROGRESS"],
+      assigneeId: agentA.userId,
+    });
+    expect(mine.items.map((t) => t.id)).toEqual([ticketA.id]);
+
+    // The shared TECHNOLOGY_SUPPORT department accumulates tickets from
+    // other tests (and manual sessions) that this test doesn't control, so
+    // assert containment/exclusion rather than an exact result set.
+    const others = await listDepartmentQueue(agentA, techDeptId, {
+      status: ["IN_PROGRESS"],
+      assignedToOtherThan: agentA.userId,
+      pageSize: 100,
+    });
+    const otherIds = others.items.map((t) => t.id);
+    expect(otherIds).toContain(ticketB.id);
+    expect(otherIds).not.toContain(ticketA.id);
+
+    const resolved = await listDepartmentQueue(agentA, techDeptId, {
+      status: ["RESOLVED", "CLOSED", "CANCELLED"],
+      pageSize: 100,
+    });
+    const resolvedIds = resolved.items.map((t) => t.id);
+    expect(resolvedIds).toContain(resolvedTicket.id);
+    expect(resolvedIds).not.toContain(ticketA.id);
+    expect(resolvedIds).not.toContain(ticketB.id);
+  });
+
+  it("scopes ticket search to the searcher's own department, except for triage/admin", async () => {
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+    const techAgent = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+    });
+
+    const uniqueSubject = `Search probe ${randomSuffix()}`;
+    const ticket = await createTicket(customer, {
+      ...(await baseTicketInput(franchise.id)),
+      subject: uniqueSubject,
+      description:
+        "This ticket exists only to verify search scoping across departments for staff.",
+    });
+    await confirmTriage(triage, {
+      ticketId: ticket.id,
+      version: ticket.version,
+      departmentKey: "TRAINING",
+      priority: "MEDIUM",
+      tags: [],
+    });
+
+    const asTechAgent = await searchTickets(techAgent, { query: uniqueSubject });
+    expect(asTechAgent.items).toHaveLength(0);
+
+    const asTriage = await searchTickets(triage, { query: uniqueSubject });
+    expect(asTriage.items.map((t) => t.id)).toEqual([ticket.id]);
+
+    const byNumber = await searchTickets(triage, { query: ticket.ticketNumber });
+    expect(byNumber.items.map((t) => t.id)).toEqual([ticket.id]);
+  });
 });
+
+function randomSuffix() {
+  return Math.random().toString(36).slice(2, 8);
+}

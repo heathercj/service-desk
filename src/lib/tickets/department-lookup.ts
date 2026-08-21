@@ -15,3 +15,31 @@ export async function requireActiveDepartment(
   }
   return department;
 }
+
+export interface DepartmentAgentOption {
+  id: string;
+  displayName: string;
+}
+
+/**
+ * Every user with a DepartmentMembership row for a department is eligible to
+ * be assigned tickets there -- the same assumption `reassignTicket()` relies
+ * on. Used to populate "assign directly to" pickers (e.g. triage routing).
+ */
+export async function listAgentsByDepartment(): Promise<
+  Record<string, DepartmentAgentOption[]>
+> {
+  const memberships = await db.departmentMembership.findMany({
+    include: { user: true, department: true },
+  });
+
+  const byDepartment: Record<string, DepartmentAgentOption[]> = {};
+  for (const membership of memberships) {
+    const key = membership.department.key;
+    (byDepartment[key] ??= []).push({
+      id: membership.userId,
+      displayName: membership.user.displayName,
+    });
+  }
+  return byDepartment;
+}

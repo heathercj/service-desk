@@ -111,6 +111,7 @@ export const triageActionSchema = z.object({
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]),
   tags: z.array(z.string().trim().min(1).max(40)).max(10).default([]),
   internalNote: z.string().trim().max(2000).optional(),
+  assigneeId: z.string().uuid().optional(),
 });
 
 export const resolveTicketSchema = z.object({

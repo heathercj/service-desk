@@ -27,6 +27,17 @@ export const TICKET_STATUSES = [
   "CANCELLED",
 ] as const satisfies readonly TicketStatus[];
 
+// Statuses a queue considers "finished" and hides by default (Section 10).
+export const NOT_LIVE_STATUSES = [
+  "RESOLVED",
+  "CLOSED",
+  "CANCELLED",
+] as const satisfies readonly TicketStatus[];
+
+export const LIVE_STATUSES = TICKET_STATUSES.filter(
+  (s) => !(NOT_LIVE_STATUSES as readonly TicketStatus[]).includes(s),
+);
+
 interface TransitionRule {
   from: TicketStatus;
   to: TicketStatus;

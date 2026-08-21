@@ -16,7 +16,7 @@ export interface TicketRunRecord {
   finalStatus: string;
 }
 
-interface GroupStats {
+export interface GroupStats {
   label: string;
   count: number;
   satisfiedCount: number;
@@ -25,7 +25,7 @@ interface GroupStats {
   totalRounds: number;
 }
 
-function groupBy(
+export function groupBy(
   records: TicketRunRecord[],
   keyOf: (r: TicketRunRecord) => string,
   labelOf: (r: TicketRunRecord) => string,
@@ -54,6 +54,22 @@ function groupBy(
   return [...groups.values()];
 }
 
+export function summarizeByCustomer(records: TicketRunRecord[]): GroupStats[] {
+  return groupBy(
+    records,
+    (r) => r.customerKey,
+    (r) => r.customerDisplayName,
+  ).sort((a, b) => a.label.localeCompare(b.label));
+}
+
+export function summarizeByStaff(records: TicketRunRecord[]): GroupStats[] {
+  return groupBy(
+    records,
+    (r) => r.resolvingPersonaKey,
+    (r) => r.resolvingPersonaDisplayName,
+  ).sort((a, b) => a.label.localeCompare(b.label));
+}
+
 function pct(count: number, total: number): string {
   return total === 0 ? "n/a" : `${Math.round((count / total) * 100)}%`;
 }
@@ -73,20 +89,10 @@ export function buildScorecard(records: TicketRunRecord[]): string {
   const lines: string[] = [];
 
   lines.push("\n=== Customer feedback scorecard ===");
-  const byCustomer = groupBy(
-    records,
-    (r) => r.customerKey,
-    (r) => r.customerDisplayName,
-  ).sort((a, b) => a.label.localeCompare(b.label));
-  for (const g of byCustomer) lines.push(formatGroup(g));
+  for (const g of summarizeByCustomer(records)) lines.push(formatGroup(g));
 
   lines.push("\n=== Staff feedback scorecard ===");
-  const byStaff = groupBy(
-    records,
-    (r) => r.resolvingPersonaKey,
-    (r) => r.resolvingPersonaDisplayName,
-  ).sort((a, b) => a.label.localeCompare(b.label));
-  for (const g of byStaff) lines.push(formatGroup(g));
+  for (const g of summarizeByStaff(records)) lines.push(formatGroup(g));
 
   lines.push("\n=== Overall ===");
   const [overall] = groupBy(

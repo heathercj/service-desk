@@ -11,6 +11,11 @@ import { ConfirmDialog, type ConfirmDialogHandle } from "@/components/ui/confirm
 import { DEPARTMENT_KEYS } from "@/lib/validation/ticket-schemas";
 import { titleCase } from "@/lib/utils";
 
+interface DepartmentAgentOption {
+  id: string;
+  displayName: string;
+}
+
 interface TicketActionsProps {
   ticket: {
     id: string;
@@ -22,6 +27,7 @@ interface TicketActionsProps {
   roles: string[];
   allowedNextStatuses: string[];
   knowledgeLinks: Array<{ id: string; outcomeType: string; articleTitle: string | null }>;
+  departmentAgents: Record<string, DepartmentAgentOption[]>;
 }
 
 const CANCEL_ROLES = new Set(["TRIAGE_AGENT", "DEPARTMENT_MANAGER", "ADMINISTRATOR"]);
@@ -52,6 +58,7 @@ export function TicketActions({
   roles,
   allowedNextStatuses,
   knowledgeLinks,
+  departmentAgents,
 }: TicketActionsProps) {
   const router = useRouter();
   const roleSet = new Set(roles);
@@ -62,6 +69,7 @@ export function TicketActions({
   const [resolutionSteps, setResolutionSteps] = useState("");
   const [transferReason, setTransferReason] = useState("");
   const [transferDept, setTransferDept] = useState(ticket.departmentKey);
+  const [triageAssigneeId, setTriageAssigneeId] = useState("");
   const [cancelReason, setCancelReason] = useState("");
   const [reopenReason, setReopenReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -186,12 +194,30 @@ export function TicketActions({
               Department
               <Select
                 value={transferDept}
-                onChange={(e) => setTransferDept(e.target.value)}
+                onChange={(e) => {
+                  setTransferDept(e.target.value);
+                  setTriageAssigneeId("");
+                }}
                 className="mt-1"
               >
                 {DEPARTMENT_KEYS.map((k) => (
                   <option key={k} value={k}>
                     {titleCase(k)}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className="text-sm">
+              Assign directly to (optional)
+              <Select
+                value={triageAssigneeId}
+                onChange={(e) => setTriageAssigneeId(e.target.value)}
+                className="mt-1"
+              >
+                <option value="">Leave in queue (unassigned)</option>
+                {(departmentAgents[transferDept] ?? []).map((agent) => (
+                  <option key={agent.id} value={agent.id}>
+                    {agent.displayName}
                   </option>
                 ))}
               </Select>
@@ -205,11 +231,14 @@ export function TicketActions({
                     departmentKey: transferDept,
                     priority: "MEDIUM",
                     tags: [],
+                    assigneeId: triageAssigneeId || undefined,
                   });
                 })
               }
             >
-              Confirm triage &amp; route to {titleCase(transferDept)}
+              {triageAssigneeId
+                ? `Confirm triage, route to ${titleCase(transferDept)}, and assign`
+                : `Confirm triage & route to ${titleCase(transferDept)}`}
             </Button>
           </CardContent>
         </Card>

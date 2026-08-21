@@ -12,8 +12,11 @@ import {
   canTriageTicket,
   canViewInternalNotes,
   canViewTicket,
+  isAdministrator,
+  isDepartmentAgentRole,
   isDepartmentMember,
   isKnowledgeManager,
+  isTriageAgent,
   toPolicyActor,
 } from "@/lib/rbac/policies";
 import {
@@ -239,6 +242,10 @@ export interface TicketListFilters {
   search?: string;
   page?: number;
   pageSize?: number;
+  /** Exact-match assignee (e.g. "assigned to me"). */
+  assigneeId?: string;
+  /** Assignee is set, and is not this user (e.g. "in progress by others"). */
+  assignedToOtherThan?: string;
 }
 
 function paginate(filters: TicketListFilters) {
@@ -322,6 +329,15 @@ export async function listDepartmentQueue(
   const where: Prisma.TicketWhereInput = {
     departmentId,
     ...(filters.status?.length ? { status: { in: filters.status } } : {}),
+    ...(filters.assigneeId ? { assigneeId: filters.assigneeId } : {}),
+    ...(filters.assignedToOtherThan
+      ? {
+          AND: [
+            { assigneeId: { not: null } },
+            { assigneeId: { not: filters.assignedToOtherThan } },
+          ],
+        }
+      : {}),
   };
 
   const [items, total] = await Promise.all([
@@ -338,6 +354,63 @@ export async function listDepartmentQueue(
   return { items, total, page, pageSize };
 }
 
+export interface SearchTicketsFilters {
+  query: string;
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * Cross-department ticket search by number or keyword, scoped to exactly
+ * what `canViewTicket` would already let this actor open (Section 10):
+ * Administrators and Triage Agents have unconditional ticket visibility,
+ * Department Agents/Managers are limited to their own department(s), and
+ * no one else can search tickets at all.
+ */
+export async function searchTickets(actor: AuthContext, filters: SearchTicketsFilters) {
+  const policyActor = toPolicyActor(actor);
+  const { skip, take, page, pageSize } = paginate(filters);
+  const query = filters.query.trim();
+  if (!query) return { items: [], total: 0, page, pageSize };
+
+  let scope: Prisma.TicketWhereInput;
+  if (isAdministrator(policyActor) || isTriageAgent(policyActor)) {
+    scope = {};
+  } else if (isDepartmentAgentRole(policyActor)) {
+    const departmentIds = [...policyActor.departments.keys()];
+    assertAuthorized(departmentIds.length > 0, "You cannot search tickets");
+    scope = { departmentId: { in: departmentIds } };
+  } else {
+    throw new ForbiddenError("You cannot search tickets");
+  }
+
+  const where: Prisma.TicketWhereInput = {
+    AND: [
+      scope,
+      {
+        OR: [
+          { ticketNumber: { contains: query, mode: "insensitive" } },
+          { subject: { contains: query, mode: "insensitive" } },
+          { description: { contains: query, mode: "insensitive" } },
+        ],
+      },
+    ],
+  };
+
+  const [items, total] = await Promise.all([
+    db.ticket.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip,
+      take,
+      include: { department: true, assignee: true },
+    }),
+    db.ticket.count({ where }),
+  ]);
+
+  return { items, total, page, pageSize };
+}
+
 export interface ConfirmTriageInput {
   ticketId: string;
   version: number;
@@ -347,6 +420,7 @@ export interface ConfirmTriageInput {
   priority: TicketPriority;
   tags: string[];
   internalNote?: string;
+  assigneeId?: string;
 }
 
 export async function confirmTriage(actor: AuthContext, input: ConfirmTriageInput) {
@@ -384,6 +458,18 @@ export async function confirmTriage(actor: AuthContext, input: ConfirmTriageInpu
     }
     assertTransition("IN_TRIAGE", "QUEUED", policyActor.roles);
 
+    if (input.assigneeId) {
+      const membership = await tx.departmentMembership.findUnique({
+        where: {
+          userId_departmentId: { userId: input.assigneeId, departmentId: targetDepartment.id },
+        },
+      });
+      assertAuthorized(
+        Boolean(membership),
+        "Target user is not a member of this department",
+      );
+    }
+
     if (input.internalNote?.trim()) {
       await tx.internalNote.create({
         data: {
@@ -413,11 +499,12 @@ export async function confirmTriage(actor: AuthContext, input: ConfirmTriageInpu
       where: { id: ticket.id },
       data: {
         version: { increment: 1 },
-        status: "QUEUED",
+        status: input.assigneeId ? "ASSIGNED" : "QUEUED",
         departmentId: targetDepartment.id,
         franchiseId: input.franchiseId ?? ticket.franchiseId,
         category: input.category ?? ticket.category,
         priority: input.priority,
+        assigneeId: input.assigneeId ?? null,
       },
     });
 
@@ -429,6 +516,25 @@ export async function confirmTriage(actor: AuthContext, input: ConfirmTriageInpu
         changedById: actor.userId,
       },
     });
+
+    if (input.assigneeId) {
+      await tx.ticketStatusHistory.create({
+        data: {
+          ticketId: ticket.id,
+          fromStatus: "QUEUED",
+          toStatus: "ASSIGNED",
+          changedById: actor.userId,
+        },
+      });
+      await tx.ticketAssignmentHistory.create({
+        data: {
+          ticketId: ticket.id,
+          fromAssigneeId: null,
+          toAssigneeId: input.assigneeId,
+          changedById: actor.userId,
+        },
+      });
+    }
 
     if (previousDepartmentId !== targetDepartment.id) {
       await tx.ticketDepartmentHistory.create({
@@ -458,6 +564,7 @@ export async function confirmTriage(actor: AuthContext, input: ConfirmTriageInpu
           departmentId: targetDepartment.id,
           priority: input.priority,
           category: input.category,
+          assigneeId: input.assigneeId,
         },
       },
       tx,

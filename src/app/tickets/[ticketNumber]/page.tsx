@@ -4,6 +4,7 @@ import {
   getTicketByNumberForActor,
   findSimilarTickets,
 } from "@/lib/tickets/ticket-service";
+import { listAgentsByDepartment } from "@/lib/tickets/department-lookup";
 import { getAllowedNextStatuses } from "@/lib/tickets/state-machine";
 import { getKnowledgeSearchProvider } from "@/lib/knowledge/similarity";
 import { ForbiddenError, NotFoundError } from "@/lib/rbac/errors";
@@ -49,7 +50,7 @@ export default async function TicketDetailPage({
   const isStaffView = includeInternal;
   const allowedNextStatuses = getAllowedNextStatuses(ticket.status, auth.roles);
 
-  const [similarTickets, suggestedArticles] = isStaffView
+  const [similarTickets, suggestedArticles, departmentAgents] = isStaffView
     ? await Promise.all([
         findSimilarTickets(ticket.id, ticket.departmentId, ticket.subject),
         getKnowledgeSearchProvider().findSimilarArticles({
@@ -58,8 +59,9 @@ export default async function TicketDetailPage({
           departmentId: ticket.departmentId,
           limit: 5,
         }),
+        listAgentsByDepartment(),
       ])
-    : [[], []];
+    : [[], [], {}];
 
   return (
     <div className="space-y-6">
@@ -302,6 +304,7 @@ export default async function TicketDetailPage({
           outcomeType: l.outcomeType,
           articleTitle: l.article?.title ?? null,
         }))}
+        departmentAgents={departmentAgents}
       />
     </div>
   );

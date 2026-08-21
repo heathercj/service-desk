@@ -2,22 +2,64 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAuthContext } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import { listDepartmentQueue } from "@/lib/tickets/ticket-service";
+import { listDepartmentQueue, type TicketListFilters } from "@/lib/tickets/ticket-service";
+import { LIVE_STATUSES } from "@/lib/tickets/state-machine";
 import { canViewDepartmentWorkload, toPolicyActor } from "@/lib/rbac/policies";
 import { AccessDenied } from "@/components/access-denied";
 import { StatusBadge, PriorityBadge } from "@/components/ticket-badges";
 import { Card, CardContent } from "@/components/ui/card";
 import { ForbiddenError, NotFoundError } from "@/lib/rbac/errors";
-import { formatDate } from "@/lib/utils";
+import { formatDate, cn } from "@/lib/utils";
+
+const VIEWS = [
+  { key: "all", label: "All" },
+  { key: "mine", label: "Assigned to me" },
+  { key: "triage", label: "In Triage" },
+  { key: "in-progress", label: "In Progress (Others)" },
+  { key: "on-hold", label: "On Hold (Others)" },
+  { key: "waiting", label: "Waiting on Customer (Others)" },
+  { key: "reopened", label: "Reopened" },
+] as const;
+type ViewKey = (typeof VIEWS)[number]["key"] | "resolved";
+
+function viewFilters(view: ViewKey, userId: string): TicketListFilters {
+  switch (view) {
+    case "mine":
+      return { status: [...LIVE_STATUSES], assigneeId: userId };
+    case "triage":
+      return { status: ["SUBMITTED", "IN_TRIAGE"] };
+    case "in-progress":
+      return { status: ["IN_PROGRESS"], assignedToOtherThan: userId };
+    case "on-hold":
+      return { status: ["PENDING"], assignedToOtherThan: userId };
+    case "waiting":
+      return { status: ["WAITING_FOR_CUSTOMER"], assignedToOtherThan: userId };
+    case "reopened":
+      return { status: ["REOPENED"] };
+    case "resolved":
+      return { status: ["RESOLVED", "CLOSED", "CANCELLED"] };
+    case "all":
+    default:
+      return { status: [...LIVE_STATUSES] };
+  }
+}
 
 export default async function DepartmentQueuePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ departmentKey: string }>;
+  searchParams: Promise<{ view?: string }>;
 }) {
   const { departmentKey } = await params;
+  const { view: rawView } = await searchParams;
   const auth = await getAuthContext();
   if (!auth) redirect("/login");
+
+  const view: ViewKey =
+    rawView === "resolved" || VIEWS.some((v) => v.key === rawView)
+      ? (rawView as ViewKey)
+      : "all";
 
   const department = await db.department.findFirst({
     where: { key: departmentKey as never, isActive: true },
@@ -26,7 +68,10 @@ export default async function DepartmentQueuePage({
 
   let result;
   try {
-    result = await listDepartmentQueue(auth, department.id, { pageSize: 100 });
+    result = await listDepartmentQueue(auth, department.id, {
+      ...viewFilters(view, auth.userId),
+      pageSize: 100,
+    });
   } catch (err) {
     if (err instanceof ForbiddenError) return <AccessDenied message={err.message} />;
     if (err instanceof NotFoundError)
@@ -47,6 +92,36 @@ export default async function DepartmentQueuePage({
       <div>
         <h1 className="text-2xl font-semibold">{department.name} queue</h1>
         <p className="text-sm text-muted-foreground">{result.total} ticket(s).</p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap gap-2">
+          {VIEWS.map((v) => (
+            <Link
+              key={v.key}
+              href={`/queue/${departmentKey}?view=${v.key}`}
+              className={cn(
+                "rounded-md border px-3 py-1.5 text-sm",
+                view === v.key
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {v.label}
+            </Link>
+          ))}
+        </div>
+        <Link
+          href={`/queue/${departmentKey}?view=resolved`}
+          className={cn(
+            "ml-auto rounded-md border px-3 py-1.5 text-sm",
+            view === "resolved"
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border text-muted-foreground hover:text-foreground",
+          )}
+        >
+          Show resolved tickets
+        </Link>
       </div>
 
       {isManager && (

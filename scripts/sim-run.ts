@@ -25,6 +25,7 @@ import {
   decideReopen,
 } from "@/lib/simulation/response-engine";
 import { buildScorecard, type TicketRunRecord } from "@/lib/simulation/scorecard";
+import { buildTeamDiscussion } from "@/lib/simulation/discussion";
 import {
   simCreateTicket,
   simConfirmTriage,
@@ -430,6 +431,7 @@ async function main() {
   }
 
   console.log(buildScorecard(records));
+  console.log(buildTeamDiscussion(records));
 }
 
 main()
