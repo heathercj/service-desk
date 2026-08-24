@@ -33,8 +33,32 @@ RUN DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build?schema=public" \
     ENABLE_DEV_AUTH="false" \
     pnpm build
 
-FROM base AS runner
+# Deliberately not `FROM base`: base carries the package manager the build
+# stages need, and the runtime does not need one. It only ever runs
+# `node server.js`.
+FROM node:22.17.0-bookworm-slim AS runner
 ENV NODE_ENV=production
+WORKDIR /app
+
+# Two things, both because this is the only stage that ships.
+#
+# apt-get upgrade picks up the Debian security patches released since the
+# base tag was cut. Without it the image inherits whatever was current when
+# the tag was published, which by now is a dozen fixable HIGH CVEs in gpgv,
+# libgnutls30, libpam-modules and friends.
+#
+# Removing npm and corepack clears every remaining node-pkg finding at once:
+# tar, minimatch, glob, brace-expansion, ip-address and sigstore are all
+# vendored inside them, and none of it is reachable from a running app.
+RUN apt-get update \
+  && apt-get upgrade -y \
+  && rm -rf /var/lib/apt/lists/* \
+  && rm -rf /usr/local/lib/node_modules/npm \
+            /usr/local/lib/node_modules/corepack \
+            /usr/local/bin/npm \
+            /usr/local/bin/npx \
+            /usr/local/bin/corepack
+
 RUN addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
 COPY --from=build /app/public ./public
