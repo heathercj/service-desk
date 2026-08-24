@@ -8,7 +8,15 @@ import type { Page } from "@playwright/test";
 export async function signInAsDevIdentity(page: Page, displayNamePrefix: string) {
   await page.goto("/login");
   await page.getByRole("button", { name: new RegExp(displayNamePrefix) }).click();
-  await page.waitForURL((url) => !url.pathname.startsWith("/login"));
+  // `commit`, not the default `load`: all this step needs to know is that the
+  // sign-in navigation left /login. Waiting for `load` made every spec that
+  // switches identity mid-test flaky under parallel workers -- the dev server
+  // compiles routes on demand, so the page had reached /dashboard while its
+  // load event was still tens of seconds away. Callers do their own
+  // `goto`/assertion afterwards, which waits properly.
+  await page.waitForURL((url) => !url.pathname.startsWith("/login"), {
+    waitUntil: "commit",
+  });
 }
 
 export const DEV_IDENTITIES = {
