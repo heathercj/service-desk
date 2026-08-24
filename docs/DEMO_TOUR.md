@@ -1,14 +1,31 @@
 # The guided demo tour (Henry)
 
-An in-app tour that carries a viewer through the golden path -- intake,
-triage, the work, the resolution gate, the article, the review, and the
-deflection -- creating real records as it goes.
+An in-app tour that carries a viewer through the golden path -- a welcome,
+intake, triage, the work, the resolution gate, the article, the review, and
+the deflection -- creating real records as it goes.
 
-Built for an internal-systems demo to a technical audience, which shapes the
-narration: it names the enforcement point rather than the benefit, because
-the room will read each line as a claim and then try to break it. Where the
-app is less capable than the story implies, Henry says so (see
-`publish-article`, which admits the console publishes straight from `DRAFT`).
+Built to **teach the workflow** to the people who will use the desk:
+franchise partners, triage, department agents, whoever ends up looking after
+the knowledge base. That shapes everything about the narration.
+
+- It names the job being done, never the mechanism doing it. No route names,
+  no schema names, no table names. A viewer should leave able to do their part
+  of this, not able to describe how it is built. The technical account of the
+  same path is `docs/TICKET_LIFECYCLE.md` and
+  `docs/KNOWLEDGE_LIFECYCLE.md` -- send a developer there instead.
+- It opens with four narration-only steps (the `welcome` beat) that introduce
+  Henry, say what the Service Desk is for, and state what the viewer should
+  leave knowing. A walkthrough that starts by filling in a form teaches the
+  form, not the desk.
+- It still may not overstate what the app does. Several lines are narrower
+  than they could be for that reason -- `kb-check` says drafts are included in
+  the agent's search because they are, and `deflect-proof` does not claim
+  Jordan's ticket list is empty because it is not.
+
+The pace is set for someone seeing this for the first time: reading dwell,
+per-character typing and the pause before each click are all half again
+slower than a rehearsal pace, and the panel type is sized to be read across
+a room rather than over a shoulder.
 
 ## Running it
 
@@ -133,6 +150,20 @@ button under the scrim, or one that has scrolled out of reach. It asserts the
 list of thirteen real clicks, so a refactor cannot quietly turn the walk back
 into autopilot and keep passing.
 
+### Pace
+
+Three knobs, all deliberately slow:
+
+| What                                   | Where                            |
+| -------------------------------------- | -------------------------------- |
+| Reading dwell on a narration-only step | `dwellMs` in `demo-guide.tsx`    |
+| Per-character typing                   | `typeDelayMs` in `dom-drive.ts`  |
+| Pause before autopilot clicks          | `clickDelayMs` in `dom-drive.ts` |
+
+`?tour=fast` overrides all three (dwell drops to 250ms, the delays to zero).
+That is for rehearsal and for the two e2e specs -- a live audience needs the
+pauses, and a viewer being taught this for the first time needs them most.
+
 ### Screenshots
 
 Captured from the mode-1 walk itself, so they only ever show states the tour
@@ -143,23 +174,34 @@ HENRY_SHOTS=1 pnpm exec playwright test demo-tour-guided                       #
 HENRY_SHOTS=1 HENRY_SHOTS_THEME=dark pnpm exec playwright test demo-tour-guided # dark
 ```
 
-They land in `docs/screenshots/<theme>/`. Worth re-taking after a narration
-edit: the false claim in the closing beat -- Henry insisting Jordan's ticket
-list was empty while five seeded tickets sat behind the panel -- was found by
-looking at one, not by a test.
+They land in `docs/screenshots/<theme>/`, named by step number -- so adding
+or removing a step renames every shot after it, and the stale ones need
+deleting by hand.
+
+Worth re-taking after a narration edit. The false claim in the closing beat
+-- Henry insisting Jordan's ticket list was empty while five seeded tickets
+sat behind the panel -- was found by looking at one, not by a test. So was the
+panel appearing clipped at the bottom of the screen, which turned out to be
+the shot catching it mid-transition rather than a layout bug; `shoot()` now
+waits for it to settle.
 
 ## Known limits
 
 - **The spotlight does not scroll its anchor into view.** Only `perform()`
   does, through `focusInto`. So in mode 1, a step whose control sits below the
   fold points at something the presenter cannot see -- `work-claim` is the one
-  to look at, and `docs/screenshots/light/11-work-claim.png` is it happening.
+  to look at, and `docs/screenshots/light/15-work-claim.png` is it happening.
   Autopilot never shows this because it always goes through `perform()`.
   Pressing "Do it for me" scrolls and recovers it; so does scrolling by hand.
 
 - Dev-auth only, by construction. `src/lib/env.ts` refuses to boot with
   `ENABLE_DEMO_TOUR=true` in production, or without `ENABLE_DEV_AUTH`.
 - `IN_REVIEW` is not on the path. The management console publishes straight
-  from `DRAFT`; Henry says so rather than letting someone find it.
+  from `DRAFT`. Henry used to admit this in the narration; he no longer does,
+  because the gap between two internal article states is not something the
+  tour's audience can act on. It is recorded here and in
+  `docs/KNOWLEDGE_LIFECYCLE.md` instead. Nothing Henry says is false as a
+  result -- "Kai reads it and publishes it" is exactly what happens -- but a
+  developer reading the narration will not learn about it from there.
 - Autopilot cannot recover from an app error mid-step. It surfaces the
   message in the panel and stops; take the wheel and continue by hand.
