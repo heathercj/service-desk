@@ -21,7 +21,7 @@ import { signInAsDevIdentity, DEV_IDENTITIES } from "./dev-auth";
  * Requires ENABLE_DEV_AUTH=true, ENABLE_DEMO_TOUR=true and `pnpm db:seed`.
  */
 test.describe("Guided tour autopilot", () => {
-  // Thirty-one steps, five sign-ins, and a dev-mode compile on first hit of
+  // Thirty-five steps, five sign-ins, and a dev-mode compile on first hit of
   // each route. Nothing like the default 30s.
   test.describe.configure({ mode: "serial", timeout: 300_000 });
 
@@ -34,7 +34,7 @@ test.describe("Guided tour autopilot", () => {
     await expect(launcher).toBeVisible();
     await launcher.click();
 
-    // Arriving here means all thirty-one steps advanced on observed state --
+    // Arriving here means all thirty-five steps advanced on observed state --
     // no step was skipped, because a stalled step never advances.
     await expect(page.getByText("That is the whole loop.")).toBeVisible({
       timeout: 280_000,

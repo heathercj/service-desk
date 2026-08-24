@@ -22,13 +22,30 @@ import { Henry, HenrySays } from "./henry";
 import { Spotlight } from "./spotlight";
 import { loadTourSession, saveTourSession, type TourSession } from "./tour-state";
 
-/** How long autopilot lingers on a narration-only step, by reading length. */
+/**
+ * How long autopilot lingers on a narration-only step, by reading length.
+ *
+ * Half again as long as it used to be, ceiling included. The old pace was
+ * tuned for a room that already knew what it was looking at; someone being
+ * taught this for the first time is still on the second sentence when the
+ * panel moves on. 68ms a character is roughly the speed of reading it aloud,
+ * which is what a presenter is doing anyway.
+ */
 function dwellMs(say: string, fast: boolean): number {
-  return fast ? 250 : Math.min(15_000, 3_000 + say.length * 45);
+  return fast ? 250 : Math.min(22_500, 4_500 + say.length * 68);
 }
 
 function identityFor(key: string) {
   return DEV_IDENTITIES.find((i) => i.key === key);
+}
+
+/**
+ * Role names as English. `DEPARTMENT_AGENT` is what the database calls it, and
+ * the handoff card is the only thing on screen at a handoff -- so it is the
+ * one place the tour would otherwise show a viewer a constant name.
+ */
+function roleWords(roles: string[]): string {
+  return roles.map((r) => r.replace(/_/g, " ").toLowerCase()).join(" and ");
 }
 
 function valueOf(el: HTMLElement | null): string | null {
@@ -327,21 +344,19 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
   if (!session) {
     if (dismissed) return null;
     return (
-      <div className="fixed bottom-4 right-4 z-50 flex max-w-sm items-center gap-2.5 rounded-xl border border-border bg-background/95 p-3 shadow-lg backdrop-blur">
-        <Henry className="h-12 w-12" />
+      <div className="fixed bottom-4 right-4 z-50 flex max-w-md items-center gap-3 rounded-xl border border-border bg-background/95 p-4 shadow-lg backdrop-blur">
+        <Henry className="h-16 w-16" />
         <HenrySays>
-          <p className="text-sm font-medium leading-tight">
-            Henry can walk you through it
+          <p className="text-base font-medium leading-snug">
+            Hey, I&apos;m Henry the Lion!
           </p>
-          <p className="text-xs text-muted-foreground">
-            Intake to reuse, on real records.
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            New here? I can show you around.
           </p>
         </HenrySays>
         <div className="flex shrink-0 flex-col gap-1">
-          <Button size="sm" onClick={() => start(false)}>
-            Start
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => start(true)}>
+          <Button onClick={() => start(false)}>Start</Button>
+          <Button variant="outline" onClick={() => start(true)}>
             Autopilot
           </Button>
         </div>
@@ -362,24 +377,23 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
   // --- Finished.
   if (!entry || !step || !ctx) {
     return (
-      <div className="fixed bottom-4 right-4 z-50 flex max-w-sm items-start gap-3 rounded-xl border border-border bg-background/95 p-4 shadow-lg backdrop-blur">
-        <Henry className="h-12 w-12" />
-        <div className="min-w-0 flex-1 space-y-2">
+      <div className="fixed bottom-4 right-4 z-50 flex max-w-md items-start gap-3 rounded-xl border border-border bg-background/95 p-4 shadow-lg backdrop-blur">
+        <Henry className="h-16 w-16" />
+        <div className="min-w-0 flex-1 space-y-3">
           <HenrySays>
-            <p className="text-sm font-medium">That is the whole loop.</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              One ticket in, one article out, and the second report of the same problem
-              cost the desk nothing. Everything you just saw is real data -- the article
-              is a file on disk under knowledge-base/.
+            <p className="text-base font-medium">That is the whole loop.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              One ticket in, one article out, and the second person with the same problem
+              cost the desk nothing. That was all real, by the way -- a real ticket, and a
+              real help article that anyone can find now. Have a click around; I will be
+              down in the corner if you want it again.
             </p>
           </HenrySays>
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => start(false)}>
+            <Button variant="outline" onClick={() => start(false)}>
               Again
             </Button>
-            <Button size="sm" onClick={exit}>
-              Done
-            </Button>
+            <Button onClick={exit}>Done</Button>
           </div>
         </div>
       </div>
@@ -399,16 +413,21 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
         <Spotlight anchor={step.anchor} scope={scope} />
       )}
 
+      {/* max-h/overflow: the narration is the tallest thing in here and the
+          intro steps are the longest narration, so the panel can reach ~420px.
+          That fits every laptop, but a demo gets given on whatever projector is
+          in the room, and a panel taller than the screen puts its own buttons
+          off the bottom of it. */}
       <aside
         aria-live="polite"
-        className="fixed bottom-4 right-4 z-50 w-[min(26rem,calc(100vw-2rem))] rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur"
+        className="fixed bottom-4 right-4 z-50 max-h-[calc(100vh-2rem)] w-[min(32rem,calc(100vw-2rem))] overflow-y-auto rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur"
       >
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
               {entry.beat.title} &middot; step {session.stepIndex + 1} of {total}
             </p>
-            <p className="text-xs text-muted-foreground">{entry.beat.premise}</p>
+            <p className="text-sm text-muted-foreground">{entry.beat.premise}</p>
           </div>
           <button
             type="button"
@@ -424,23 +443,25 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
             bubble -- a handoff and a wander are Henry talking too, and giving
             them their own treatment made the panel jump around mid-demo. */}
         <div className="mt-3 flex items-start gap-2.5">
-          <Henry className="mt-0.5 h-14 w-14" />
+          <Henry className="mt-0.5 h-20 w-20" />
           <HenrySays>
             {!identityOk && expected ? (
-              <p className="text-sm">
-                <span className="font-medium">Hand-off.</span> This beat belongs to{" "}
-                {expected.displayName} ({expected.roles.join(", ").toLowerCase()}).{" "}
+              <p className="text-base leading-relaxed">
+                <span className="font-medium">Let me sign you in as someone else.</span>{" "}
+                This part belongs to {expected.displayName}, {roleWords(expected.roles)}.{" "}
                 {expected.description}
               </p>
             ) : wandered ? (
-              <p className="text-sm">
-                You have wandered off the path -- which is fine, have a look around. When
-                you are ready I will put us back.
+              <p className="text-base leading-relaxed">
+                You have wandered off -- which is fine, have a look around. When you are
+                ready I will put us back where we were.
               </p>
             ) : (
               <>
-                <p className="text-sm leading-relaxed">{say}</p>
-                {cue && <p className="mt-2 text-sm font-medium text-warning">{cue}</p>}
+                <p className="text-base leading-relaxed">{say}</p>
+                {cue && (
+                  <p className="mt-2.5 text-base font-medium text-warning">{cue}</p>
+                )}
               </>
             )}
           </HenrySays>
@@ -448,12 +469,9 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
 
         <div className="mt-3 space-y-3">
           {!identityOk && expected ? (
-            <Button size="sm" onClick={handoff}>
-              Sign in as {expected.displayName}
-            </Button>
+            <Button onClick={handoff}>Sign in as {expected.displayName}</Button>
           ) : wandered ? (
             <Button
-              size="sm"
               onClick={() => {
                 navigatedFor.current = null;
                 setWandered(false);
@@ -465,23 +483,18 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
           ) : (
             <>
               {error && (
-                <p role="alert" className="text-xs text-destructive">
+                <p role="alert" className="text-sm text-destructive">
                   {error}
                 </p>
               )}
               <div className="flex flex-wrap gap-2">
-                {step.advance.kind === "read" && (
-                  <Button size="sm" onClick={advance}>
-                    Next
-                  </Button>
-                )}
+                {step.advance.kind === "read" && <Button onClick={advance}>Next</Button>}
                 {step.perform && step.advance.kind !== "read" && (
-                  <Button size="sm" variant="outline" onClick={() => void runPerform()}>
+                  <Button variant="outline" onClick={() => void runPerform()}>
                     {performLabel}
                   </Button>
                 )}
                 <Button
-                  size="sm"
                   variant="ghost"
                   onClick={() =>
                     setSession((prev) =>

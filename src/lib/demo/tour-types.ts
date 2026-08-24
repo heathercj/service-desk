@@ -1,7 +1,7 @@
 /**
  * Types for the guided demo tour ("Henry the Lion").
  *
- * The tour narrates the same five beats the golden-path e2e spec walks
+ * The tour narrates the same beats the golden-path e2e spec walks
  * (e2e/demo-golden-path.spec.ts). There is exactly ONE manifest -- see
  * tour-script.ts -- and both modes consume it:
  *
@@ -116,7 +116,11 @@ export interface TourStep {
   /** Who must be signed in. A change from the previous step is a handoff. */
   as: DevIdentityKey;
   route: Dynamic<string>;
-  /** Henry's narration. Names the enforcement point, not the benefit. */
+  /**
+   * Henry's narration. Instructional and in plain language: it names the job
+   * being done, not the mechanism doing it. See the note at the top of
+   * tour-script.ts for why.
+   */
   say: Dynamic<string>;
   /** The imperative, if the human has something to do. */
   cue?: Dynamic<string>;

@@ -161,7 +161,15 @@ export function setNativeValue(el: TextField, value: string): void {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export interface DomDriverOptions {
-  /** Per-character delay. 0 fills instantly; ~18ms reads as brisk typing. */
+  /**
+   * Per-character delay. 0 fills instantly.
+   *
+   * 27ms is a deliberate half-again slower than the ~18ms this started at:
+   * brisk typing reads as a machine filling a form, and the room stops
+   * following what is being typed and waits for it to stop. Slow enough to
+   * read along with is the point -- the narration beside it is explaining
+   * what the words mean.
+   */
   typeDelayMs?: number;
   /** Pause before a click, so the audience sees what is about to be hit. */
   clickDelayMs?: number;
@@ -169,8 +177,8 @@ export interface DomDriverOptions {
 }
 
 export function createDomDriver({
-  typeDelayMs = 18,
-  clickDelayMs = 260,
+  typeDelayMs = 27,
+  clickDelayMs = 390,
   findTimeoutMs = 15_000,
 }: DomDriverOptions = {}): DomDriver {
   async function focusInto(anchor: string, scope?: ResolvedScope) {

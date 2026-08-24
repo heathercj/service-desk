@@ -40,6 +40,7 @@ const SHOT_DIR = `docs/screenshots/${SHOT_THEME}`;
 
 /** The states worth a picture: Henry talking, handing off, pointing, done. */
 const SHOT_STEPS = new Set([
+  "welcome-hello",
   "intake-intro",
   "intake-subject",
   "triage-handoff",
@@ -50,6 +51,12 @@ const SHOT_STEPS = new Set([
 
 async function shoot(page: Page, name: string): Promise<void> {
   if (!SHOOTING) return;
+  // Shots are taken at the top of a loop iteration, which is a moment after
+  // the previous step advanced -- the panel is still settling into its new
+  // height and the spotlight is still finding its anchor. Without this pause
+  // the images catch mid-transition and show the panel apparently clipped at
+  // the bottom of the screen, which is not what a viewer ever sees.
+  await page.waitForTimeout(400);
   await page.screenshot({ path: `${SHOT_DIR}/${name}.png`, fullPage: false });
 }
 
