@@ -58,13 +58,19 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # Before typecheck, not after it: `pnpm typecheck` reads the generated
+      # client's types, so with the generate step further down the job only
+      # passed when a warm pnpm cache happened to carry a client from an
+      # earlier run. On a cold cache typecheck saw an empty `@prisma/client`
+      # and reported ~40 phantom errors. See the note in dast.yml for why
+      # there is no postinstall hook doing this.
+      - run: pnpm exec prisma generate
+
       - run: pnpm format:check
 
       - run: pnpm lint
 
       - run: pnpm typecheck
-
-      - run: pnpm exec prisma generate
 
       - run: pnpm test -- --coverage
 

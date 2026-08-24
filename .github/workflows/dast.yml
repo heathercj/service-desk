@@ -104,6 +104,11 @@ jobs:
           rules_file_name: "zap/rules.tsv"
           cmd_options: "-a"
           fail_action: true
+          # The action's default is to file a GitHub issue with the report.
+          # This workflow is granted `contents: read` only, so that call
+          # 403s and fails the job after a scan that otherwise succeeded.
+          # The HTML/MD/JSON reports are uploaded as artifacts below.
+          allow_issue_writing: false
 
       - name: Upload ZAP reports
         if: always()
