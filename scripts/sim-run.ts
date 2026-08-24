@@ -9,7 +9,10 @@ import {
   findDepartmentManagerPersona,
   type AgentPersona,
 } from "@/lib/simulation/agent-personas";
-import { CUSTOMER_PERSONAS, findCustomerPersona } from "@/lib/simulation/customer-personas";
+import {
+  CUSTOMER_PERSONAS,
+  findCustomerPersona,
+} from "@/lib/simulation/customer-personas";
 import {
   createRng,
   pickScenario,
@@ -51,7 +54,8 @@ import {
  */
 
 const db = new PrismaClient();
-const DEV_TENANT_ID = process.env.ENTRA_TENANT_ID || "00000000-0000-0000-0000-000000000000";
+const DEV_TENANT_ID =
+  process.env.ENTRA_TENANT_ID || "00000000-0000-0000-0000-000000000000";
 
 function simEntraObjectId(personaKey: string): string {
   return `sim::${personaKey}`;
@@ -94,7 +98,11 @@ async function assignDepartment(userId: string, key: DepartmentKey, isManager: b
   });
 }
 
-async function upsertSimUser(persona: { key: string; displayName: string; email: string }) {
+async function upsertSimUser(persona: {
+  key: string;
+  displayName: string;
+  email: string;
+}) {
   const entraObjectId = simEntraObjectId(persona.key);
   return db.user.upsert({
     where: { entraObjectId },
@@ -138,7 +146,9 @@ async function ensureSimulationUsers(): Promise<Record<string, string>> {
   // Knowledge) rather than inventing a 7th persona for a supporting role --
   // this upserts the same row prisma/seed.ts would, so it works whether or
   // not seed.ts has been run in this environment.
-  const kmIdentity = DEV_IDENTITIES.find((identity) => identity.key === "knowledge-manager");
+  const kmIdentity = DEV_IDENTITIES.find(
+    (identity) => identity.key === "knowledge-manager",
+  );
   if (kmIdentity) {
     const kmUser = await db.user.upsert({
       where: { entraObjectId: kmIdentity.entraObjectId },
@@ -168,7 +178,9 @@ async function buildActor(userId: string): Promise<SimActor> {
     displayName: user.displayName,
     email: user.email,
     roles: new Set(user.roles.map((r) => r.role.name)),
-    departments: new Map(user.departmentMemberships.map((m) => [m.departmentId, m.isManager])),
+    departments: new Map(
+      user.departmentMemberships.map((m) => [m.departmentId, m.isManager]),
+    ),
   };
 }
 
@@ -223,7 +235,9 @@ async function runOneTicket(
   const triageActor = await buildActor(requireId(ids, TRIAGE_PERSONA.key));
 
   const transcript: string[] = [`\n=== Ticket ${index + 1}: ${scenario.subject} ===`];
-  transcript.push(`Customer persona: ${customer.displayName} (${customer.skills.join("; ")})`);
+  transcript.push(
+    `Customer persona: ${customer.displayName} (${customer.skills.join("; ")})`,
+  );
 
   let ticket = await simCreateTicket(db, customerActor, {
     franchiseId,
@@ -231,7 +245,9 @@ async function runOneTicket(
     description: scenario.description,
     departmentKey: scenario.departmentKey,
   });
-  transcript.push(`[${ticket.ticketNumber}] SUBMITTED by ${customer.displayName}: "${scenario.description}"`);
+  transcript.push(
+    `[${ticket.ticketNumber}] SUBMITTED by ${customer.displayName}: "${scenario.description}"`,
+  );
 
   ticket = await simConfirmTriage(db, triageActor, {
     ticketId: ticket.id,
@@ -312,7 +328,13 @@ async function runOneTicket(
     const managerPersona = findDepartmentManagerPersona(scenario.departmentKey);
     const managerActor = await buildActor(requireId(ids, managerPersona.key));
 
-    ticket = await simReassignTicket(db, managerActor, ticket.id, ticket.version, managerActor.userId);
+    ticket = await simReassignTicket(
+      db,
+      managerActor,
+      ticket.id,
+      ticket.version,
+      managerActor.userId,
+    );
     transcript.push(`Escalated to ${managerPersona.displayName}`);
 
     const escalationNote = buildEscalationNote(managerPersona, scenario);
@@ -339,7 +361,9 @@ async function runOneTicket(
     resolutionSteps: buildResolutionMessage(resolvingPersona, scenario),
   });
   ticket = resolveResult.ticket;
-  transcript.push(`${resolvingPersona.displayName} submitted resolution -> ${ticket.status}`);
+  transcript.push(
+    `${resolvingPersona.displayName} submitted resolution -> ${ticket.status}`,
+  );
 
   let knowledgeOutcomeType: TicketRunRecord["knowledgeOutcomeType"] = "LINKED_EXISTING";
 
@@ -373,7 +397,9 @@ async function runOneTicket(
           "No relevant knowledge article exists yet for this department; approved as a one-off resolution for this simulation.",
       });
       ticket = outcomeResult.gateResult.ticket;
-      transcript.push(`${kmActor.displayName} recorded a knowledge exception -> ${ticket.status}`);
+      transcript.push(
+        `${kmActor.displayName} recorded a knowledge exception -> ${ticket.status}`,
+      );
     }
   }
 
@@ -412,12 +438,18 @@ async function runOneTicket(
 
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
-  console.log(`sim-run: count=${opts.count} seed=${opts.seed}${opts.customerKey ? ` customer=${opts.customerKey}` : ""}`);
+  console.log(
+    `sim-run: count=${opts.count} seed=${opts.seed}${opts.customerKey ? ` customer=${opts.customerKey}` : ""}`,
+  );
 
   await assertSeeded();
 
-  const franchise = await db.franchise.findFirst({ where: { isActive: true }, orderBy: { code: "asc" } });
-  if (!franchise) throw new Error("No active franchise found -- run `pnpm db:seed` first.");
+  const franchise = await db.franchise.findFirst({
+    where: { isActive: true },
+    orderBy: { code: "asc" },
+  });
+  if (!franchise)
+    throw new Error("No active franchise found -- run `pnpm db:seed` first.");
 
   const ids = await ensureSimulationUsers();
   console.log(`Ensured ${Object.keys(ids).length} simulation persona users.`);

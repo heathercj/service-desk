@@ -33,7 +33,10 @@ export function pickScenario(customer: CustomerPersona, rng: Rng): TicketScenari
   return scenario;
 }
 
-export function buildDiagnosticNote(agent: AgentPersona, scenario: TicketScenario): string {
+export function buildDiagnosticNote(
+  agent: AgentPersona,
+  scenario: TicketScenario,
+): string {
   const [primarySkill, secondarySkill] = agent.skills;
   return (
     `Reviewed via ${primarySkill}. Checked "${scenario.category}" against known ` +
@@ -42,7 +45,10 @@ export function buildDiagnosticNote(agent: AgentPersona, scenario: TicketScenari
   );
 }
 
-export function buildResolutionMessage(agent: AgentPersona, scenario: TicketScenario): string {
+export function buildResolutionMessage(
+  agent: AgentPersona,
+  scenario: TicketScenario,
+): string {
   const skill = agent.skills[0];
   return (
     `Hi, thanks for the details. Drawing on our ${skill}, here's what I found for ` +
@@ -51,7 +57,10 @@ export function buildResolutionMessage(agent: AgentPersona, scenario: TicketScen
   );
 }
 
-export function buildEscalationNote(manager: AgentPersona, scenario: TicketScenario): string {
+export function buildEscalationNote(
+  manager: AgentPersona,
+  scenario: TicketScenario,
+): string {
   return (
     `Picking this up from the queue given the customer's follow-up on "${scenario.subject}". ` +
     `Applying ${manager.skills[manager.skills.length - 1]} to unblock this.`
@@ -79,7 +88,10 @@ export function buildCustomerFollowUp(customer: CustomerPersona, round: number):
   return base;
 }
 
-export function buildReopenReason(customer: CustomerPersona, scenario: TicketScenario): string {
+export function buildReopenReason(
+  customer: CustomerPersona,
+  scenario: TicketScenario,
+): string {
   return `Customer reports the issue with "${scenario.subject}" has recurred after the ticket was marked resolved.`;
 }
 
@@ -123,7 +135,10 @@ export function buildCustomerReflection(
 }
 
 /** Resolving staff persona's reflection -- surfaces process friction (escalation, missing KB coverage), not customer sentiment. */
-export function buildStaffReflection(persona: AgentPersona, record: ReflectionRecord): string {
+export function buildStaffReflection(
+  persona: AgentPersona,
+  record: ReflectionRecord,
+): string {
   if (record.escalated) {
     return `[reflection] ${persona.displayName}: This one needed escalation -- more friction than a routine ticket in this department should require.`;
   }

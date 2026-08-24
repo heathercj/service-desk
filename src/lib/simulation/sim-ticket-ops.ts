@@ -110,7 +110,11 @@ export interface SimCreateTicketInput {
   departmentKey: DepartmentKey;
 }
 
-export async function simCreateTicket(db: PrismaClient, actor: SimActor, input: SimCreateTicketInput) {
+export async function simCreateTicket(
+  db: PrismaClient,
+  actor: SimActor,
+  input: SimCreateTicketInput,
+) {
   const policyActor = toSimPolicyActor(actor);
   assertAuthorized(canCreateTicket(policyActor), "Only customers can submit tickets");
 
@@ -118,7 +122,9 @@ export async function simCreateTicket(db: PrismaClient, actor: SimActor, input: 
   const suggestion = suggestDepartment(input.subject, input.description);
   let suggestedDepartmentId: string | null = null;
   if (suggestion && suggestion.departmentKey !== input.departmentKey) {
-    const suggestedDept = await db.department.findUnique({ where: { key: suggestion.departmentKey } });
+    const suggestedDept = await db.department.findUnique({
+      where: { key: suggestion.departmentKey },
+    });
     suggestedDepartmentId = suggestedDept?.id ?? null;
   }
 
@@ -142,7 +148,12 @@ export async function simCreateTicket(db: PrismaClient, actor: SimActor, input: 
     });
 
     await tx.ticketStatusHistory.create({
-      data: { ticketId: created.id, fromStatus: null, toStatus: "SUBMITTED", changedById: actor.userId },
+      data: {
+        ticketId: created.id,
+        fromStatus: null,
+        toStatus: "SUBMITTED",
+        changedById: actor.userId,
+      },
     });
     await simRecordAuditEvent(tx, {
       actorId: actor.userId,
@@ -165,22 +176,35 @@ export interface SimConfirmTriageInput {
   priority: TicketPriority;
 }
 
-export async function simConfirmTriage(db: PrismaClient, actor: SimActor, input: SimConfirmTriageInput) {
+export async function simConfirmTriage(
+  db: PrismaClient,
+  actor: SimActor,
+  input: SimConfirmTriageInput,
+) {
   const policyActor = toSimPolicyActor(actor);
   assertAuthorized(canTriageTicket(policyActor), "Triage access required");
   const targetDepartment = await simRequireActiveDepartment(db, input.departmentKey);
 
   return db.$transaction(async (tx) => {
     const ticket = await loadTicketOrThrow(tx, input.ticketId);
-    if (ticket.version !== input.version) throw new ConflictError("Ticket changed by someone else.");
-    assertAuthorized(ticket.status === "SUBMITTED" || ticket.status === "IN_TRIAGE", "Ticket is not awaiting triage");
+    if (ticket.version !== input.version)
+      throw new ConflictError("Ticket changed by someone else.");
+    assertAuthorized(
+      ticket.status === "SUBMITTED" || ticket.status === "IN_TRIAGE",
+      "Ticket is not awaiting triage",
+    );
 
     const previousDepartmentId = ticket.departmentId;
 
     if (ticket.status === "SUBMITTED") {
       assertTransition("SUBMITTED", "IN_TRIAGE", policyActor.roles);
       await tx.ticketStatusHistory.create({
-        data: { ticketId: ticket.id, fromStatus: "SUBMITTED", toStatus: "IN_TRIAGE", changedById: actor.userId },
+        data: {
+          ticketId: ticket.id,
+          fromStatus: "SUBMITTED",
+          toStatus: "IN_TRIAGE",
+          changedById: actor.userId,
+        },
       });
     }
     assertTransition("IN_TRIAGE", "QUEUED", policyActor.roles);
@@ -197,7 +221,12 @@ export async function simConfirmTriage(db: PrismaClient, actor: SimActor, input:
     });
 
     await tx.ticketStatusHistory.create({
-      data: { ticketId: ticket.id, fromStatus: "IN_TRIAGE", toStatus: "QUEUED", changedById: actor.userId },
+      data: {
+        ticketId: ticket.id,
+        fromStatus: "IN_TRIAGE",
+        toStatus: "QUEUED",
+        changedById: actor.userId,
+      },
     });
 
     if (previousDepartmentId !== targetDepartment.id) {
@@ -218,19 +247,32 @@ export async function simConfirmTriage(db: PrismaClient, actor: SimActor, input:
       action: "TICKET_TRIAGE_CONFIRMED",
       entityType: "Ticket",
       entityId: ticket.id,
-      newValue: { departmentId: targetDepartment.id, priority: input.priority, category: input.category },
+      newValue: {
+        departmentId: targetDepartment.id,
+        priority: input.priority,
+        category: input.category,
+      },
     });
 
     return updated;
   });
 }
 
-export async function simSelfAssignTicket(db: PrismaClient, actor: SimActor, ticketId: string, version: number) {
+export async function simSelfAssignTicket(
+  db: PrismaClient,
+  actor: SimActor,
+  ticketId: string,
+  version: number,
+) {
   const policyActor = toSimPolicyActor(actor);
   return db.$transaction(async (tx) => {
     const ticket = await loadTicketOrThrow(tx, ticketId);
-    assertAuthorized(canSelfAssign(policyActor, ticket), "Cannot self-assign this ticket");
-    if (ticket.version !== version) throw new ConflictError("Ticket changed by someone else.");
+    assertAuthorized(
+      canSelfAssign(policyActor, ticket),
+      "Cannot self-assign this ticket",
+    );
+    if (ticket.version !== version)
+      throw new ConflictError("Ticket changed by someone else.");
     assertAuthorized(ticket.status === "QUEUED", "Ticket is not in the queue");
     assertTransition("QUEUED", "ASSIGNED", policyActor.roles);
 
@@ -239,10 +281,20 @@ export async function simSelfAssignTicket(db: PrismaClient, actor: SimActor, tic
       data: { version: { increment: 1 }, status: "ASSIGNED", assigneeId: actor.userId },
     });
     await tx.ticketStatusHistory.create({
-      data: { ticketId: ticket.id, fromStatus: "QUEUED", toStatus: "ASSIGNED", changedById: actor.userId },
+      data: {
+        ticketId: ticket.id,
+        fromStatus: "QUEUED",
+        toStatus: "ASSIGNED",
+        changedById: actor.userId,
+      },
     });
     await tx.ticketAssignmentHistory.create({
-      data: { ticketId: ticket.id, fromAssigneeId: null, toAssigneeId: actor.userId, changedById: actor.userId },
+      data: {
+        ticketId: ticket.id,
+        fromAssigneeId: null,
+        toAssigneeId: actor.userId,
+        changedById: actor.userId,
+      },
     });
     await simRecordAuditEvent(tx, {
       actorId: actor.userId,
@@ -268,12 +320,18 @@ export async function simReassignTicket(
   return db.$transaction(async (tx) => {
     const ticket = await loadTicketOrThrow(tx, ticketId);
     assertAuthorized(canReassign(policyActor, ticket), "Cannot reassign this ticket");
-    if (ticket.version !== version) throw new ConflictError("Ticket changed by someone else.");
+    if (ticket.version !== version)
+      throw new ConflictError("Ticket changed by someone else.");
 
     const membership = await tx.departmentMembership.findUnique({
-      where: { userId_departmentId: { userId: targetUserId, departmentId: ticket.departmentId } },
+      where: {
+        userId_departmentId: { userId: targetUserId, departmentId: ticket.departmentId },
+      },
     });
-    assertAuthorized(Boolean(membership), "Target user is not a member of this department");
+    assertAuthorized(
+      Boolean(membership),
+      "Target user is not a member of this department",
+    );
 
     const updated = await tx.ticket.update({
       where: { id: ticket.id },
@@ -312,11 +370,16 @@ export interface SimTransitionInput {
   reason?: string;
 }
 
-export async function simTransitionTicketStatus(db: PrismaClient, actor: SimActor, input: SimTransitionInput) {
+export async function simTransitionTicketStatus(
+  db: PrismaClient,
+  actor: SimActor,
+  input: SimTransitionInput,
+) {
   const policyActor = toSimPolicyActor(actor);
   return db.$transaction(async (tx) => {
     const ticket = await loadTicketOrThrow(tx, input.ticketId);
-    if (ticket.version !== input.version) throw new ConflictError("Ticket changed by someone else.");
+    if (ticket.version !== input.version)
+      throw new ConflictError("Ticket changed by someone else.");
     assertTransition(ticket.status, input.toStatus, policyActor.roles, input.reason);
 
     const updated = await tx.ticket.update({
@@ -360,12 +423,22 @@ export async function simAddConversationMessage(
   const policyActor = toSimPolicyActor(actor);
   return db.$transaction(async (tx) => {
     const ticket = await loadTicketOrThrow(tx, input.ticketId);
-    assertAuthorized(canAddCustomerMessage(policyActor, ticket), "Cannot message on this ticket");
-    if (ticket.version !== input.version) throw new ConflictError("Ticket changed by someone else.");
+    assertAuthorized(
+      canAddCustomerMessage(policyActor, ticket),
+      "Cannot message on this ticket",
+    );
+    if (ticket.version !== input.version)
+      throw new ConflictError("Ticket changed by someone else.");
 
-    const isFromCustomer = ticket.submittedById === actor.userId && policyActor.roles.has("CUSTOMER");
+    const isFromCustomer =
+      ticket.submittedById === actor.userId && policyActor.roles.has("CUSTOMER");
     const message = await tx.conversationMessage.create({
-      data: { ticketId: ticket.id, authorId: actor.userId, isFromCustomer, body: input.body },
+      data: {
+        ticketId: ticket.id,
+        authorId: actor.userId,
+        isFromCustomer,
+        body: input.body,
+      },
     });
 
     let nextStatus: TicketStatus | null = null;
@@ -383,7 +456,12 @@ export async function simAddConversationMessage(
         data: { version: { increment: 1 }, status: nextStatus },
       });
       await tx.ticketStatusHistory.create({
-        data: { ticketId: ticket.id, fromStatus: ticket.status, toStatus: nextStatus, changedById: actor.userId },
+        data: {
+          ticketId: ticket.id,
+          fromStatus: ticket.status,
+          toStatus: nextStatus,
+          changedById: actor.userId,
+        },
       });
     }
 
@@ -391,11 +469,21 @@ export async function simAddConversationMessage(
   });
 }
 
-export async function simAddInternalNote(db: PrismaClient, actor: SimActor, ticketId: string, body: string) {
+export async function simAddInternalNote(
+  db: PrismaClient,
+  actor: SimActor,
+  ticketId: string,
+  body: string,
+) {
   const policyActor = toSimPolicyActor(actor);
   const ticket = await loadTicketOrThrow(db, ticketId);
-  assertAuthorized(canAddInternalNote(policyActor, ticket), "Cannot add internal notes on this ticket");
-  return db.internalNote.create({ data: { ticketId: ticket.id, authorId: actor.userId, body } });
+  assertAuthorized(
+    canAddInternalNote(policyActor, ticket),
+    "Cannot add internal notes on this ticket",
+  );
+  return db.internalNote.create({
+    data: { ticketId: ticket.id, authorId: actor.userId, body },
+  });
 }
 
 export interface SimResolveTicketInput {
@@ -429,24 +517,38 @@ async function currentKnowledgeGateFacts(
     resolutionSteps: ticket.resolutionSteps,
     hasCurrentKnowledgeCheck,
     knowledgeOutcome: latestLink
-      ? { type: latestLink.outcomeType, isCurrent: latestLink.createdAt >= resolutionEnteredAt }
+      ? {
+          type: latestLink.outcomeType,
+          isCurrent: latestLink.createdAt >= resolutionEnteredAt,
+        }
       : null,
   });
 }
 
-export async function simResolveTicket(db: PrismaClient, actor: SimActor, input: SimResolveTicketInput) {
+export async function simResolveTicket(
+  db: PrismaClient,
+  actor: SimActor,
+  input: SimResolveTicketInput,
+) {
   const policyActor = toSimPolicyActor(actor);
   return db.$transaction(async (tx) => {
     const ticket = await loadTicketOrThrow(tx, input.ticketId);
-    assertAuthorized(isDepartmentMember(policyActor, ticket.departmentId), "Not authorized for this department");
-    if (ticket.version !== input.version) throw new ConflictError("Ticket changed by someone else.");
     assertAuthorized(
-      ticket.status === "IN_PROGRESS" || ticket.status === "PENDING" || ticket.status === "RESOLUTION_REVIEW",
+      isDepartmentMember(policyActor, ticket.departmentId),
+      "Not authorized for this department",
+    );
+    if (ticket.version !== input.version)
+      throw new ConflictError("Ticket changed by someone else.");
+    assertAuthorized(
+      ticket.status === "IN_PROGRESS" ||
+        ticket.status === "PENDING" ||
+        ticket.status === "RESOLUTION_REVIEW",
       "Ticket must be in progress before it can be resolved",
     );
 
     const enteringReview = ticket.status !== "RESOLUTION_REVIEW";
-    if (enteringReview) assertTransition(ticket.status, "RESOLUTION_REVIEW", policyActor.roles);
+    if (enteringReview)
+      assertTransition(ticket.status, "RESOLUTION_REVIEW", policyActor.roles);
 
     let updated = await tx.ticket.update({
       where: { id: ticket.id },
@@ -460,7 +562,12 @@ export async function simResolveTicket(db: PrismaClient, actor: SimActor, input:
     });
     if (enteringReview) {
       await tx.ticketStatusHistory.create({
-        data: { ticketId: ticket.id, fromStatus: ticket.status, toStatus: "RESOLUTION_REVIEW", changedById: actor.userId },
+        data: {
+          ticketId: ticket.id,
+          fromStatus: ticket.status,
+          toStatus: "RESOLUTION_REVIEW",
+          changedById: actor.userId,
+        },
       });
     }
 
@@ -468,10 +575,20 @@ export async function simResolveTicket(db: PrismaClient, actor: SimActor, input:
     if (gate.ok) {
       updated = await tx.ticket.update({
         where: { id: ticket.id },
-        data: { version: { increment: 1 }, status: "RESOLVED", resolvedById: actor.userId, resolvedAt: new Date() },
+        data: {
+          version: { increment: 1 },
+          status: "RESOLVED",
+          resolvedById: actor.userId,
+          resolvedAt: new Date(),
+        },
       });
       await tx.ticketStatusHistory.create({
-        data: { ticketId: ticket.id, fromStatus: "RESOLUTION_REVIEW", toStatus: "RESOLVED", changedById: actor.userId },
+        data: {
+          ticketId: ticket.id,
+          fromStatus: "RESOLUTION_REVIEW",
+          toStatus: "RESOLVED",
+          changedById: actor.userId,
+        },
       });
       await simRecordAuditEvent(tx, {
         actorId: actor.userId,
@@ -486,12 +603,18 @@ export async function simResolveTicket(db: PrismaClient, actor: SimActor, input:
   });
 }
 
-export async function simRetryResolutionAfterKnowledgeOutcome(db: PrismaClient, actor: SimActor, ticketId: string) {
+export async function simRetryResolutionAfterKnowledgeOutcome(
+  db: PrismaClient,
+  actor: SimActor,
+  ticketId: string,
+) {
   const policyActor = toSimPolicyActor(actor);
   return db.$transaction(async (tx) => {
     const ticket = await loadTicketOrThrow(tx, ticketId);
     assertAuthorized(
-      isDepartmentMember(policyActor, ticket.departmentId) || policyActor.roles.has("KNOWLEDGE_MANAGER") || policyActor.roles.has("ADMINISTRATOR"),
+      isDepartmentMember(policyActor, ticket.departmentId) ||
+        policyActor.roles.has("KNOWLEDGE_MANAGER") ||
+        policyActor.roles.has("ADMINISTRATOR"),
       "Not authorized for this department",
     );
     if (ticket.status !== "RESOLUTION_REVIEW") return { ticket, gate: null };
@@ -501,10 +624,20 @@ export async function simRetryResolutionAfterKnowledgeOutcome(db: PrismaClient, 
 
     const updated = await tx.ticket.update({
       where: { id: ticket.id },
-      data: { version: { increment: 1 }, status: "RESOLVED", resolvedById: actor.userId, resolvedAt: new Date() },
+      data: {
+        version: { increment: 1 },
+        status: "RESOLVED",
+        resolvedById: actor.userId,
+        resolvedAt: new Date(),
+      },
     });
     await tx.ticketStatusHistory.create({
-      data: { ticketId: ticket.id, fromStatus: "RESOLUTION_REVIEW", toStatus: "RESOLVED", changedById: actor.userId },
+      data: {
+        ticketId: ticket.id,
+        fromStatus: "RESOLUTION_REVIEW",
+        toStatus: "RESOLVED",
+        changedById: actor.userId,
+      },
     });
     await simRecordAuditEvent(tx, {
       actorId: actor.userId,
@@ -525,7 +658,10 @@ export interface SimRecordSimilarityCheckInput {
   candidateArticleIds: string[];
 }
 
-export async function simRecordSimilarityCheck(db: PrismaClient, input: SimRecordSimilarityCheckInput) {
+export async function simRecordSimilarityCheck(
+  db: PrismaClient,
+  input: SimRecordSimilarityCheckInput,
+) {
   const check = await db.knowledgeSimilarityCheck.create({
     data: {
       ticketId: input.ticketId,
@@ -534,7 +670,10 @@ export async function simRecordSimilarityCheck(db: PrismaClient, input: SimRecor
       candidateArticleIds: input.candidateArticleIds,
     },
   });
-  await db.ticket.update({ where: { id: input.ticketId }, data: { lastKnowledgeCheckAt: new Date() } });
+  await db.ticket.update({
+    where: { id: input.ticketId },
+    data: { lastKnowledgeCheckAt: new Date() },
+  });
   return check;
 }
 
@@ -545,15 +684,31 @@ export interface SimRecordKnowledgeOutcomeInput {
   reason?: string;
 }
 
-export async function simRecordKnowledgeOutcome(db: PrismaClient, actor: SimActor, input: SimRecordKnowledgeOutcomeInput) {
+export async function simRecordKnowledgeOutcome(
+  db: PrismaClient,
+  actor: SimActor,
+  input: SimRecordKnowledgeOutcomeInput,
+) {
   const policyActor = toSimPolicyActor(actor);
 
   if (input.outcomeType === "EXCEPTION") {
-    assertAuthorized(canRecordKnowledgeException(policyActor), "Only a knowledge manager can approve an exception");
-    assertAuthorized(Boolean(input.reason?.trim()), "A reason is required to record a knowledge exception");
+    assertAuthorized(
+      canRecordKnowledgeException(policyActor),
+      "Only a knowledge manager can approve an exception",
+    );
+    assertAuthorized(
+      Boolean(input.reason?.trim()),
+      "A reason is required to record a knowledge exception",
+    );
   } else {
-    assertAuthorized(canDraftOrLinkKnowledge(policyActor), "Cannot record a knowledge outcome");
-    assertAuthorized(Boolean(input.articleId), "An article must be selected for this outcome");
+    assertAuthorized(
+      canDraftOrLinkKnowledge(policyActor),
+      "Cannot record a knowledge outcome",
+    );
+    assertAuthorized(
+      Boolean(input.articleId),
+      "An article must be selected for this outcome",
+    );
   }
 
   const link = await db.ticketKnowledgeLink.create({
@@ -571,10 +726,18 @@ export async function simRecordKnowledgeOutcome(db: PrismaClient, actor: SimActo
     action: "TICKET_KNOWLEDGE_OUTCOME_RECORDED",
     entityType: "Ticket",
     entityId: input.ticketId,
-    newValue: { outcomeType: input.outcomeType, articleId: input.articleId, reason: input.reason },
+    newValue: {
+      outcomeType: input.outcomeType,
+      articleId: input.articleId,
+      reason: input.reason,
+    },
   });
 
-  const gateResult = await simRetryResolutionAfterKnowledgeOutcome(db, actor, input.ticketId);
+  const gateResult = await simRetryResolutionAfterKnowledgeOutcome(
+    db,
+    actor,
+    input.ticketId,
+  );
   return { link, gateResult };
 }
 
