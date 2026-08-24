@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { signInAsDevIdentity, DEV_IDENTITIES } from "./dev-auth";
-import { openFirstTicketFromQueue } from "./queue-nav";
+import { openQueueTicketBySubject } from "./queue-nav";
 
 /**
  * Journey 7 (Section 17): the development mailbox accurately shows
@@ -10,7 +10,10 @@ test("development mailbox shows captured, not delivered, mail", async ({ page })
   await signInAsDevIdentity(page, DEV_IDENTITIES.deptAgent);
 
   await page.goto("/queue/TECHNOLOGY_SUPPORT");
-  await openFirstTicketFromQueue(page);
+  // Its own seeded ticket, not "the first one": the resolve-flow specs work
+  // tickets from this same queue at the same time, and two tests writing to
+  // one ticket leave each other's controls disabled mid-type.
+  await openQueueTicketBySubject(page, "Printer in site office shows offline");
 
   // Unique per run. The old fixed string matched mail captured by *earlier*
   // runs, so the assertion below would have passed even if this run's message

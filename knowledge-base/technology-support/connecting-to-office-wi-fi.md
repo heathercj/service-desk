@@ -9,9 +9,9 @@ internalOnly: false
 tags:
   - wifi
   - network
-createdDate: '2026-08-24'
-updatedDate: '2026-08-24'
-createdBy: 4426fd3c-dc6a-46f4-a1ce-071ea8094114
+createdDate: '2026-06-01'
+updatedDate: '2026-06-01'
+createdBy: 00000000-dev0-0000-0000-000000000003
 revision: 1
 sourceTicketIds: []
 ---

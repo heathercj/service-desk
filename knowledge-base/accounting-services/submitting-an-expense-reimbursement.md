@@ -11,9 +11,9 @@ internalOnly: false
 tags:
   - expense
   - reimbursement
-createdDate: '2026-08-24'
-updatedDate: '2026-08-24'
-createdBy: 7cb60c25-6f0a-465a-82a8-3e67b46fb01a
+createdDate: '2026-06-01'
+updatedDate: '2026-06-01'
+createdBy: 00000000-dev0-0000-0000-000000000008
 revision: 1
 sourceTicketIds: []
 ---

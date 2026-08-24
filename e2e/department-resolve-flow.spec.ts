@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { signInAsDevIdentity, DEV_IDENTITIES } from "./dev-auth";
-import { openFirstTicketFromQueue } from "./queue-nav";
+import { openQueueTicketBySubject } from "./queue-nav";
 
 /**
  * Journeys 3 & 4 (Section 17): a department agent claims a queued ticket,
@@ -8,8 +8,10 @@ import { openFirstTicketFromQueue } from "./queue-nav";
  * checks for existing knowledge, links an article (or drafts a new one
  * when nothing suitable exists), and resolves the ticket.
  *
- * Depends on seed data providing at least one QUEUED Technology Support
- * ticket for Alex Agent to self-assign.
+ * Each test names the seeded ticket it works, and they name different ones.
+ * They run at the same time, and sharing a ticket meant one test's write
+ * disabled the controls the other was typing into -- which surfaced as a
+ * missing field rather than as the collision it was.
  */
 test("department agent claims, works, and resolves a ticket by linking existing knowledge", async ({
   page,
@@ -18,7 +20,9 @@ test("department agent claims, works, and resolves a ticket by linking existing 
 
   await page.goto("/queue/TECHNOLOGY_SUPPORT");
 
-  await openFirstTicketFromQueue(page);
+  // Seeded in progress and already Alex's, which is the state this journey
+  // starts from.
+  await openQueueTicketBySubject(page, "Outlook keeps prompting for password");
 
   const selfAssign = page.getByRole("button", { name: /assign to me/i });
   if (await selfAssign.isVisible().catch(() => false)) {
@@ -58,15 +62,19 @@ test("department agent creates a new knowledge draft when no article applies", a
   await signInAsDevIdentity(page, DEV_IDENTITIES.deptAgent);
 
   await page.goto("/queue/TECHNOLOGY_SUPPORT");
-  await openFirstTicketFromQueue(page);
+  // Seeded with a resolution already entered, so the knowledge check -- which
+  // only appears once there is a resolution to check against -- is reachable.
+  await openQueueTicketBySubject(page, "Wi-Fi drops constantly in the Toronto office");
 
   const runCheck = page.getByRole("button", { name: /run knowledge similarity check/i });
   if (await runCheck.isVisible().catch(() => false)) {
     await runCheck.click();
     await page.getByRole("button", { name: /no suitable article/i }).click();
 
+    // Exact, because this ticket also carries a "Resolution summary" field --
+    // a substring match resolves to both and fails on strict mode.
     await page
-      .getByLabel("Summary")
+      .getByLabel("Summary", { exact: true })
       .fill("A new troubleshooting summary written from this ticket's resolution.");
     await page
       .getByLabel(/article body/i)

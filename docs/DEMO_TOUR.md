@@ -206,6 +206,27 @@ button under the scrim, or one that has scrolled out of reach. It asserts the
 list of thirteen real clicks, so a refactor cannot quietly turn the walk back
 into autopilot and keep passing.
 
+### What the room sees behind Henry
+
+The seed decides that, and two parts of it are there for the demo rather than
+for the tests:
+
+- **Ticket numbers continue.** The seed writes `SD-001000`..`SD-001010`
+  directly and then advances the counter live tickets draw from, so the ticket
+  Casey files during the tour is the next number in that sequence. Without it
+  the first ticket anyone filed was `SD-000001` in a list of `SD-001000`s,
+  which reads as an empty desk with fake history bolted on -- and it is the
+  first thing an audience notices.
+- **Timestamps are spread out.** Each seeded ticket carries an `ageHours`, and
+  its status changes, messages and notes are derived from it, so the queues
+  read like a week of work rather than eleven tickets filed in the same
+  second. Numbers are handed out oldest-first, so a low number is an old
+  ticket.
+
+Both live in `prisma/seed.ts`. Seeded article dates are pinned rather than
+taken from the clock, for a different reason: those files are in version
+control, and "today" made every re-seed look like an edit.
+
 ### Pace
 
 Four knobs, all deliberately slow:
@@ -236,13 +257,19 @@ Captured from the mode-1 walk itself, so they only ever show states the tour
 genuinely reaches:
 
 ```bash
+pnpm db:reset                                                                  # so the shots show a seeded desk
 HENRY_SHOTS=1 pnpm exec playwright test demo-tour-guided                       # light
 HENRY_SHOTS=1 HENRY_SHOTS_THEME=dark pnpm exec playwright test demo-tour-guided # dark
 ```
 
+Add `E2E_BROWSER_CHANNEL=chrome` on a machine Playwright has no browser build
+for -- Ubuntu 26.04 is one, where `playwright install` refuses outright and
+the run fails on a missing `headless_shell`.
+
 They land in `docs/screenshots/<theme>/`, named by step number -- so adding
 or removing a step renames every shot after it, and the stale ones need
-deleting by hand.
+deleting by hand. Easiest is to empty both directories first and re-shoot
+both themes; that is also how a rename that nobody noticed gets found.
 
 Worth re-taking after a narration edit. The false claim in the closing beat
 -- Henry insisting Jordan's ticket list was empty while five seeded tickets
