@@ -136,6 +136,32 @@ feature("Guided tour manifest", () => {
     );
   });
 
+  scenario("The visibility card explains internal-only without ticking it", async (s) => {
+    // Narration only, deliberately. Internal-only articles are never offered
+    // as deflection suggestions, so a step that actually ticked the box would
+    // leave the payoff beat pointing at an empty suggestion panel -- the one
+    // failure this whole tour exists to demonstrate the opposite of.
+    const found = await s.given("the visibility step and the create step", () => ({
+      visibility: TOUR_STEPS.findIndex(({ step }) => step.id === "kb-visibility"),
+      create: TOUR_STEPS.findIndex(({ step }) => step.id === "kb-create"),
+    }));
+    await s.then("the tour explains the choice at all", () =>
+      expect(found.visibility).toBeGreaterThanOrEqual(0),
+    );
+    await s.and("it is explained before the draft is created", () =>
+      expect(found.visibility).toBeLessThan(found.create),
+    );
+    await s.and("it never ticks the box", () => {
+      const entry = TOUR_STEPS[found.visibility];
+      expect(entry).toBeDefined();
+      expect(
+        entry?.step.perform,
+        "kb-visibility must not tick internal-only",
+      ).toBeUndefined();
+      expect(entry?.step.advance.kind).toBe("read");
+    });
+  });
+
   scenario("Each beat carries a premise and at least one step", async (s) => {
     await s.then("no beat is empty or unexplained", () => {
       for (const beat of TOUR) {

@@ -99,10 +99,10 @@ export const TOUR: TourBeat[] = [
         as: "customer",
         route: "/dashboard",
         say:
-          "Hey, I'm Henry the Lion! I will walk you through the Service Desk -- " +
-          "from the moment someone asks for help to the moment the next person with " +
-          "the same problem does not have to. Send me away at any point with the " +
-          "little x up in the corner.",
+          "Hey, I'm Henry the Lion! I am here to help walk you through our " +
+          "Service Desk prototype app. Let's walk through this journey " +
+          "together! Feel free to close this box in the top right if you " +
+          "don't want to see this.",
         advance: { kind: "read" },
       },
       {
@@ -110,12 +110,11 @@ export const TOUR: TourBeat[] = [
         as: "customer",
         route: "/dashboard",
         say:
-          "So, what is this? It is the one place anyone at Alair asks another team " +
-          "for help -- software, accounting, training. Today those asks arrive as " +
-          "emails, calls and texts, and the ones that get forgotten are forgotten " +
-          "quietly. Here, every request becomes a ticket with a number, one team " +
-          "that owns it, and a status the person who asked can check for " +
-          "themselves.",
+          "So, what is Service Desk you ask? It is the one place anyone at Alair " +
+          "asks another team for help -- software, accounting, training. Today " +
+          "those asks arrive as emails, calls and texts, and it's easy to lose " +
+          "track! Here, every request becomes a ticket with a number that is " +
+          "tracked, assigned and cared for from beginning to end.",
         advance: { kind: "read" },
       },
       {
@@ -123,11 +122,10 @@ export const TOUR: TourBeat[] = [
         as: "customer",
         route: "/dashboard",
         say:
-          "Four things to leave knowing: how a request gets in, how it reaches the " +
-          "right team, how that team works it, and -- the one that matters most -- " +
-          "why finishing a ticket means writing down what fixed it. That last part " +
-          "is how a desk gets faster every month instead of answering the same " +
-          "question forever.",
+          "You will leave this demo knowing four things: How a request is " +
+          "created, how it gets routed to the right team, how that team will work " +
+          "the ticket, and most importantly how we record a solution for that " +
+          "ticket so we can use it again later! It's all very exciting.",
         advance: { kind: "read" },
       },
       {
@@ -164,9 +162,7 @@ export const TOUR: TourBeat[] = [
         as: "customer",
         route: "/tickets/new",
         say:
-          "First a one-line summary -- think of it as the subject of an email. It " +
-          "is what everyone else sees in their list, so plain language beats " +
-          "jargon.",
+          "First a one-line summary -- think of it as the subject of an email.",
         cue: "Type a subject, or let me fill it in.",
         anchor: "ticket-subject",
         advance: { kind: "filled", anchor: "ticket-subject" },
@@ -257,8 +253,8 @@ export const TOUR: TourBeat[] = [
         route: ticketRoute,
         say:
           "The desk has already proposed Technology Support. Taylor's job is to " +
-          "agree, or to move it somewhere better -- and either way her name goes " +
-          "against that decision. Routing takes seconds, but it is never anonymous.",
+          "confirm the suggested department or assign it to a different " +
+          "department.",
         cue: "Confirm the route.",
         anchor: "triage-confirm",
         advance: { kind: "text", pattern: /^Queued$/, within: "ticket-status" },
@@ -304,9 +300,9 @@ export const TOUR: TourBeat[] = [
         as: "dept-agent",
         route: ticketRoute,
         say:
-          "Alex claims it, and now his name is on it. If two people reach for the " +
-          "same ticket in the same minute, only one of them gets it -- so Casey " +
-          "never receives two different half-answers.",
+          "Alex has now assigned this ticket to himself. Only one person can be " +
+          "assigned to a ticket at a given time. That way there is clear " +
+          "ownership.",
         cue: "Claim the ticket.",
         anchor: "assign-self",
         advance: { kind: "text", pattern: /^Assigned$/, within: "ticket-status" },
@@ -317,9 +313,8 @@ export const TOUR: TourBeat[] = [
         as: "dept-agent",
         route: ticketRoute,
         say:
-          "Moving it to In Progress is a small thing that saves a lot of phone " +
-          "calls: it is what Casey sees when she checks her ticket. She does not " +
-          "have to ring anyone to know it is being looked at.",
+          "The ticket has been moved to 'In Progress'. These states can be " +
+          "reviewed by requestors to see how their ticket is progressing.",
         cue: "Move it to In Progress.",
         anchor: "transition-IN_PROGRESS",
         advance: { kind: "text", pattern: /^In Progress$/, within: "ticket-status" },
@@ -364,9 +359,9 @@ export const TOUR: TourBeat[] = [
         as: "dept-agent",
         route: ticketRoute,
         say:
-          "Alex has fixed it -- the browser was holding stale sign-in data, nothing " +
-          "exotic. Now watch carefully, because what happens when he tries to close " +
-          "the ticket is the part of this desk that is genuinely different.",
+          "Alex has connected with the customer and fixed the issue -- the browser " +
+          "was holding stale sign-in data, nothing exotic. However he won't be " +
+          "able to close the ticket just yet.",
         cue: "Fill in the resolution summary.",
         anchor: "resolution-summary",
         advance: { kind: "filled", anchor: "resolution-summary" },
@@ -389,9 +384,8 @@ export const TOUR: TourBeat[] = [
         as: "dept-agent",
         route: ticketRoute,
         say:
-          "Refused. The ticket will not close. It parks in Resolution Review and " +
-          "tells Alex what is missing: he has not checked whether this problem is " +
-          "already written up anywhere.",
+          "The ticket will not close until the proper checks are done to ensure " +
+          "this problem is indeed new.",
         cue: "Submit the resolution.",
         anchor: "resolution-submit",
         advance: { kind: "appears", anchor: "resolution-gate" },
@@ -402,12 +396,9 @@ export const TOUR: TourBeat[] = [
         as: "dept-agent",
         route: ticketRoute,
         say:
-          "Why so strict? Because everyone means to write it up later and nobody " +
-          "does -- and then the desk answers the same question by hand for two " +
-          "years. A fix nobody else can find is not finished. Alex has three honest " +
-          "ways through: point at an article that already covers it, write a new " +
-          "one, or record why this ticket needs no write-up. What he cannot do is " +
-          "skip the question.",
+          "This allows for three paths of completion: 1. Link an existing " +
+          "solution 2. Write a new one 3. Explain why a write up isn't needed. " +
+          "There is no option to skip.",
         advance: { kind: "read" },
       },
     ],
@@ -422,7 +413,7 @@ export const TOUR: TourBeat[] = [
         as: "dept-agent",
         route: ticketRoute,
         say:
-          "So Alex searches what already exists -- including other people's " +
+          "Alex then searches what already exists -- including other people's " +
           "unfinished drafts, so two agents cannot write the same article twice. " +
           "Nothing comes back: this problem really is new to us.",
         cue: "Run the similarity check.",
@@ -435,9 +426,8 @@ export const TOUR: TourBeat[] = [
         as: "dept-agent",
         route: ticketRoute,
         say:
-          "Nothing to point at, so he writes it. This is where a one-off fix in one " +
-          "agent's head becomes something the company owns -- now, while it is " +
-          "fresh, not in a documentation afternoon that never gets scheduled.",
+          "No matches were found so Alex will write a new solution to cover this " +
+          "issue.",
         cue: "Start a new draft.",
         anchor: "knowledge-draft-toggle",
         advance: { kind: "appears", anchor: "draft-body" },
@@ -448,9 +438,7 @@ export const TOUR: TourBeat[] = [
         as: "dept-agent",
         route: ticketRoute,
         say:
-          "The title starts as Casey's own sentence, and it is worth changing. She " +
-          "wrote what happened to her; the next person will search for what is " +
-          "happening to them. Naming the symptom is what makes this findable.",
+          "An identifiable title is given so it can be easily searched later.",
         cue: "Give it a title someone would search for.",
         anchor: "draft-title",
         advance: {
@@ -465,8 +453,7 @@ export const TOUR: TourBeat[] = [
         as: "dept-agent",
         route: ticketRoute,
         say:
-          "The summary is what somebody skims in a list of results, so write it for " +
-          "a person who does not yet know what went wrong.",
+          "The summary should be concise and easily readable.",
         cue: "Write the summary.",
         anchor: "draft-summary",
         advance: { kind: "filled", anchor: "draft-summary" },
@@ -484,6 +471,24 @@ export const TOUR: TourBeat[] = [
         anchor: "draft-body",
         advance: { kind: "filled", anchor: "draft-body" },
         perform: (ctx, dom) => dom.type("draft-body", ctx.articleBody),
+      },
+      {
+        /* Narration only, and it must stay that way: an internal-only article
+           is never offered as a deflection suggestion, so ticking this box
+           here would empty the payoff beat. Henry points at the choice and
+           leaves it alone. */
+        id: "kb-visibility",
+        as: "dept-agent",
+        route: ticketRoute,
+        say:
+          "Before he creates it, one choice worth knowing about: this box marks " +
+          "an article internal only, so it stays with the team and is never " +
+          "suggested to a customer. Plenty of fixes should be public -- this one " +
+          "included -- but not all of them are. Anything with a workaround you " +
+          "would not want relied on, or detail that is the team's business, gets " +
+          "ticked here and is still findable by the people who need it.",
+        anchor: "draft-internal-only",
+        advance: { kind: "read" },
       },
       {
         id: "kb-create",
@@ -511,9 +516,8 @@ export const TOUR: TourBeat[] = [
         as: "knowledge-manager",
         route: "/knowledge/manage",
         say:
-          "Alex could write the draft, but he cannot publish it. That is Kai's job. " +
-          "A deliberate split: the person who just fixed something is rarely the " +
-          "best judge of whether their write-up makes sense to anybody else.",
+          "Kai will review the drafts and publish them if they make sense after " +
+          "the review is done.",
         advance: { kind: "read" },
       },
       {
@@ -521,9 +525,7 @@ export const TOUR: TourBeat[] = [
         as: "knowledge-manager",
         route: "/knowledge/manage",
         say:
-          "Kai reads it and publishes it. Until this click, nobody outside the " +
-          "ticket is offered that article -- which is what keeps the help pages " +
-          "from filling up with half-finished notes.",
+          "Articles are only available after being published.",
         cue: "Publish the draft.",
         anchor: "article-publish",
         within: { anchor: "article-row", containing: (ctx) => ctx.articleTitle },
@@ -546,9 +548,9 @@ export const TOUR: TourBeat[] = [
         as: "customer2",
         route: "/tickets/new",
         say:
-          "Last stop, and this is the one the whole thing is for. A week later " +
-          "Jordan -- a different franchise partner, a different city -- hits the " +
-          "same wall. He has never spoken to Casey and cannot see her ticket.",
+          "A week later Jordan -- a different franchise partner, a different city " +
+          "-- hits the same wall. He has never spoken to Casey and cannot see her " +
+          "ticket.",
         advance: { kind: "read" },
       },
       {
@@ -591,9 +593,8 @@ export const TOUR: TourBeat[] = [
         as: "customer2",
         route: "/tickets/new",
         say:
-          "He reads it, tries it, and it works. Telling the desk so is how Kai " +
-          "learns which articles are earning their keep and which ones quietly help " +
-          "nobody.",
+          "Jordan reads it, tries the solution and it works. Marking the issue " +
+          "solved lets us know that the article is earning its keep.",
         cue: "Mark it solved.",
         anchor: "deflect-solved",
         // The suggestion row names the ARTICLE, not Casey's ticket. Those used

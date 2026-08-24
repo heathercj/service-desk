@@ -221,6 +221,7 @@ export function KnowledgeOutcomePanel({
                 </label>
                 <label className="flex items-center gap-2 text-xs">
                   <input
+                    data-tour="draft-internal-only"
                     type="checkbox"
                     checked={draftInternalOnly}
                     onChange={(e) => setDraftInternalOnly(e.target.checked)}
