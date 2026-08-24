@@ -30,6 +30,7 @@
     "db:reset": "tsx scripts/db-reset.ts",
     "kb:reindex": "tsx scripts/kb-reindex.ts",
     "kb:validate": "tsx scripts/kb-validate.ts",
+    "sbom": "pnpm dlx @cyclonedx/cdxgen@11 -t pnpm -o sbom.cdx.json --no-recurse",
     "sim:run": "tsx scripts/sim-run.ts",
     "demo:clean": "tsx scripts/demo-clean.ts",
     "security": "pnpm security:secrets && pnpm security:sca && pnpm security:sast && pnpm security:container",

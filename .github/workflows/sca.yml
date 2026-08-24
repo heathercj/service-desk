@@ -71,8 +71,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # cdxgen, not @cyclonedx/cyclonedx-npm: the latter shells out to
+      # `npm ls`, which cannot read a pnpm workspace and dies on the missing
+      # peer entries pnpm's layout leaves behind. cdxgen reads
+      # pnpm-lock.yaml directly (-t pnpm). Same CycloneDX JSON out.
       - name: Generate CycloneDX SBOM
-        run: pnpm dlx @cyclonedx/cyclonedx-npm --output-format JSON --output-file sbom.cdx.json
+        run: pnpm sbom
 
       - uses: actions/upload-artifact@v4 # v4.6.0
         with:
