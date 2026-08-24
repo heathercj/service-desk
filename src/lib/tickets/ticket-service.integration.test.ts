@@ -8,6 +8,7 @@ import {
   getDepartmentId,
 } from "@/test-support/fixtures";
 import {
+  addConversationMessage,
   confirmTriage,
   createTicket,
   getTicketForActor,
@@ -223,6 +224,48 @@ describe("ticket-service integration", () => {
     expect(stillBlocked.ticket.status).toBe("RESOLUTION_REVIEW");
   });
 
+  it("stores an agent's reply to the customer and captures the outbound email", async () => {
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+    const agent = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+    });
+
+    const created = await createTicket(customer, await baseTicketInput(franchise.id));
+    const queued = await confirmTriage(triage, {
+      ticketId: created.id,
+      version: created.version,
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      priority: "MEDIUM",
+      tags: [],
+    });
+    const assigned = await selfAssignTicket(agent, queued.id, queued.version);
+
+    const body = "Thanks for the detail -- I can see the expired session. Looking now.";
+    const result = await addConversationMessage(agent, {
+      ticketId: assigned.id,
+      version: assigned.version,
+      body,
+    });
+
+    // The reply is a staff message, and it survives the transaction.
+    expect(result.message.isFromCustomer).toBe(false);
+    const stored = await db.conversationMessage.findUnique({
+      where: { id: result.message.id },
+    });
+    expect(stored?.body).toBe(body);
+
+    // Section 9: a staff reply is emailed to the customer, captured rather
+    // than claimed as delivered.
+    const email = await db.outboundEmail.findFirst({
+      where: { conversationMessageId: result.message.id },
+    });
+    expect(email?.toEmail).toBe(customer.email);
+    expect(email?.status).toBe("CAPTURED_DEV");
+  });
+
   it("lets triage assign a ticket directly to an agent while routing it", async () => {
     const franchise = await createFranchise();
     const customer = await createTestUser({ roles: ["CUSTOMER"] });
@@ -314,7 +357,10 @@ describe("ticket-service integration", () => {
       toStatus: "IN_PROGRESS",
     });
 
-    const resolvedTicket = await createTicket(customer, await baseTicketInput(franchise.id));
+    const resolvedTicket = await createTicket(
+      customer,
+      await baseTicketInput(franchise.id),
+    );
     await confirmTriage(triage, {
       ticketId: resolvedTicket.id,
       version: resolvedTicket.version,
