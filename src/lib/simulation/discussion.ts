@@ -77,7 +77,9 @@ export function buildCustomerDiscussionLine(g: GroupStats): string {
     );
   }
   if (points.length === 0) {
-    points.push("submitting a ticket and getting a fix was quick and easy -- no complaints");
+    points.push(
+      "submitting a ticket and getting a fix was quick and easy -- no complaints",
+    );
   }
 
   return `${g.label}: ${points.join("; ")}.`;
@@ -89,10 +91,12 @@ export function buildTeamDiscussion(records: TicketRunRecord[]): string {
   const lines: string[] = ["\n=== Team retro: what felt easy, what didn't ==="];
 
   lines.push("\nStaff:");
-  for (const g of summarizeByStaff(records)) lines.push(`  ${buildStaffDiscussionLine(g)}`);
+  for (const g of summarizeByStaff(records))
+    lines.push(`  ${buildStaffDiscussionLine(g)}`);
 
   lines.push("\nCustomers:");
-  for (const g of summarizeByCustomer(records)) lines.push(`  ${buildCustomerDiscussionLine(g)}`);
+  for (const g of summarizeByCustomer(records))
+    lines.push(`  ${buildCustomerDiscussionLine(g)}`);
 
   return lines.join("\n");
 }

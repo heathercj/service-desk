@@ -48,7 +48,7 @@ export default async function TicketSearchPage({
         <Input
           name="q"
           defaultValue={q}
-          placeholder="e.g. SD-000123 or &quot;VPN&quot;"
+          placeholder='e.g. SD-000123 or "VPN"'
           className="max-w-sm"
         />
         <Button type="submit">Search</Button>
@@ -80,8 +80,8 @@ export default async function TicketSearchPage({
                   </Link>
                   <p className="text-xs text-muted-foreground">
                     {t.department.name} ·{" "}
-                    {t.assignee ? `Assigned to ${t.assignee.displayName}` : "Unassigned"} ·
-                    Created {formatDate(t.createdAt)}
+                    {t.assignee ? `Assigned to ${t.assignee.displayName}` : "Unassigned"}{" "}
+                    · Created {formatDate(t.createdAt)}
                   </p>
                 </div>
                 <div className="flex gap-2">

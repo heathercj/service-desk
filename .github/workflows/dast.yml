@@ -61,11 +61,19 @@ jobs:
         run: pnpm db:seed
 
       - name: Build (dev-auth disabled for the build phase; see src/lib/env.ts)
-        run: ENABLE_DEV_AUTH=false pnpm build
+        run: pnpm build:e2e
 
+      # Not `node .next/standalone/server.js`: the launcher Next generates
+      # sets NODE_ENV=production on its fifth line, before anything else
+      # loads, so the NODE_ENV=test above never took effect and src/lib/env.ts
+      # refused to start with dev auth -- every request, /api/health included,
+      # 500ed out of middleware and this job could not get past the wait
+      # below. scripts/e2e-server.ts is that launcher without the overwrite,
+      # and it also copies .next/static, which standalone does not, so ZAP
+      # scans a page that actually loads its assets.
       - name: Launch the app with development authentication
         run: |
-          nohup node .next/standalone/server.js > server.log 2>&1 &
+          nohup pnpm e2e:server > server.log 2>&1 &
           echo $! > server.pid
 
       - name: Wait for the health endpoint
@@ -105,3 +113,4 @@ jobs:
         if: always()
         run: |
           if [ -f server.pid ]; then kill "$(cat server.pid)" || true; fi
+          pkill -f "scripts/e2e-server.ts" || true

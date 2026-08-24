@@ -33,3 +33,31 @@ describe("checkRateLimit", () => {
     expect(checkRateLimit(key, { windowMs: 20, max: 3 }).allowed).toBe(true);
   });
 });
+
+/**
+ * The sign-in limit's own shape, rather than the limiter's. These lock the two
+ * facts that made the full e2e suite flaky for weeks: the bucket is shared
+ * whenever there is no x-forwarded-for, and twenty is the point it closes.
+ * See "Known flake" in docs/TESTING.md.
+ */
+describe("the sign-in rate limit", () => {
+  const authLimit = { windowMs: 60_000, max: 20 };
+
+  it("closes on the twenty-first request in a window", () => {
+    const key = `auth-${Math.random()}`;
+    for (let i = 0; i < 20; i++) {
+      expect(checkRateLimit(key, authLimit).allowed).toBe(true);
+    }
+    expect(checkRateLimit(key, authLimit).allowed).toBe(false);
+  });
+
+  it("counts unrelated callers together when they share a key", () => {
+    // What `auth:unknown` is: middleware falls back to that single key for
+    // every request without x-forwarded-for, so callers that have nothing to
+    // do with each other spend the same budget. Six Playwright workers on
+    // localhost are one caller as far as this is concerned.
+    const shared = `auth:unknown-${Math.random()}`;
+    for (let i = 0; i < 20; i++) checkRateLimit(shared, authLimit);
+    expect(checkRateLimit(shared, authLimit).allowed).toBe(false);
+  });
+});

@@ -25,7 +25,8 @@ export const TRIAGE_PERSONA: AgentPersona = {
   roleName: "TRIAGE_AGENT",
   displayName: "Sim Triage Agent",
   email: "sim.triage@sim.example.test",
-  description: "Reviews the submitted-ticket queue and routes tickets to the right department.",
+  description:
+    "Reviews the submitted-ticket queue and routes tickets to the right department.",
   skills: [
     "ITIL-aligned incident logging and categorization",
     "SLA-based prioritization",
@@ -135,27 +136,31 @@ function slug(departmentKey: DepartmentKey): string {
   return departmentKey.toLowerCase().replace(/_/g, "-");
 }
 
-export const DEPARTMENT_AGENT_PERSONAS: AgentPersona[] = DEPARTMENT_SKILL_SETS.map((d) => ({
-  key: `sim-agent-${slug(d.departmentKey)}`,
-  roleName: "DEPARTMENT_AGENT",
-  departmentKey: d.departmentKey,
-  isManager: false,
-  displayName: `Sim ${d.departmentName} Agent`,
-  email: `sim.agent.${slug(d.departmentKey)}@sim.example.test`,
-  description: `${d.departmentName} agent working assigned tickets.`,
-  skills: d.agentSkills,
-}));
+export const DEPARTMENT_AGENT_PERSONAS: AgentPersona[] = DEPARTMENT_SKILL_SETS.map(
+  (d) => ({
+    key: `sim-agent-${slug(d.departmentKey)}`,
+    roleName: "DEPARTMENT_AGENT",
+    departmentKey: d.departmentKey,
+    isManager: false,
+    displayName: `Sim ${d.departmentName} Agent`,
+    email: `sim.agent.${slug(d.departmentKey)}@sim.example.test`,
+    description: `${d.departmentName} agent working assigned tickets.`,
+    skills: d.agentSkills,
+  }),
+);
 
-export const DEPARTMENT_MANAGER_PERSONAS: AgentPersona[] = DEPARTMENT_SKILL_SETS.map((d) => ({
-  key: `sim-manager-${slug(d.departmentKey)}`,
-  roleName: "DEPARTMENT_MANAGER",
-  departmentKey: d.departmentKey,
-  isManager: true,
-  displayName: `Sim ${d.departmentName} Manager`,
-  email: `sim.manager.${slug(d.departmentKey)}@sim.example.test`,
-  description: `Manages the ${d.departmentName} queue and workload.`,
-  skills: [...d.agentSkills, ...d.managerSkillAdditions],
-}));
+export const DEPARTMENT_MANAGER_PERSONAS: AgentPersona[] = DEPARTMENT_SKILL_SETS.map(
+  (d) => ({
+    key: `sim-manager-${slug(d.departmentKey)}`,
+    roleName: "DEPARTMENT_MANAGER",
+    departmentKey: d.departmentKey,
+    isManager: true,
+    displayName: `Sim ${d.departmentName} Manager`,
+    email: `sim.manager.${slug(d.departmentKey)}@sim.example.test`,
+    description: `Manages the ${d.departmentName} queue and workload.`,
+    skills: [...d.agentSkills, ...d.managerSkillAdditions],
+  }),
+);
 
 export const ALL_AGENT_PERSONAS: AgentPersona[] = [
   TRIAGE_PERSONA,
@@ -164,13 +169,17 @@ export const ALL_AGENT_PERSONAS: AgentPersona[] = [
 ];
 
 export function findDepartmentAgentPersona(departmentKey: DepartmentKey): AgentPersona {
-  const persona = DEPARTMENT_AGENT_PERSONAS.find((p) => p.departmentKey === departmentKey);
+  const persona = DEPARTMENT_AGENT_PERSONAS.find(
+    (p) => p.departmentKey === departmentKey,
+  );
   if (!persona) throw new Error(`No department agent persona for ${departmentKey}`);
   return persona;
 }
 
 export function findDepartmentManagerPersona(departmentKey: DepartmentKey): AgentPersona {
-  const persona = DEPARTMENT_MANAGER_PERSONAS.find((p) => p.departmentKey === departmentKey);
+  const persona = DEPARTMENT_MANAGER_PERSONAS.find(
+    (p) => p.departmentKey === departmentKey,
+  );
   if (!persona) throw new Error(`No department manager persona for ${departmentKey}`);
   return persona;
 }

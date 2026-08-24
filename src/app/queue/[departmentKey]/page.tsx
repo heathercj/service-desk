@@ -2,7 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAuthContext } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import { listDepartmentQueue, type TicketListFilters } from "@/lib/tickets/ticket-service";
+import {
+  listDepartmentQueue,
+  type TicketListFilters,
+} from "@/lib/tickets/ticket-service";
 import { LIVE_STATUSES } from "@/lib/tickets/state-machine";
 import { canViewDepartmentWorkload, toPolicyActor } from "@/lib/rbac/policies";
 import { AccessDenied } from "@/components/access-denied";
@@ -144,10 +147,14 @@ export default async function DepartmentQueuePage({
         <div className="grid gap-3">
           {result.items.map((t) => (
             <Card key={t.id}>
-              <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+              <CardContent
+                data-tour="queue-row"
+                className="flex flex-wrap items-center justify-between gap-3 p-4"
+              >
                 <div>
                   <Link
                     href={`/tickets/${t.ticketNumber}`}
+                    data-tour="ticket-link"
                     className="font-medium hover:underline"
                   >
                     {t.ticketNumber} -- {t.subject}

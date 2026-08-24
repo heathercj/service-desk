@@ -102,7 +102,11 @@ export const CUSTOMER_PERSONAS: CustomerPersona[] = [
     displayName: "Sim Customer - Head Office Staff",
     email: "sim.customer.head-office-staff@sim.example.test",
     description: "Day-to-day head office administrative staff.",
-    skills: ["moderate-to-high software literacy", "polite, formal tone", "patient, methodical follow-up"],
+    skills: [
+      "moderate-to-high software literacy",
+      "polite, formal tone",
+      "patient, methodical follow-up",
+    ],
     commonDepartments: ["TECHNOLOGY_SUPPORT", "MARKETING", "ACCOUNTING_SERVICES"],
     scenarios: [
       {
@@ -128,8 +132,13 @@ export const CUSTOMER_PERSONAS: CustomerPersona[] = [
     key: "sim-customer-construction-worker",
     displayName: "Sim Customer - Construction Worker",
     email: "sim.customer.construction-worker@sim.example.test",
-    description: "On-site crew member submitting requests from a job site, usually on a phone.",
-    skills: ["low tech literacy", "terse, informal mobile-style messages", "needs plain-language clarification"],
+    description:
+      "On-site crew member submitting requests from a job site, usually on a phone.",
+    skills: [
+      "low tech literacy",
+      "terse, informal mobile-style messages",
+      "needs plain-language clarification",
+    ],
     commonDepartments: ["TECHNOLOGY_SUPPORT", "TRAINING"],
     scenarios: [
       {
@@ -155,8 +164,13 @@ export const CUSTOMER_PERSONAS: CustomerPersona[] = [
     key: "sim-customer-site-supervisor",
     displayName: "Sim Customer - Site Supervisor",
     email: "sim.customer.site-supervisor@sim.example.test",
-    description: "On-site foreman responsible for crew safety and day-to-day site operations.",
-    skills: ["safety/urgency framing", "moderate tech literacy", "cross-functional requests"],
+    description:
+      "On-site foreman responsible for crew safety and day-to-day site operations.",
+    skills: [
+      "safety/urgency framing",
+      "moderate tech literacy",
+      "cross-functional requests",
+    ],
     commonDepartments: ["TECHNOLOGY_SUPPORT", "TRAINING", "ACCOUNTING_SERVICES"],
     scenarios: [
       {
@@ -182,8 +196,13 @@ export const CUSTOMER_PERSONAS: CustomerPersona[] = [
     key: "sim-customer-new-hire",
     displayName: "Sim Customer - New Franchisee / New Hire",
     email: "sim.customer.new-hire@sim.example.test",
-    description: "Recently onboarded franchisee or head-office hire, still learning the systems.",
-    skills: ["very low system familiarity", "asks many clarifying questions", "patient but easily confused"],
+    description:
+      "Recently onboarded franchisee or head-office hire, still learning the systems.",
+    skills: [
+      "very low system familiarity",
+      "asks many clarifying questions",
+      "patient but easily confused",
+    ],
     commonDepartments: ["TRAINING", "TECHNOLOGY_SUPPORT"],
     scenarios: [
       {

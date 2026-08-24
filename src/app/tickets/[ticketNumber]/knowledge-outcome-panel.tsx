@@ -106,7 +106,12 @@ export function KnowledgeOutcomePanel({
       </CardHeader>
       <CardContent className="space-y-3">
         {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button variant="outline" disabled={busy} onClick={runCheck}>
+        <Button
+          data-tour="knowledge-check-run"
+          variant="outline"
+          disabled={busy}
+          onClick={runCheck}
+        >
           {busy ? "Searching..." : "Run knowledge similarity check"}
         </Button>
 
@@ -165,6 +170,7 @@ export function KnowledgeOutcomePanel({
           <div className="space-y-2 border-t border-border pt-3">
             <Button
               size="sm"
+              data-tour="knowledge-draft-toggle"
               variant="outline"
               onClick={() => setShowDraftForm((v) => !v)}
             >
@@ -177,6 +183,7 @@ export function KnowledgeOutcomePanel({
                 <label className="text-xs">
                   Title
                   <Input
+                    data-tour="draft-title"
                     value={draftTitle}
                     onChange={(e) => setDraftTitle(e.target.value)}
                   />
@@ -184,6 +191,7 @@ export function KnowledgeOutcomePanel({
                 <label className="text-xs">
                   Summary
                   <Textarea
+                    data-tour="draft-summary"
                     value={draftSummary}
                     onChange={(e) => setDraftSummary(e.target.value)}
                     rows={2}
@@ -205,6 +213,7 @@ export function KnowledgeOutcomePanel({
                 <label className="text-xs">
                   Article body (Markdown)
                   <Textarea
+                    data-tour="draft-body"
                     value={draftBody}
                     onChange={(e) => setDraftBody(e.target.value)}
                     rows={6}
@@ -221,6 +230,7 @@ export function KnowledgeOutcomePanel({
                 </label>
                 <Button
                   size="sm"
+                  data-tour="draft-create"
                   disabled={busy || !draftSummary.trim() || draftBody.trim().length < 20}
                   onClick={async () => {
                     setBusy(true);

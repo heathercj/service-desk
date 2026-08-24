@@ -9,9 +9,14 @@ import { signInAsDevIdentity, DEV_IDENTITIES } from "./dev-auth";
 test("customer submits a ticket and sees it on their dashboard", async ({ page }) => {
   await signInAsDevIdentity(page, DEV_IDENTITIES.customer);
 
+  // Unique per run. This spec creates a ticket every time and nothing cleans
+  // up, so a fixed subject means the second run sees two matches and the
+  // assertions below fail strict mode instead of testing anything.
+  const subject = `VPN client keeps disconnecting (${Date.now()})`;
+
   await page.goto("/tickets/new");
 
-  await page.getByLabel("Subject").fill("VPN client keeps disconnecting");
+  await page.getByLabel("Subject").fill(subject);
   await page
     .getByLabel("Describe the issue")
     .fill(
@@ -33,9 +38,7 @@ test("customer submits a ticket and sees it on their dashboard", async ({ page }
   await page.getByRole("button", { name: /submit ticket/i }).click();
 
   await page.waitForURL(/\/tickets\/SD-\d+/);
-  await expect(
-    page.getByRole("heading", { name: "VPN client keeps disconnecting" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: subject })).toBeVisible();
 
   // Attach a screenshot from the ticket detail page.
   await page.setInputFiles('input[type="file"]', {
@@ -54,8 +57,10 @@ test("customer submits a ticket and sees it on their dashboard", async ({ page }
     ]),
   });
   await page.getByRole("button", { name: /upload attachment/i }).click();
-  await expect(page.getByText("screenshot.png")).toBeVisible();
+  // Upload round trip plus an RSC refresh; in dev mode under parallel workers
+  // that regularly runs past the 5s default and is not a real failure.
+  await expect(page.getByText("screenshot.png")).toBeVisible({ timeout: 30_000 });
 
   await page.goto("/dashboard");
-  await expect(page.getByText("VPN client keeps disconnecting")).toBeVisible();
+  await expect(page.getByText(subject)).toBeVisible();
 });

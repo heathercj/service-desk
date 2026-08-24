@@ -72,7 +72,11 @@ export default async function TicketDetailPage({
             <CardTitle className="text-xl">{ticket.subject}</CardTitle>
           </div>
           <div className="flex flex-wrap gap-2">
-            <StatusBadge status={ticket.status} />
+            {/* The tour watches this span's text to know a transition
+                landed; keep the badge its only child. */}
+            <span data-tour="ticket-status">
+              <StatusBadge status={ticket.status} />
+            </span>
             {ticket.priorityCustomerVisible || isStaffView ? (
               <PriorityBadge priority={ticket.priority} />
             ) : null}
@@ -103,7 +107,9 @@ export default async function TicketDetailPage({
           {isStaffView && ticket.suggestedDepartmentRationale && (
             <Field
               label={
-                ticket.suggestedDepartment ? "Suggested department" : "Auto-routed because"
+                ticket.suggestedDepartment
+                  ? "Suggested department"
+                  : "Auto-routed because"
               }
               value={
                 ticket.suggestedDepartment

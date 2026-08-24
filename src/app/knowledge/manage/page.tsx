@@ -42,7 +42,10 @@ export default async function KnowledgeManagePage() {
             <div className="grid gap-3">
               {group.map((a) => (
                 <Card key={a.id}>
-                  <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+                  <CardContent
+                    data-tour="article-row"
+                    className="flex flex-wrap items-center justify-between gap-3 p-4"
+                  >
                     <div>
                       <Link
                         href={`/knowledge/${a.slug}`}

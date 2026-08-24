@@ -135,11 +135,13 @@ export function TicketActions({
           </CardHeader>
           <CardContent className="space-y-2">
             <Textarea
+              data-tour="message-body"
               value={messageBody}
               onChange={(e) => setMessageBody(e.target.value)}
               rows={3}
             />
             <Button
+              data-tour="message-send"
               disabled={busy || !messageBody.trim()}
               onClick={() =>
                 run(async () => {
@@ -223,6 +225,7 @@ export function TicketActions({
               </Select>
             </label>
             <Button
+              data-tour="triage-confirm"
               disabled={busy}
               onClick={() =>
                 run(async () => {
@@ -246,6 +249,7 @@ export function TicketActions({
 
       {canSelfAssign && (
         <Button
+          data-tour="assign-self"
           disabled={busy}
           onClick={() =>
             run(async () =>
@@ -262,6 +266,7 @@ export function TicketActions({
           {plainTransitions.map((status) => (
             <Button
               key={status}
+              data-tour={`transition-${status}`}
               variant="outline"
               disabled={busy}
               onClick={() =>
@@ -288,6 +293,7 @@ export function TicketActions({
             <label className="text-sm">
               Resolution summary
               <Textarea
+                data-tour="resolution-summary"
                 value={resolutionSummary}
                 onChange={(e) => setResolutionSummary(e.target.value)}
                 rows={2}
@@ -296,12 +302,14 @@ export function TicketActions({
             <label className="text-sm">
               Resolution steps
               <Textarea
+                data-tour="resolution-steps"
                 value={resolutionSteps}
                 onChange={(e) => setResolutionSteps(e.target.value)}
                 rows={3}
               />
             </label>
             <Button
+              data-tour="resolution-submit"
               disabled={busy || !resolutionSummary.trim() || !resolutionSteps.trim()}
               onClick={() =>
                 run(async () => {
@@ -319,7 +327,10 @@ export function TicketActions({
               Submit resolution
             </Button>
             {gateReasons && (
-              <div className="rounded-md border border-warning bg-warning/10 p-3 text-sm">
+              <div
+                data-tour="resolution-gate"
+                className="rounded-md border border-warning bg-warning/10 p-3 text-sm"
+              >
                 <p className="font-medium">Cannot resolve yet:</p>
                 <ul className="mt-1 list-disc pl-5">
                   {gateReasons.map((r) => (

@@ -43,7 +43,12 @@ export function ArticleManageActions({
   return (
     <div className="flex gap-2">
       {(status === "DRAFT" || status === "IN_REVIEW") && (
-        <Button size="sm" disabled={busy} onClick={() => act("publish")}>
+        <Button
+          size="sm"
+          data-tour="article-publish"
+          disabled={busy}
+          onClick={() => act("publish")}
+        >
           Publish
         </Button>
       )}

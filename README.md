@@ -54,7 +54,10 @@ panel in addition to the Microsoft button. Pick any seeded identity:
 | Kai Knowledge  | Knowledge Manager                    | Publish/archive articles         |
 | Robin Admin    | Administrator                        | Users, roles, departments, audit |
 
-A persistent warning banner appears on every page while `ENABLE_DEV_AUTH=true`.
+While `ENABLE_DEV_AUTH=true` the login page carries a warning-bordered
+**Development sign-in** card naming the flag; there is deliberately no
+site-wide banner on top of that, because the build it would warn about cannot
+start (see below).
 Seed data (`prisma/seed.ts`) walks every ticket status and includes several
 knowledge articles (published, draft, and archived) so every major workflow
 has something to look at immediately.

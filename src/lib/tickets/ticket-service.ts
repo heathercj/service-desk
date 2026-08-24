@@ -461,7 +461,10 @@ export async function confirmTriage(actor: AuthContext, input: ConfirmTriageInpu
     if (input.assigneeId) {
       const membership = await tx.departmentMembership.findUnique({
         where: {
-          userId_departmentId: { userId: input.assigneeId, departmentId: targetDepartment.id },
+          userId_departmentId: {
+            userId: input.assigneeId,
+            departmentId: targetDepartment.id,
+          },
         },
       });
       assertAuthorized(
@@ -845,7 +848,7 @@ export async function addConversationMessage(
 ) {
   const policyActor = toPolicyActor(actor);
 
-  return db.$transaction(async (tx) => {
+  const result = await db.$transaction(async (tx) => {
     const ticket = await loadTicketOrThrow(input.ticketId, tx);
     assertAuthorized(
       canAddCustomerMessage(policyActor, ticket),
@@ -872,15 +875,6 @@ export async function addConversationMessage(
         ticket.departmentId === ticket.submittedDepartmentId && ticket.assigneeId === null
           ? "IN_TRIAGE"
           : "IN_PROGRESS";
-    } else if (!isFromCustomer) {
-      // Agent/triage replying to the customer: send via the email provider.
-      await getEmailProvider().send({
-        ticketId: ticket.id,
-        conversationMessageId: message.id,
-        toEmail: ticket.submittedEmail,
-        subject: `[${ticket.ticketNumber}] ${ticket.subject}`,
-        bodyText: input.body,
-      });
     }
 
     let updated = ticket;
@@ -899,8 +893,26 @@ export async function addConversationMessage(
       });
     }
 
-    return { message, ticket: updated };
+    return { message, ticket: updated, notifyCustomer: !isFromCustomer };
   });
+
+  // Deliberately after the transaction commits: the email provider records
+  // an OutboundEmail row that references the ConversationMessage by foreign
+  // key, on its own connection. Inside the transaction that row is not yet
+  // visible to it, so the insert violated the constraint and rolled the
+  // whole reply back -- staff could never answer a customer. External
+  // side effects also have no business inside a database transaction.
+  if (result.notifyCustomer) {
+    await getEmailProvider().send({
+      ticketId: result.ticket.id,
+      conversationMessageId: result.message.id,
+      toEmail: result.ticket.submittedEmail,
+      subject: `[${result.ticket.ticketNumber}] ${result.ticket.subject}`,
+      bodyText: input.body,
+    });
+  }
+
+  return { message: result.message, ticket: result.ticket };
 }
 
 export interface AddInternalNoteInput {

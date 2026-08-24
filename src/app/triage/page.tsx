@@ -37,10 +37,14 @@ export default async function TriageQueuePage() {
         <div className="grid gap-3">
           {result.items.map((t) => (
             <Card key={t.id}>
-              <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+              <CardContent
+                data-tour="triage-row"
+                className="flex flex-wrap items-center justify-between gap-3 p-4"
+              >
                 <div>
                   <Link
                     href={`/tickets/${t.ticketNumber}`}
+                    data-tour="ticket-link"
                     className="font-medium hover:underline"
                   >
                     {t.ticketNumber} -- {t.subject}

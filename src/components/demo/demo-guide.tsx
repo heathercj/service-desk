@@ -1,0 +1,587 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import { DEV_IDENTITIES } from "@/lib/dev-auth/dev-identities";
+import { TOUR_STEPS, createTourContext } from "@/lib/demo/tour-script";
+import {
+  resolveDynamic,
+  type Advance,
+  type ResolvedScope,
+  type TourStep,
+} from "@/lib/demo/tour-types";
+import {
+  createDomDriver,
+  observeUntil,
+  queryAnchor,
+  queryScopedRow,
+} from "@/lib/demo/dom-drive";
+import { Henry, HenrySays } from "./henry";
+import { Spotlight } from "./spotlight";
+import { loadTourSession, saveTourSession, type TourSession } from "./tour-state";
+
+/**
+ * How long autopilot lingers on a narration-only step, by reading length.
+ *
+ * Twice the original pace, ceiling included, arrived at in two goes: the pace
+ * was first tuned for a room that already knew what it was looking at, and
+ * someone being taught this for the first time was still on the second
+ * sentence when the panel moved on. 85ms a character is slower than reading
+ * aloud on purpose -- the narration is explaining something new, and the
+ * viewer is also looking at the part of the screen it refers to.
+ */
+function dwellMs(say: string, fast: boolean): number {
+  return fast ? 250 : Math.min(28_000, 6_000 + say.length * 85);
+}
+
+/**
+ * How long a step holds after its perform() finishes, before it may advance.
+ *
+ * Without this the advance is instantaneous, and not by a little: `filled` is
+ * satisfied by the FIRST character typed, so the moment the driver stops
+ * typing the advance poll fires and the panel jumps. The audience watches a
+ * form being filled in and then never sees it filled -- which is the one
+ * frame that shows what the step accomplished.
+ *
+ * It reuses the in-flight guard rather than adding a second mechanism: the
+ * step simply stays un-advanceable a little longer, so both entry points get
+ * the hold and neither can skip it. See runPerform.
+ */
+function settleMs(fast: boolean): number {
+  return fast ? 0 : 2_000;
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function identityFor(key: string) {
+  return DEV_IDENTITIES.find((i) => i.key === key);
+}
+
+/**
+ * Role names as English. `DEPARTMENT_AGENT` is what the database calls it, and
+ * the handoff card is the only thing on screen at a handoff -- so it is the
+ * one place the tour would otherwise show a viewer a constant name.
+ */
+function roleWords(roles: string[]): string {
+  return roles.map((r) => r.replace(/_/g, " ").toLowerCase()).join(" and ");
+}
+
+function valueOf(el: HTMLElement | null): string | null {
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+    return el.value;
+  }
+  return null;
+}
+
+/**
+ * Henry: the guided tour of the golden path.
+ *
+ * Nothing starts on its own. Free exploration is the default state of the
+ * app, and the launcher is the only way in -- so a visitor who just wants to
+ * click around never has a tour imposed on them, and Exit hands control back
+ * immediately.
+ *
+ * Mounted from the root layout behind ENABLE_DEMO_TOUR (see src/lib/env.ts,
+ * which also refuses to boot with it set in production).
+ */
+export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const [hydrated, setHydrated] = useState(false);
+  const [session, setSession] = useState<TourSession | null>(null);
+  const [dismissed, setDismissed] = useState(false);
+  const [wandered, setWandered] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Per-step latches. Refs, not state: they gate side effects and must not
+  // themselves cause a re-render, or the effects they gate re-run forever.
+  const navigatedFor = useRef<string | null>(null);
+  const performedFor = useRef<string | null>(null);
+  /**
+   * The step whose perform() is still running.
+   *
+   * An advance condition is meant to prove the APP did something. While the
+   * tour is still driving the field, it proves nothing: `filled` is satisfied
+   * by the first character, so without this the panel moves to the next cue
+   * roughly three seconds before the typing it started has finished. A
+   * presenter who follows the cue promptly then submits a half-typed form --
+   * which is how mode 1 stalled on intake-submit, with the app rejecting a
+   * description below the 30-character minimum.
+   */
+  const performing = useRef<string | null>(null);
+  const handedOffFor = useRef<string | null>(null);
+  const wasFilled = useRef<string | null>(null);
+
+  // ?tour=fast strips the pauses. Read once, at start, and then carried in
+  // the session -- the tour navigates away from the query string almost
+  // immediately, so re-reading it later would silently revert to slow.
+  const [fastRequested, setFastRequested] = useState(false);
+  const fast = session?.fast ?? fastRequested;
+
+  const driver = useMemo(
+    () => createDomDriver(fast ? { typeDelayMs: 0, clickDelayMs: 0 } : {}),
+    [fast],
+  );
+
+  // sessionStorage is read after mount, never during render: reading it in a
+  // useState initialiser would make the server and client markup disagree.
+  useEffect(() => {
+    const loaded = loadTourSession();
+    setSession(loaded && loaded.stepIndex <= TOUR_STEPS.length ? loaded : null);
+    setFastRequested(new URLSearchParams(window.location.search).get("tour") === "fast");
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (hydrated) saveTourSession(session);
+  }, [hydrated, session]);
+
+  const entry = session ? TOUR_STEPS[session.stepIndex] : undefined;
+  const step: TourStep | undefined = entry?.step;
+  const ctx = session?.ctx;
+
+  const route = step && ctx ? resolveDynamic(step.route, ctx) : null;
+  // Memoised because the advance predicate depends on it: a fresh object
+  // every render would re-arm the observer on every render.
+  const scope = useMemo<ResolvedScope | undefined>(
+    () =>
+      step?.within && ctx
+        ? {
+            anchor: step.within.anchor,
+            containing: resolveDynamic(step.within.containing, ctx),
+          }
+        : undefined,
+    [step, ctx],
+  );
+
+  const expected = step ? identityFor(step.as) : undefined;
+  const identityOk = Boolean(expected && signedInAs === expected.displayName);
+  const routeOk = route !== null && pathname === route;
+
+  const advance = useCallback(() => {
+    setSession((prev) => {
+      if (!prev) return prev;
+      const current = TOUR_STEPS[prev.stepIndex];
+      if (!current) return prev;
+      const captured =
+        current.step.capture?.({ pathname: window.location.pathname }) ?? {};
+      return {
+        ...prev,
+        stepIndex: prev.stepIndex + 1,
+        ctx: { ...prev.ctx, ...captured },
+      };
+    });
+    setWandered(false);
+    setError(null);
+  }, []);
+
+  /**
+   * The one place a perform() is started. Autopilot and the mode-1 button both
+   * come through here so the in-flight guard cannot be bypassed by one of
+   * them.
+   */
+  const runPerform = useCallback(async () => {
+    if (!step?.perform || !ctx) return;
+    performedFor.current = step.id;
+    performing.current = step.id;
+    try {
+      await step.perform(ctx, driver);
+      // Hold before releasing the guard, so the completed form is on screen
+      // long enough to be read rather than flashing past on the way out.
+      await sleep(settleMs(fast));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Could not do that");
+    } finally {
+      // Guarded: a step exited early (an exit, a restart) must not clear a
+      // perform belonging to whatever is running now.
+      if (performing.current === step.id) performing.current = null;
+    }
+  }, [step, ctx, driver, fast]);
+
+  /**
+   * The Next button: one control that moves the tour on, whatever this step
+   * happens to need.
+   *
+   * This is the way the tour is meant to be given. Autopilot has to guess how
+   * long a room needs, and a full run at presentation pace is over seven
+   * minutes of watching software drive itself -- whereas a presenter clicking
+   * Next talks over each beat and moves when the room is ready, which is the
+   * pace that was always wanted.
+   *
+   * A step with a perform() gets it run, and then this says nothing more: the
+   * advance condition observes the app and carries the step from there.
+   *
+   * So Next cannot advance a step whose work the app has not actually done.
+   * That is the point, and it is why this does not simply call advance(): a
+   * button that moves the tour on because a human pressed it is the `click`
+   * advance that was deliberately removed from this file, and the silent
+   * failure the whole advance-condition design exists to prevent. On a step
+   * that has already performed, Next does nothing and the app's own condition
+   * is what moves it -- a moment later, and for the right reason.
+   */
+  const nextStep = useCallback(async () => {
+    if (step?.perform && performedFor.current !== step.id) {
+      await runPerform();
+      return;
+    }
+    if (step?.advance.kind === "read") advance();
+  }, [step, runPerform, advance]);
+
+  const start = useCallback(
+    (autopilot: boolean) => {
+      navigatedFor.current = null;
+      performedFor.current = null;
+      performing.current = null;
+      handedOffFor.current = null;
+      wasFilled.current = null;
+      setError(null);
+      setWandered(false);
+      setSession({
+        stepIndex: 0,
+        autopilot,
+        fast: fastRequested,
+        ctx: createTourContext(),
+      });
+    },
+    [fastRequested],
+  );
+
+  const exit = useCallback(() => {
+    setSession(null);
+    saveTourSession(null);
+    setDismissed(true);
+  }, []);
+
+  const handoff = useCallback(() => {
+    if (!step || !route) return;
+    if (handedOffFor.current === step.id) return;
+    handedOffFor.current = step.id;
+    // A full navigation rather than a client-side session refresh: the tour's
+    // place lives in sessionStorage precisely so it can survive this.
+    void signIn("dev-credentials", { devUserKey: step.as, callbackUrl: route });
+  }, [step, route]);
+
+  /**
+   * Whether the current step's completion condition holds right now.
+   *
+   * `within` narrows THE ELEMENT THE STEP POINTS AT -- the publish button in
+   * this article's row, the link for this ticket. It must not be applied to an
+   * advance that watches something else: the deflection step points at a
+   * button inside a suggestion row, but waits for a confirmation card that
+   * REPLACES that row. Scoping that wait to the row means waiting inside an
+   * element that no longer exists, which is precisely how the tour stalled on
+   * its last beat.
+   */
+  const satisfied = useCallback(
+    (a: Advance): boolean => {
+      // Only the step's own anchor inherits the row narrowing.
+      const scopeFor = (anchor: string) => (anchor === step?.anchor ? scope : undefined);
+
+      switch (a.kind) {
+        case "read":
+          return false; // narration only -- the human continues
+        case "appears":
+          return queryAnchor(a.anchor, scopeFor(a.anchor)) !== null;
+        case "filled":
+          return (valueOf(queryAnchor(a.anchor, scopeFor(a.anchor))) ?? "").trim() !== "";
+        case "value":
+          return a.pattern.test(valueOf(queryAnchor(a.anchor, scopeFor(a.anchor))) ?? "");
+        case "emptied": {
+          const value = valueOf(queryAnchor(a.anchor, scopeFor(a.anchor)));
+          if (value === null) return false;
+          // Only counts as emptied if we watched it hold text first --
+          // otherwise the step would satisfy itself the instant it began.
+          if (value !== "") {
+            wasFilled.current = step?.id ?? null;
+            return false;
+          }
+          return wasFilled.current === step?.id;
+        }
+        case "checked": {
+          const el = queryAnchor(a.anchor, scopeFor(a.anchor));
+          return el instanceof HTMLInputElement && el.checked;
+        }
+        case "text": {
+          // `within` may name the very row the step is scoped to -- the
+          // article row carrying THIS title, not whichever row happens to be
+          // first in the document. Without that narrowing, a manage console
+          // holding twenty other drafts never satisfies this condition, which
+          // is exactly how the publish beat stalled.
+          const root =
+            a.within === undefined
+              ? document.body
+              : scope?.anchor === a.within
+                ? queryScopedRow(scope)
+                : queryAnchor(a.within, scopeFor(a.within));
+          return root !== null && a.pattern.test((root.textContent ?? "").trim());
+        }
+        case "route":
+          return a.pattern.test(pathname);
+      }
+    },
+    [scope, pathname, step?.id, step?.anchor],
+  );
+
+  // --- Advance detection. Runs before route enforcement below, so a step
+  // whose completion IS a navigation is never mistaken for wandering off.
+  useEffect(() => {
+    if (!step || !identityOk) return;
+    const a = step.advance;
+
+    if (a.kind === "read") return;
+
+    if (a.kind === "route") {
+      if (a.pattern.test(pathname)) advance();
+      return;
+    }
+
+    // performing.current is read fresh on every poll, so the guard lifts on
+    // its own when the perform resolves -- no re-render needed to release it.
+    return observeUntil(() => performing.current === null && satisfied(a), advance);
+  }, [step, identityOk, pathname, satisfied, advance]);
+
+  // --- Get us to the right identity and the right page.
+  useEffect(() => {
+    if (!step || !route) return;
+    if (!identityOk) return; // the handoff card takes over
+    if (routeOk) {
+      setWandered(false);
+      return;
+    }
+    if (step.advance.kind === "route" && step.advance.pattern.test(pathname)) return;
+
+    if (navigatedFor.current === step.id) {
+      // We already brought them here once and they left again. Offer the way
+      // back rather than yanking them; a technical audience clicking around
+      // mid-demo is the expected behaviour, not a fault.
+      setWandered(true);
+      return;
+    }
+    navigatedFor.current = step.id;
+    router.push(route);
+  }, [step, route, routeOk, identityOk, pathname, router]);
+
+  // --- Autopilot.
+  useEffect(() => {
+    if (!session?.autopilot || !step || !ctx) return;
+    if (!identityOk) {
+      handoff();
+      return;
+    }
+    if (!routeOk || wandered) return;
+
+    if (step.advance.kind === "read") {
+      const timer = setTimeout(advance, dwellMs(resolveDynamic(step.say, ctx), fast));
+      return () => clearTimeout(timer);
+    }
+    if (!step.perform || performedFor.current === step.id) return;
+    void runPerform();
+  }, [
+    session?.autopilot,
+    step,
+    ctx,
+    identityOk,
+    routeOk,
+    wandered,
+    advance,
+    handoff,
+    runPerform,
+    fast,
+  ]);
+
+  if (!hydrated) return null;
+
+  // --- Launcher. The app's default state: no tour, no overlay, no scrim.
+  if (!session) {
+    if (dismissed) return null;
+    return (
+      <div className="fixed bottom-4 right-4 z-50 flex max-w-md items-center gap-3 rounded-xl border border-border bg-background/95 p-4 shadow-lg backdrop-blur">
+        <Henry className="h-16 w-16" />
+        <HenrySays>
+          <p className="text-base font-medium leading-snug">
+            Hey, I&apos;m Henry the Lion!
+          </p>
+          {/* Not text-muted-foreground, here or in the closing card below.
+              Inside the bubble it fails WCAG AA at 4.27:1 -- the token only
+              just clears 4.5 against `background`, and the bubble is
+              `bg-muted/50`, whose alpha lightens the backdrop out from under
+              mid-grey text. Counter-intuitively, making the bubble opaque
+              makes it worse (3.8:1), so the text is what has to darken. The
+              line stays secondary by size, not by colour. */}
+          <p className="mt-0.5 text-sm">New here? I can show you around.</p>
+        </HenrySays>
+        <div className="flex shrink-0 flex-col gap-1">
+          <Button onClick={() => start(false)}>Start</Button>
+          <Button variant="outline" onClick={() => start(true)}>
+            Autopilot
+          </Button>
+        </div>
+        <button
+          type="button"
+          onClick={() => setDismissed(true)}
+          aria-label="Dismiss the tour offer"
+          className="self-start text-muted-foreground hover:text-foreground"
+        >
+          &times;
+        </button>
+      </div>
+    );
+  }
+
+  const total = TOUR_STEPS.length;
+
+  // --- Finished.
+  if (!entry || !step || !ctx) {
+    return (
+      <div className="fixed bottom-4 right-4 z-50 flex max-w-md items-start gap-3 rounded-xl border border-border bg-background/95 p-4 shadow-lg backdrop-blur">
+        <Henry className="h-16 w-16" />
+        <div className="min-w-0 flex-1 space-y-3">
+          <HenrySays>
+            <p className="text-base font-medium">That is the whole loop.</p>
+            <p className="mt-1 text-sm">
+              One ticket in, one article out, and the second person with the same problem
+              cost the desk nothing. That was all real, by the way -- a real ticket, and a
+              real help article that anyone can find now. Have a click around; I will be
+              down in the corner if you want it again.
+            </p>
+          </HenrySays>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => start(false)}>
+              Again
+            </Button>
+            <Button onClick={exit}>Done</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const say = resolveDynamic(step.say, ctx);
+  const cue = step.cue ? resolveDynamic(step.cue, ctx) : null;
+  // `value` belongs with the typing kinds: it is a text field either way, and
+  // the label is what e2e/demo-tour-guided.spec.ts reaches for to decide it is
+  // a typing step. Leaving it out made that spec hang waiting for a button
+  // that said something else.
+  const performLabel =
+    step.advance.kind === "filled" ||
+    step.advance.kind === "checked" ||
+    step.advance.kind === "value"
+      ? "Fill it in for me"
+      : "Do it for me";
+
+  return (
+    <>
+      {identityOk && routeOk && !wandered && (
+        <Spotlight anchor={step.anchor} scope={scope} />
+      )}
+
+      {/* max-h/overflow: the narration is the tallest thing in here and the
+          intro steps are the longest narration, so the panel can reach ~420px.
+          That fits every laptop, but a demo gets given on whatever projector is
+          in the room, and a panel taller than the screen puts its own buttons
+          off the bottom of it. */}
+      <aside
+        aria-live="polite"
+        className="fixed bottom-4 right-4 z-50 max-h-[calc(100vh-2rem)] w-[min(32rem,calc(100vw-2rem))] overflow-y-auto rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur"
+      >
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+              {entry.beat.title} &middot; step {session.stepIndex + 1} of {total}
+            </p>
+            <p className="text-sm text-muted-foreground">{entry.beat.premise}</p>
+          </div>
+          <button
+            type="button"
+            onClick={exit}
+            aria-label="Exit the tour"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            &times;
+          </button>
+        </div>
+
+        {/* Henry and what he is saying. All three states speak through the one
+            bubble -- a handoff and a wander are Henry talking too, and giving
+            them their own treatment made the panel jump around mid-demo. */}
+        <div className="mt-3 flex items-start gap-2.5">
+          <Henry className="mt-0.5 h-20 w-20" />
+          <HenrySays>
+            {!identityOk && expected ? (
+              <p className="text-base leading-relaxed">
+                <span className="font-medium">Let me sign you in as someone else.</span>{" "}
+                This part belongs to {expected.displayName}, {roleWords(expected.roles)}.{" "}
+                {expected.description}
+              </p>
+            ) : wandered ? (
+              <p className="text-base leading-relaxed">
+                You have wandered off -- which is fine, have a look around. When you are
+                ready I will put us back where we were.
+              </p>
+            ) : (
+              <>
+                <p className="text-base leading-relaxed">{say}</p>
+                {cue && (
+                  <p className="mt-2.5 text-base font-medium text-warning">{cue}</p>
+                )}
+              </>
+            )}
+          </HenrySays>
+        </div>
+
+        <div className="mt-3 space-y-3">
+          {!identityOk && expected ? (
+            <Button onClick={handoff}>Sign in as {expected.displayName}</Button>
+          ) : wandered ? (
+            <Button
+              onClick={() => {
+                navigatedFor.current = null;
+                setWandered(false);
+                if (route) router.push(route);
+              }}
+            >
+              Back to {entry.beat.title}
+            </Button>
+          ) : (
+            <>
+              {error && (
+                <p role="alert" className="text-sm text-destructive">
+                  {error}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {/* Next is the primary control on every step now, not just
+                    the narration-only ones. The perform button stays beside
+                    it: it is the affordance a presenter reaches for when they
+                    want the form filled without committing to moving on, and
+                    it is what e2e/demo-tour-guided.spec.ts clicks, so the walk
+                    keeps being proved through the panel a presenter uses. */}
+                {(step.advance.kind === "read" || step.perform) && (
+                  <Button onClick={() => void nextStep()}>Next</Button>
+                )}
+                {step.perform && step.advance.kind !== "read" && (
+                  <Button variant="outline" onClick={() => void runPerform()}>
+                    {performLabel}
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  onClick={() =>
+                    setSession((prev) =>
+                      prev ? { ...prev, autopilot: !prev.autopilot } : prev,
+                    )
+                  }
+                >
+                  {session.autopilot ? "Take the wheel" : "Autopilot"}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      </aside>
+    </>
+  );
+}

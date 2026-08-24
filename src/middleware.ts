@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { auth } from "@/auth";
+import { env } from "@/lib/env";
 import { checkRateLimit } from "@/lib/http/rate-limit";
 
 // Default-deny (Section 3): every route is protected unless explicitly
@@ -25,7 +26,15 @@ export default auth((req: NextRequest & { auth?: unknown }) => {
   ) {
     const forwarded = req.headers.get("x-forwarded-for");
     const ip = forwarded?.split(",")[0]?.trim() || "unknown";
-    const result = checkRateLimit(`auth:${ip}`, { windowMs: 60_000, max: 20 });
+    // Note what the fallback means: with no x-forwarded-for -- which is every
+    // request that has not come through a proxy, including all of localhost --
+    // this is ONE bucket for all callers, not one per caller. That is the safe
+    // direction for a security control and the hostile direction for a
+    // parallel test suite, which is why the limit is configurable.
+    const result = checkRateLimit(`auth:${ip}`, {
+      windowMs: env.RATE_LIMIT_AUTH_WINDOW_MS,
+      max: env.RATE_LIMIT_AUTH_MAX,
+    });
     if (!result.allowed) {
       return NextResponse.json(
         { error: "Too many sign-in attempts, please slow down." },

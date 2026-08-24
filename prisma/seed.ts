@@ -87,6 +87,12 @@ async function seedDevIdentities(): Promise<Record<string, string>> {
     const user = await db.user.upsert({
       where: { entraObjectId: identity.entraObjectId },
       create: {
+        // Reuse the fixed fake object id as the primary key. Dev identities
+        // are the only accounts the seed creates, and a stable id keeps the
+        // committed knowledge-base files from churning: their front matter
+        // records `createdBy`, so a random uuid per reset showed up as a
+        // dirty working tree after every `pnpm db:reset`.
+        id: identity.entraObjectId,
         entraObjectId: identity.entraObjectId,
         entraTenantId: DEV_TENANT_ID,
         email: identity.email,
@@ -110,6 +116,14 @@ async function seedDevIdentities(): Promise<Record<string, string>> {
   return idByKey;
 }
 
+/**
+ * Fixed rather than "today": these articles are written to files that are in
+ * version control, so a date derived from the clock made every re-seed on a
+ * new day look like an edit. It also reads better in the demo -- the seeded
+ * help pages are supposed to predate the ticket being walked through.
+ */
+const SEED_ARTICLE_DATE = "2026-06-01";
+
 interface SeedArticleInput {
   title: string;
   summary: string;
@@ -129,7 +143,6 @@ async function seedArticle(input: SeedArticleInput) {
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-");
   const articleKey = `KB-SEED-${slug.slice(0, 20)}`;
-  const today = new Date().toISOString().slice(0, 10);
 
   const frontMatter: KnowledgeFrontMatter = {
     id: articleKey,
@@ -140,8 +153,8 @@ async function seedArticle(input: SeedArticleInput) {
     status: input.status,
     internalOnly: false,
     tags: input.tags,
-    createdDate: today,
-    updatedDate: today,
+    createdDate: SEED_ARTICLE_DATE,
+    updatedDate: SEED_ARTICLE_DATE,
     createdBy: input.createdById,
     revision: 1,
     sourceTicketIds: [],
@@ -168,8 +181,11 @@ async function seedArticle(input: SeedArticleInput) {
       contentHash: file.contentHash,
       revision: 1,
       createdById: input.createdById,
-      publishedAt: dbStatus === "PUBLISHED" ? new Date() : null,
-      archivedAt: dbStatus === "ARCHIVED" ? new Date() : null,
+      createdAt: new Date(`${SEED_ARTICLE_DATE}T09:00:00Z`),
+      publishedAt:
+        dbStatus === "PUBLISHED" ? new Date(`${SEED_ARTICLE_DATE}T09:00:00Z`) : null,
+      archivedAt:
+        dbStatus === "ARCHIVED" ? new Date(`${SEED_ARTICLE_DATE}T09:00:00Z`) : null,
     },
     update: { status: dbStatus, contentHash: file.contentHash },
   });
@@ -276,6 +292,13 @@ interface SeedTicketInput {
   subject: string;
   description: string;
   status: TicketStatus;
+  /**
+   * How long ago this ticket was raised. Everything else about the ticket --
+   * its number, its status changes, its messages -- is derived from this, so
+   * a seeded desk reads like one that has been running for a week rather than
+   * eleven tickets filed in the same second.
+   */
+  ageHours: number;
   departmentKey: DepartmentKey;
   submittedById: string;
   franchiseCode: string;
@@ -289,6 +312,16 @@ interface SeedTicketInput {
   withInternalNote?: string;
   withCustomerMessage?: string;
 }
+
+/**
+ * Where seeded ticket numbers start. High enough that the desk reads as one
+ * with history behind it rather than one opened this morning.
+ */
+const TICKET_NUMBER_BASE = 1000;
+
+/** One clock for the whole seed run, so a ticket's own timeline stays ordered. */
+const SEED_NOW = Date.now();
+const hoursAgo = (hours: number) => new Date(SEED_NOW - hours * 3_600_000);
 
 async function seedTicket(
   ids: Record<string, string>,
@@ -311,6 +344,18 @@ async function seedTicket(
   const existing = await db.ticket.findUnique({ where: { ticketNumber } });
   if (existing) return existing;
 
+  // A plausible internal timeline: raised, then picked up partway through its
+  // life, then resolved and closed after that. Fractions of the age rather
+  // than fixed offsets so a three-hour-old ticket does not get a two-day
+  // resolution.
+  const createdAt = hoursAgo(input.ageHours);
+  const statusChangedAt = hoursAgo(input.ageHours * 0.55);
+  const customerMessageAt = hoursAgo(input.ageHours * 0.75);
+  const internalNoteAt = hoursAgo(input.ageHours * 0.5);
+  const resolvedAt = hoursAgo(input.ageHours * 0.3);
+  const closedAt = hoursAgo(input.ageHours * 0.15);
+  const isDone = input.status === "RESOLVED" || input.status === "CLOSED";
+
   const ticket = await db.ticket.create({
     data: {
       ticketNumber,
@@ -329,14 +374,12 @@ async function seedTicket(
       projectNumber: input.projectNumber,
       resolutionSummary: input.resolutionSummary,
       resolutionSteps: input.resolutionSteps,
-      resolutionEnteredAt: input.resolutionSummary ? new Date() : null,
-      resolvedAt:
-        input.status === "RESOLVED" || input.status === "CLOSED" ? new Date() : null,
-      resolvedById:
-        input.status === "RESOLVED" || input.status === "CLOSED"
-          ? input.assigneeId
-          : null,
-      closedAt: input.status === "CLOSED" ? new Date() : null,
+      resolutionEnteredAt: input.resolutionSummary ? resolvedAt : null,
+      resolvedAt: isDone ? resolvedAt : null,
+      resolvedById: isDone ? input.assigneeId : null,
+      closedAt: input.status === "CLOSED" ? closedAt : null,
+      createdAt,
+      updatedAt: input.status === "CLOSED" ? closedAt : statusChangedAt,
     },
   });
 
@@ -356,6 +399,7 @@ async function seedTicket(
       fromStatus: null,
       toStatus: "SUBMITTED",
       changedById: submitter.id,
+      createdAt,
     },
   });
   if (input.status !== "SUBMITTED") {
@@ -365,6 +409,7 @@ async function seedTicket(
         fromStatus: "SUBMITTED",
         toStatus: input.status,
         changedById: input.assigneeId ?? submitter.id,
+        createdAt: statusChangedAt,
       },
     });
   }
@@ -376,6 +421,7 @@ async function seedTicket(
         authorId: submitter.id,
         isFromCustomer: true,
         body: input.withCustomerMessage,
+        createdAt: customerMessageAt,
       },
     });
   }
@@ -385,6 +431,7 @@ async function seedTicket(
         ticketId: ticket.id,
         authorId: input.assigneeId,
         body: input.withInternalNote,
+        createdAt: internalNoteAt,
       },
     });
   }
@@ -401,6 +448,7 @@ async function seedTickets(ids: Record<string, string>) {
   const tickets: SeedTicketInput[] = [
     {
       subject: "Cannot connect to VPN from home",
+      ageHours: 3,
       description:
         "My VPN client fails to authenticate whenever I try to connect from my home network. It worked fine last week.",
       status: "SUBMITTED",
@@ -414,6 +462,7 @@ async function seedTickets(ids: Record<string, string>) {
     },
     {
       subject: "New laptop needs onboarding software",
+      ageHours: 7,
       description:
         "I received a new laptop for a franchise project and need the standard software bundle installed before I can start work next week.",
       status: "IN_TRIAGE",
@@ -424,6 +473,7 @@ async function seedTickets(ids: Record<string, string>) {
     },
     {
       subject: "Need access to onboarding course",
+      ageHours: 19,
       description:
         "I was added as a new project manager and cannot find the onboarding course in the learning portal.",
       status: "QUEUED",
@@ -434,6 +484,7 @@ async function seedTickets(ids: Record<string, string>) {
     },
     {
       subject: "Printer in site office shows offline",
+      ageHours: 27,
       description:
         "The printer at the Calgary site office has shown offline for two days and we cannot print change orders for the client.",
       status: "ASSIGNED",
@@ -445,6 +496,7 @@ async function seedTickets(ids: Record<string, string>) {
     },
     {
       subject: "Outlook keeps prompting for password",
+      ageHours: 44,
       description:
         "Outlook repeatedly asks me to re-enter my password every few minutes, even though the password is correct each time.",
       status: "IN_PROGRESS",
@@ -460,6 +512,7 @@ async function seedTickets(ids: Record<string, string>) {
     },
     {
       subject: "Need clarification on expense receipt format",
+      ageHours: 51,
       description:
         "I submitted receipts for a project trip but I'm not sure which project number to tag them with. Can someone confirm the process?",
       status: "WAITING_FOR_CUSTOMER",
@@ -473,6 +526,7 @@ async function seedTickets(ids: Record<string, string>) {
     },
     {
       subject: "Wi-Fi drops constantly in the Toronto office",
+      ageHours: 69,
       description:
         "The Wi-Fi connection in the Toronto site office drops every 10-15 minutes, affecting the whole team's ability to work.",
       status: "RESOLUTION_REVIEW",
@@ -487,6 +541,7 @@ async function seedTickets(ids: Record<string, string>) {
     },
     {
       subject: "VPN client repeatedly disconnects",
+      ageHours: 96,
       description:
         "My VPN disconnects every time I switch Wi-Fi networks and I have to manually reconnect and re-authenticate each time.",
       status: "RESOLVED",
@@ -502,6 +557,7 @@ async function seedTickets(ids: Record<string, string>) {
     },
     {
       subject: "Training portal login error",
+      ageHours: 168,
       description:
         "I could not log into the training portal to complete a required course module before the deadline.",
       status: "CLOSED",
@@ -517,6 +573,7 @@ async function seedTickets(ids: Record<string, string>) {
     },
     {
       subject: "Invoice number missing from portal",
+      ageHours: 121,
       description:
         "An invoice I submitted three weeks ago never appeared in the accounting portal for review.",
       status: "REOPENED",
@@ -531,6 +588,7 @@ async function seedTickets(ids: Record<string, string>) {
     },
     {
       subject: "Duplicate ticket -- please close",
+      ageHours: 139,
       description:
         "I accidentally submitted this ticket twice, please cancel this one and keep the other.",
       status: "CANCELLED",
@@ -541,11 +599,34 @@ async function seedTickets(ids: Record<string, string>) {
     },
   ];
 
-  for (let i = 0; i < tickets.length; i++) {
-    await seedTicket(ids, 1000, tickets[i]!, i);
+  // Numbered oldest first, so the number a ticket carries agrees with when it
+  // was raised. The array above is grouped by status for readability, which is
+  // not the order a real desk would have handed these numbers out in.
+  const inOrder = [...tickets].sort((a, b) => b.ageHours - a.ageHours);
+  for (let i = 0; i < inOrder.length; i++) {
+    await seedTicket(ids, TICKET_NUMBER_BASE, inOrder[i]!, i);
   }
 
-  console.log(`Seeded ${tickets.length} tickets covering every lifecycle status.`);
+  // The counter is what live tickets draw from, and the seed writes its
+  // numbers directly -- so without this the first ticket anyone files is
+  // SD-000001 sitting in a list of SD-001000s. That is the first thing an
+  // audience notices, and it makes the desk look empty. Advance it (never
+  // backwards -- a re-seeded database may already be well past this) so the
+  // demo ticket continues the sequence the seeded history established.
+  const lastSeeded = TICKET_NUMBER_BASE + inOrder.length - 1;
+  const counter = await db.ticketNumberCounter.findUnique({ where: { id: 1 } });
+  if ((counter?.value ?? 0) < lastSeeded) {
+    await db.ticketNumberCounter.upsert({
+      where: { id: 1 },
+      create: { id: 1, value: lastSeeded },
+      update: { value: lastSeeded },
+    });
+  }
+
+  console.log(
+    `Seeded ${tickets.length} tickets covering every lifecycle status, ` +
+      `numbered to ${`SD-${String(lastSeeded).padStart(6, "0")}`}.`,
+  );
 }
 
 async function main() {

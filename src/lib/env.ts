@@ -18,6 +18,14 @@ const envSchema = z.object({
     .optional()
     .transform((v) => v === "true"),
 
+  // The guided demo tour ("Henry"). Signs itself in as seeded dev
+  // identities to walk the golden path, so it is useless without dev auth
+  // and is refused in production for the same reason -- see the guard below.
+  ENABLE_DEMO_TOUR: z
+    .string()
+    .optional()
+    .transform((v) => v === "true"),
+
   OBJECT_STORAGE_ROOT: z.string().default("./storage/uploads"),
   OBJECT_STORAGE_MAX_FILE_BYTES: z.coerce
     .number()
@@ -35,6 +43,20 @@ const envSchema = z.object({
 
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(30),
+
+  // The sign-in limit is separate from the general one and much tighter,
+  // because it is the one guarding credential stuffing (Section 15).
+  //
+  // It is configurable for one reason: the e2e suite. Middleware keys the
+  // bucket on x-forwarded-for, which localhost never sets, so every
+  // Playwright worker shares the single bucket `auth:unknown` -- and the
+  // suite signs in around thirty times, because that is how it hands a
+  // ticket between roles. Past the twentieth the sign-in POST comes back
+  // 429, next-auth returns to /login, and the spec that lost the race looks
+  // like a mystery timeout. See "Known flake" in docs/TESTING.md; twenty a
+  // minute is right for humans and wrong for a parallel suite from one IP.
+  RATE_LIMIT_AUTH_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+  RATE_LIMIT_AUTH_MAX: z.coerce.number().int().positive().default(20),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;
@@ -68,6 +90,25 @@ function loadEnv(): AppEnv {
     throw new Error(
       "Refusing to start: ENABLE_DEV_AUTH=true is not allowed when NODE_ENV=production. " +
         "Development authentication must never run in a production environment.",
+    );
+  }
+
+  if (
+    parsed.data.ENABLE_DEMO_TOUR &&
+    parsed.data.NODE_ENV === "production" &&
+    !isBuildPhase
+  ) {
+    throw new Error(
+      "Refusing to start: ENABLE_DEMO_TOUR=true is not allowed when NODE_ENV=production. " +
+        "The guided tour drives the UI as seeded development identities.",
+    );
+  }
+
+  // The tour signs itself in as dev identities, so on its own it would be a
+  // guided walk into a login wall.
+  if (parsed.data.ENABLE_DEMO_TOUR && !parsed.data.ENABLE_DEV_AUTH) {
+    throw new Error(
+      "Refusing to start: ENABLE_DEMO_TOUR=true requires ENABLE_DEV_AUTH=true.",
     );
   }
 

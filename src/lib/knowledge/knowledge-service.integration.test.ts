@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { ForbiddenError } from "@/lib/rbac/errors";
@@ -17,14 +19,28 @@ import {
   recordKnowledgeOutcome,
 } from "./knowledge-service";
 import { recordSimilarityCheck } from "./similarity";
+import { KNOWLEDGE_BASE_ROOT, listAllArticleFiles } from "./markdown-repo";
 
 /** Requires a live Postgres connection -- see README. */
 describe("knowledge-service integration", () => {
+  // Creating an article writes a real Markdown file under knowledge-base/, so
+  // this suite left one behind on every run -- they were being committed by
+  // whoever next ran `git add knowledge-base/`. Diffing the directory rather
+  // than tracking each creation site means a new test cannot forget to clean
+  // up after itself. Safe because integration tests run serially
+  // (fileParallelism: false), so nothing else is writing here meanwhile.
+  let filesBefore = new Set<string>();
+
   beforeAll(async () => {
     await db.$connect();
+    filesBefore = new Set(await listAllArticleFiles());
   });
 
   afterAll(async () => {
+    for (const rel of await listAllArticleFiles()) {
+      if (filesBefore.has(rel)) continue;
+      await fs.rm(path.resolve(KNOWLEDGE_BASE_ROOT, rel), { force: true });
+    }
     await db.$disconnect();
   });
 

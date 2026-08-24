@@ -184,7 +184,11 @@ describe("knowledge base access", () => {
     const agent = actor(["DEPARTMENT_AGENT"], [[TECH, false]]);
     const manager = actor(["DEPARTMENT_MANAGER"], [[TECH, true]]);
     const km = actor(["KNOWLEDGE_MANAGER"]);
-    const shape = { departmentId: TECH, status: "PUBLISHED" as const, internalOnly: true };
+    const shape = {
+      departmentId: TECH,
+      status: "PUBLISHED" as const,
+      internalOnly: true,
+    };
     expect(canViewKnowledgeArticle(triage, shape)).toBe(true);
     expect(canViewKnowledgeArticle(agent, shape)).toBe(true);
     expect(canViewKnowledgeArticle(manager, shape)).toBe(true);

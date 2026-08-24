@@ -40,7 +40,7 @@ export const DEV_IDENTITIES: DevIdentity[] = [
     email: "jordan.second@dev.example.test",
     roles: ["CUSTOMER"],
     description:
-      "A second customer identity, used to verify one customer cannot access another's tickets.",
+      "A second franchise partner, kept separate from Casey so that one customer can never see another's tickets.",
   },
   {
     key: "triage",

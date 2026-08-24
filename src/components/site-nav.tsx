@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Wordmark, ApexBadge } from "@/components/wordmark";
 
 interface SiteNavProps {
   auth: { displayName: string; roles: string[] } | null;
@@ -13,9 +15,12 @@ export function SiteNav({ auth }: SiteNavProps) {
     return (
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <Link href="/" className="text-lg font-semibold">
-            Service Desk
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/">
+              <Wordmark />
+            </Link>
+            <ApexBadge />
+          </div>
         </div>
       </header>
     );
@@ -54,9 +59,12 @@ export function SiteNav({ auth }: SiteNavProps) {
         aria-label="Primary"
         className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8"
       >
-        <Link href="/" className="text-lg font-semibold">
-          Service Desk
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/">
+            <Wordmark />
+          </Link>
+          <ApexBadge />
+        </div>
         <ul className="flex flex-wrap items-center gap-4 text-sm">
           {links.map((link) => (
             <li key={link.href}>
@@ -71,6 +79,7 @@ export function SiteNav({ auth }: SiteNavProps) {
         </ul>
         <div className="flex items-center gap-3">
           <span className="text-sm text-muted-foreground">{auth.displayName}</span>
+          <ThemeToggle />
           <Button
             variant="outline"
             size="sm"

@@ -228,7 +228,7 @@ export function NewTicketForm({
 
   if (deflected) {
     return (
-      <Card className="mt-6">
+      <Card className="mt-6" data-tour="deflected-confirmation">
         <CardHeader>
           <CardTitle>Glad that helped!</CardTitle>
           <CardDescription>
@@ -267,12 +267,12 @@ export function NewTicketForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <Label>Name</Label>
-          <Input value={submitterName} disabled aria-readonly />
+          <Label htmlFor="submitterName">Name</Label>
+          <Input id="submitterName" value={submitterName} disabled aria-readonly />
         </div>
         <div>
-          <Label>Email</Label>
-          <Input value={submitterEmail} disabled aria-readonly />
+          <Label htmlFor="submitterEmail">Email</Label>
+          <Input id="submitterEmail" value={submitterEmail} disabled aria-readonly />
         </div>
       </div>
 
@@ -298,6 +298,7 @@ export function NewTicketForm({
         <Label htmlFor="subject">Subject</Label>
         <Input
           id="subject"
+          data-tour="ticket-subject"
           {...register("subject")}
           aria-invalid={Boolean(errors.subject)}
         />
@@ -314,10 +315,15 @@ export function NewTicketForm({
         </Label>
         <Textarea
           id="description"
+          data-tour="ticket-description"
           rows={6}
+          // Names a tool nobody has to recognise, and models the three things
+          // the label above asks for: what you were doing, what stopped, and
+          // anything the screen said.
           placeholder={
-            "e.g. I was trying to submit a change order in Buildertrend, but clicking " +
-            'Submit does nothing. I see the error "Session expired" in the top corner.'
+            "e.g. I cannot sign into my email. I enter my password and the page " +
+            "returns me to the sign-in screen without an error. The same password " +
+            "works on my phone."
           }
           {...register("description")}
           aria-invalid={Boolean(errors.description)}
@@ -372,14 +378,18 @@ export function NewTicketForm({
       </div>
 
       {suggestions.length > 0 && (
-        <Card>
+        <Card data-tour="suggestions-card">
           <CardHeader>
             <CardTitle className="text-base">This might already be answered</CardTitle>
             <CardDescription>Based on your subject and description.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {suggestions.map((s) => (
-              <div key={s.articleId} className="rounded-md border border-border p-3">
+              <div
+                key={s.articleId}
+                data-tour="suggestion-row"
+                className="rounded-md border border-border p-3"
+              >
                 <a
                   href={`/knowledge/${s.slug}`}
                   target="_blank"
@@ -400,6 +410,7 @@ export function NewTicketForm({
                 <div className="mt-2 flex gap-2">
                   <Button
                     type="button"
+                    data-tour="deflect-solved"
                     size="sm"
                     variant="outline"
                     onClick={async () => {
@@ -494,7 +505,12 @@ export function NewTicketForm({
 
       <div className="rounded-md border border-border bg-muted p-4">
         <label className="flex items-start gap-2 text-sm">
-          <input type="checkbox" className="mt-1" {...register("consentAcknowledged")} />
+          <input
+            type="checkbox"
+            data-tour="ticket-consent"
+            className="mt-1"
+            {...register("consentAcknowledged")}
+          />
           <span>
             I confirm this ticket does not contain passwords, authentication tokens,
             payment card data, or unnecessary personal information. Attachments will be
@@ -522,7 +538,7 @@ export function NewTicketForm({
         </p>
       )}
 
-      <Button type="submit" disabled={submitting}>
+      <Button type="submit" data-tour="ticket-submit" disabled={submitting}>
         {submitting ? "Submitting..." : "Submit ticket"}
       </Button>
     </form>
