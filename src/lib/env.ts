@@ -18,6 +18,14 @@ const envSchema = z.object({
     .optional()
     .transform((v) => v === "true"),
 
+  // The guided demo tour ("Henry"). Signs itself in as seeded dev
+  // identities to walk the golden path, so it is useless without dev auth
+  // and is refused in production for the same reason -- see the guard below.
+  ENABLE_DEMO_TOUR: z
+    .string()
+    .optional()
+    .transform((v) => v === "true"),
+
   OBJECT_STORAGE_ROOT: z.string().default("./storage/uploads"),
   OBJECT_STORAGE_MAX_FILE_BYTES: z.coerce
     .number()
@@ -68,6 +76,25 @@ function loadEnv(): AppEnv {
     throw new Error(
       "Refusing to start: ENABLE_DEV_AUTH=true is not allowed when NODE_ENV=production. " +
         "Development authentication must never run in a production environment.",
+    );
+  }
+
+  if (
+    parsed.data.ENABLE_DEMO_TOUR &&
+    parsed.data.NODE_ENV === "production" &&
+    !isBuildPhase
+  ) {
+    throw new Error(
+      "Refusing to start: ENABLE_DEMO_TOUR=true is not allowed when NODE_ENV=production. " +
+        "The guided tour drives the UI as seeded development identities.",
+    );
+  }
+
+  // The tour signs itself in as dev identities, so on its own it would be a
+  // guided walk into a login wall.
+  if (parsed.data.ENABLE_DEMO_TOUR && !parsed.data.ENABLE_DEV_AUTH) {
+    throw new Error(
+      "Refusing to start: ENABLE_DEMO_TOUR=true requires ENABLE_DEV_AUTH=true.",
     );
   }
 
