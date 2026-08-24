@@ -42,10 +42,18 @@ export default defineConfig({
   // `next start` hard-sets NODE_ENV=production, and src/lib/env.ts refuses to
   // boot with ENABLE_DEV_AUTH=true in production -- so the app can never come
   // up under it, while every spec signs in through the dev identity picker.
-  // `next dev` runs as development, where dev auth is allowed. Override with
-  // E2E_WEB_SERVER to point at a production-mode server instead (see
-  // .github/workflows/dast.yml, which launches the standalone build with
-  // NODE_ENV=test for the same reason).
+  // `next dev` runs as development, where dev auth is allowed, which is why it
+  // is the default here.
+  //
+  // It is the wrong default for the whole suite at once, though: it compiles
+  // each route on first hit, and that is what makes a full-width run flaky
+  // (see "Known flake" in docs/TESTING.md). `pnpm test:e2e:built` sets
+  // E2E_WEB_SERVER to a prebuilt standalone server instead -- scripts/e2e-server.ts,
+  // which is also the launcher that makes NODE_ENV=test actually stick.
+  //
+  // One thing to know when overriding: reuseExistingServer below means a
+  // `pnpm dev` already listening on 3000 wins, and the run silently measures
+  // that server rather than the one you asked for. Stop it first.
   webServer: {
     command: process.env.E2E_WEB_SERVER ?? "pnpm dev",
     url: "http://localhost:3000/api/health",
