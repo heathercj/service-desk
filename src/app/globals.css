@@ -102,10 +102,6 @@
   }
 }
 
-.dev-auth-banner {
-  @apply sticky top-0 z-50 w-full bg-warning px-4 py-2 text-center text-sm font-medium text-warning-foreground;
-}
-
 .markdown-body h2 {
   @apply mb-2 mt-6 text-lg font-semibold;
 }

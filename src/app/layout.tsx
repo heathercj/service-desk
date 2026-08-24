@@ -21,12 +21,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen bg-background font-sans antialiased">
         <ThemeProvider>
-          {env.ENABLE_DEV_AUTH && (
-            <div className="dev-auth-banner" role="alert">
-              Development authentication is enabled (ENABLE_DEV_AUTH=true). This build
-              must never be used in production.
-            </div>
-          )}
+          {/* No dev-auth banner. It said nothing the login page does not already
+              say plainly -- the development sign-in card is right there, warning
+              coloured, naming the flag -- and src/lib/env.ts refuses to boot with
+              the flag set in production, so the build it warned about cannot
+              exist. What it did do was sit above every page in every demo and
+              every screenshot. */}
           <SiteNav
             auth={
               auth

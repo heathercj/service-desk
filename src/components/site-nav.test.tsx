@@ -49,8 +49,10 @@ feature("Primary navigation", () => {
       render(<SiteNav auth={null} />);
     });
 
-    await s.then("only the product name is shown", () => {
-      expect(screen.getByRole("link", { name: "Service Desk" })).toBeInTheDocument();
+    await s.then("only the wordmark is shown", () => {
+      expect(
+        screen.getByRole("link", { name: "Alair Homes Service Desk" }),
+      ).toBeInTheDocument();
       expect(screen.getAllByRole("link")).toHaveLength(1);
     });
 
