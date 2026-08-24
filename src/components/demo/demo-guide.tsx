@@ -350,9 +350,14 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
           <p className="text-base font-medium leading-snug">
             Hey, I&apos;m Henry the Lion!
           </p>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            New here? I can show you around.
-          </p>
+          {/* Not text-muted-foreground, here or in the closing card below.
+              Inside the bubble it fails WCAG AA at 4.27:1 -- the token only
+              just clears 4.5 against `background`, and the bubble is
+              `bg-muted/50`, whose alpha lightens the backdrop out from under
+              mid-grey text. Counter-intuitively, making the bubble opaque
+              makes it worse (3.8:1), so the text is what has to darken. The
+              line stays secondary by size, not by colour. */}
+          <p className="mt-0.5 text-sm">New here? I can show you around.</p>
         </HenrySays>
         <div className="flex shrink-0 flex-col gap-1">
           <Button onClick={() => start(false)}>Start</Button>
@@ -382,7 +387,7 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
         <div className="min-w-0 flex-1 space-y-3">
           <HenrySays>
             <p className="text-base font-medium">That is the whole loop.</p>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm">
               One ticket in, one article out, and the second person with the same problem
               cost the desk nothing. That was all real, by the way -- a real ticket, and a
               real help article that anyone can find now. Have a click around; I will be
