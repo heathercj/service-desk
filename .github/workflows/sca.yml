@@ -30,7 +30,7 @@ jobs:
 
       - name: Upload OSV-Scanner results
         if: always()
-        uses: actions/upload-artifact@v4 # v4.6.0
+        uses: actions/upload-artifact@v7 # v4.6.0
         with:
           name: osv-scanner-results
           path: osv-results.sarif
@@ -78,7 +78,7 @@ jobs:
       - name: Generate CycloneDX SBOM
         run: pnpm sbom
 
-      - uses: actions/upload-artifact@v4 # v4.6.0
+      - uses: actions/upload-artifact@v7 # v4.6.0
         with:
           name: sbom
           path: sbom.cdx.json
