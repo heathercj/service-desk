@@ -54,6 +54,14 @@ jobs:
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
+      # There is no postinstall hook that does this: the Dockerfile installs
+      # dependencies before it copies prisma/schema.prisma, so a postinstall
+      # `prisma generate` would have no schema to read and would break the
+      # image build. Every workflow that touches the database therefore has
+      # to generate the client explicitly, as ci.yml does.
+      - name: Generate Prisma client
+        run: pnpm exec prisma generate
+
       - name: Apply migrations
         run: pnpm exec prisma migrate deploy && pnpm db:search:setup
 
