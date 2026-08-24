@@ -14,6 +14,13 @@ export default defineConfig({
   // access-control fail roughly one run in two with a bare timeout and no
   // failing assertion. The demo walk sets its own, longer, timeout.
   timeout: 90_000,
+  // Individual assertions were still on Playwright's 5s default, which is the
+  // same bet the test timeout above already refused to make: against
+  // `next dev`, the first assertion after a route change can be waiting on a
+  // compile, and under full parallelism it waits behind other workers' compiles
+  // too. That is how the golden-path spec failed on "Queued" in a full-suite
+  // run and passed on its own moments later.
+  expect: { timeout: 15_000 },
   use: {
     baseURL: process.env.APP_BASE_URL ?? "http://localhost:3000",
     trace: "on-first-retry",
