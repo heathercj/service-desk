@@ -1,22 +1,20 @@
 ---
-id: KB-SEED-legacy-certification-process
+id: KB-SEED-legacy-certification
 title: Legacy certification process
 slug: legacy-certification-process
-summary: The old certification process, superseded by the current onboarding course.
+summary: 'The old certification process, superseded by the current onboarding course.'
 department: TRAINING
 status: archived
+internalOnly: false
 tags:
   - certification
   - legacy
-createdDate: "2026-01-15"
-updatedDate: "2026-01-15"
-createdBy: example-seed-user
-sourceTicketIds: []
+createdDate: '2026-08-24'
+updatedDate: '2026-08-24'
+createdBy: 7849f672-1699-4232-80c1-66a381703ef8
 revision: 1
-supersedes: KB-SEED-enrolling-in-the-onboarding
+sourceTicketIds: []
 ---
-
 ## Note
 
-This process has been superseded by "Enrolling in the onboarding course".
-Retained for historical reference only.
+This process has been superseded by "Enrolling in the onboarding course". Retained for historical reference only.

@@ -1,20 +1,22 @@
 ---
-id: KB-SEED-submitting-an-expense
+id: KB-SEED-submitting-an-expens
 title: Submitting an expense reimbursement
 slug: submitting-an-expense-reimbursement
-summary: The correct process for submitting receipts for reimbursement through Accounting Services.
+summary: >-
+  The correct process for submitting receipts for reimbursement through
+  Accounting Services.
 department: ACCOUNTING_SERVICES
 status: published
+internalOnly: false
 tags:
   - expense
   - reimbursement
-createdDate: "2026-01-15"
-updatedDate: "2026-01-15"
-createdBy: example-seed-user
-sourceTicketIds: []
+createdDate: '2026-08-24'
+updatedDate: '2026-08-24'
+createdBy: 7cb60c25-6f0a-465a-82a8-3e67b46fb01a
 revision: 1
+sourceTicketIds: []
 ---
-
 ## Resolution
 
 1. Scan or photograph each receipt clearly.
