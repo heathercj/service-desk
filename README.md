@@ -50,6 +50,11 @@ pnpm db:seed
 pnpm dev
 ```
 
+On Windows 11 this all runs natively in PowerShell -- substitute
+`Copy-Item .env.example .env` for the `cp`, and see
+[docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md#windows-11) for the handful of
+other differences.
+
 Open <http://localhost:3000>. You'll land on `/login`, which -- because
 `.env` ships with `ENABLE_DEV_AUTH=true` -- shows a **development sign-in**
 panel in addition to the Microsoft button. Pick any seeded identity:

@@ -32,12 +32,24 @@ function record(name: string, status: Status, detail: string, fix?: string) {
   results.push({ name, status, detail, fix });
 }
 
-/** Run a command for its stdout; undefined if it is not installed or errors. */
+const windows = process.platform === "win32";
+
+/**
+ * Run a command for its stdout; undefined if it is not installed or errors.
+ *
+ * `shell` is on for Windows because pnpm and playwright are installed there
+ * as `.cmd` shims, and since Node 18.20 execFileSync refuses to spawn those
+ * directly (EINVAL). Without it every pnpm-based check below reported a
+ * confident FAIL on a machine that was set up correctly. Every argument
+ * passed here is a literal flag, so there is nothing for the shell to
+ * re-interpret.
+ */
 function run(cmd: string, args: string[]): string | undefined {
   try {
     return execFileSync(cmd, args, {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
+      shell: windows,
     }).trim();
   } catch {
     return undefined;
@@ -49,6 +61,17 @@ function readJson(file: string): Record<string, unknown> {
     string,
     unknown
   >;
+}
+
+/**
+ * nvm-windows is a different program from nvm: it does not read .nvmrc, and
+ * `nvm use` there needs the version spelled out. fnm behaves the same on
+ * every platform, so it is the suggestion that always works.
+ */
+function nodeFix(version: string): string {
+  return windows
+    ? `nvm install ${version} && nvm use ${version}   # or: fnm use --install-if-missing`
+    : `nvm install ${version} && nvm use   # or: fnm use --install-if-missing`;
 }
 
 // --- Node ------------------------------------------------------------------
@@ -64,14 +87,14 @@ if (actualNode === wantedNode) {
     "Node.js",
     "warn",
     `v${actualNode}, .nvmrc asks for v${wantedNode} (same major, so this is fine in practice)`,
-    `nvm install ${wantedNode} && nvm use`,
+    nodeFix(wantedNode),
   );
 } else {
   record(
     "Node.js",
     "fail",
     `v${actualNode}, but this project is built and tested on v${wantedNode}`,
-    `nvm install ${wantedNode} && nvm use   # or fnm use --install-if-missing`,
+    nodeFix(wantedNode),
   );
 }
 
@@ -225,7 +248,12 @@ async function main() {
   // --- .env ------------------------------------------------------------------
   const envPath = path.join(root, ".env");
   if (!existsSync(envPath)) {
-    record(".env", "fail", "missing", "cp .env.example .env");
+    record(
+      ".env",
+      "fail",
+      "missing",
+      windows ? "Copy-Item .env.example .env" : "cp .env.example .env",
+    );
   } else {
     const env = readFileSync(envPath, "utf8");
     const required = ["DATABASE_URL", "AUTH_SECRET", "APP_BASE_URL"];
@@ -242,7 +270,7 @@ async function main() {
         ".env",
         "fail",
         "AUTH_SECRET is still the placeholder from .env.example",
-        "openssl rand -base64 32",
+        `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`,
       );
     } else {
       record(".env", "pass", `${required.length} required keys present`);
@@ -285,11 +313,34 @@ async function main() {
   // --- Optional security tooling --------------------------------------------
   // CI runs each of these in a pinned container, so these are conveniences for
   // reproducing a CI finding locally, never a requirement to develop.
+  // Install hints differ by platform. Where a Windows package name could not
+  // be confirmed, the hint points at the project's releases page rather than
+  // guessing one -- a wrong package name costs more time than a URL does.
   const optional: Array<[string, string[], string, string]> = [
+    // pipx is the upstream-recommended install everywhere, Windows included.
     ["semgrep", ["--version"], "pnpm security:sast", "pipx install semgrep"],
-    ["trivy", ["--version"], "pnpm security:container", "brew install trivy"],
-    ["osv-scanner", ["--version"], "pnpm security:sca", "brew install osv-scanner"],
-    ["gitleaks", ["version"], "pnpm security:secrets", "brew install gitleaks"],
+    [
+      "trivy",
+      ["--version"],
+      "pnpm security:container",
+      windows ? "winget install AquaSecurity.Trivy" : "brew install trivy",
+    ],
+    [
+      "osv-scanner",
+      ["--version"],
+      "pnpm security:sca",
+      windows
+        ? "https://github.com/google/osv-scanner/releases (grab the _windows_amd64.exe)"
+        : "brew install osv-scanner",
+    ],
+    [
+      "gitleaks",
+      ["version"],
+      "pnpm security:secrets",
+      windows
+        ? "https://github.com/gitleaks/gitleaks/releases (grab the _windows_x64.zip)"
+        : "brew install gitleaks",
+    ],
   ];
   for (const [tool, args, script, install] of optional) {
     const version = run(tool, args);

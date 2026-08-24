@@ -1,0 +1,17 @@
+# Keep the working tree LF on every platform. Without this a Windows clone
+# (core.autocrlf=true by default) lands CRLF in every file, and `prettier
+# --check .` then fails on all of them at once -- Prettier normalises to LF
+# and has no idea the checkout did it. It also keeps the SQL and shell
+# scripts that get mounted into containers readable to the tools inside.
+* text=auto eol=lf
+
+# Never touched.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
