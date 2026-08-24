@@ -66,11 +66,16 @@ export function resolveDynamic<T>(value: Dynamic<T>, ctx: TourContext): T {
  * demo must not be able to make that mistake in front of an audience, so
  * "the user pressed Next" is never an acceptable advance for a step with a
  * side effect.
+ *
+ * For the same reason there is deliberately no `click` variant. Advancing
+ * because the human hit the button -- rather than because the app did
+ * something -- reintroduces exactly the class of failure `emptied` exists to
+ * catch, and it would do so silently, in front of the room. In mode 1 the
+ * human still clicks; the step ends when the effect lands.
  */
 export type Advance =
   /** Narration only -- nothing happened, the human reads and continues. */
   | { kind: "read" }
-  | { kind: "click"; anchor: string }
   | { kind: "appears"; anchor: string }
   | { kind: "filled"; anchor: string }
   | { kind: "emptied"; anchor: string }

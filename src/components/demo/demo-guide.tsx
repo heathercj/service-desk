@@ -13,7 +13,6 @@ import {
   type TourStep,
 } from "@/lib/demo/tour-types";
 import {
-  anchorSelector,
   createDomDriver,
   observeUntil,
   queryAnchor,
@@ -181,8 +180,7 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
 
       switch (a.kind) {
         case "read":
-        case "click":
-          return false; // driven by the human, or by a click listener
+          return false; // narration only -- the human continues
         case "appears":
           return queryAnchor(a.anchor, scopeFor(a.anchor)) !== null;
         case "filled":
@@ -234,15 +232,6 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
     if (a.kind === "route") {
       if (a.pattern.test(pathname)) advance();
       return;
-    }
-
-    if (a.kind === "click") {
-      const onClick = (e: MouseEvent) => {
-        const target = e.target as Element | null;
-        if (target?.closest(anchorSelector(a.anchor))) advance();
-      };
-      document.addEventListener("click", onClick, true);
-      return () => document.removeEventListener("click", onClick, true);
     }
 
     return observeUntil(() => satisfied(a), advance);
