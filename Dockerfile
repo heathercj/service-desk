@@ -1,6 +1,11 @@
 # syntax=docker/dockerfile:1.9
 FROM node:22.12-bookworm-slim AS base
-RUN corepack enable
+# The corepack bundled with node:22.12 carries npm's older signing keys, so
+# verifying the pnpm tarball fails with "Cannot find matching keyid" and the
+# install below dies before it starts. Installing a current corepack brings
+# the current keys with it; it is pinned for the same reason everything else
+# here is, and updating Node's base tag is the thing that retires this line.
+RUN npm install -g corepack@0.35.0 && corepack enable
 WORKDIR /app
 
 FROM base AS deps
