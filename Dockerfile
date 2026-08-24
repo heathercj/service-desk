@@ -15,19 +15,22 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --froze
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+RUN pnpm prisma generate
 # `next build` collects page data by executing the route modules, and
 # src/lib/env.ts validates the environment as soon as one of them is
 # imported, so the build needs values for the three required keys or it dies
-# on /_not-found. These are deliberately non-functional -- nothing in a build
-# connects to a database or signs a token -- and they exist only in this
-# stage: the runner below starts from `base` again and inherits none of them.
-# They mirror what ci.yml sets for the same reason.
-ENV DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build?schema=public" \
+# on /_not-found. They are deliberately non-functional -- nothing in a build
+# connects to a database or signs a token -- and they mirror what ci.yml
+# sets for the same reason.
+#
+# Set on the RUN rather than as ENV so they exist for the length of this one
+# command and never become image metadata: BuildKit's SecretsUsedInArgOrEnv
+# check is right to warn about an `ENV AUTH_SECRET`, placeholder or not.
+RUN DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build?schema=public" \
     AUTH_SECRET="build-time-placeholder-not-a-real-secret-0000000000" \
     ENTRA_TENANT_ID="11111111-1111-1111-1111-111111111111" \
-    ENABLE_DEV_AUTH="false"
-RUN pnpm prisma generate
-RUN pnpm build
+    ENABLE_DEV_AUTH="false" \
+    pnpm build
 
 FROM base AS runner
 ENV NODE_ENV=production
