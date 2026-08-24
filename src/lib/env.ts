@@ -43,6 +43,20 @@ const envSchema = z.object({
 
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(30),
+
+  // The sign-in limit is separate from the general one and much tighter,
+  // because it is the one guarding credential stuffing (Section 15).
+  //
+  // It is configurable for one reason: the e2e suite. Middleware keys the
+  // bucket on x-forwarded-for, which localhost never sets, so every
+  // Playwright worker shares the single bucket `auth:unknown` -- and the
+  // suite signs in around thirty times, because that is how it hands a
+  // ticket between roles. Past the twentieth the sign-in POST comes back
+  // 429, next-auth returns to /login, and the spec that lost the race looks
+  // like a mystery timeout. See "Known flake" in docs/TESTING.md; twenty a
+  // minute is right for humans and wrong for a parallel suite from one IP.
+  RATE_LIMIT_AUTH_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+  RATE_LIMIT_AUTH_MAX: z.coerce.number().int().positive().default(20),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;
