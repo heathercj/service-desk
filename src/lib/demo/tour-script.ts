@@ -478,10 +478,17 @@ export const TOUR: TourBeat[] = [
         id: "deflect-proof",
         as: "customer2",
         route: "/dashboard",
+        // Jordan is seeded with five unrelated tickets, so "his list is empty"
+        // -- what this used to say -- is false on screen, in the closing beat,
+        // to an audience that checks. The claim that is both true and worth
+        // making is narrower: no ticket exists for THIS problem.
         say:
-          "And Jordan's ticket list is empty. One ticket in, one article out, and the " +
-          "second report of the same problem cost the desk nothing. That loop closing " +
-          "is the whole argument for gating resolution on knowledge.",
+          "Jordan read it and closed the tab. His older tickets are still here, but " +
+          "there is no new one for this problem -- no SD- number was ever minted, " +
+          "because the form was never submitted. The deflection was recorded against " +
+          "the article instead, which is where the usage numbers on the manage console " +
+          "come from. One ticket in, one article out, and the second report of the same " +
+          "problem cost the desk nothing.",
         advance: { kind: "read" },
       },
     ],
