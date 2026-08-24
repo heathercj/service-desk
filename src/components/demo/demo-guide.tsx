@@ -63,6 +63,18 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
   // themselves cause a re-render, or the effects they gate re-run forever.
   const navigatedFor = useRef<string | null>(null);
   const performedFor = useRef<string | null>(null);
+  /**
+   * The step whose perform() is still running.
+   *
+   * An advance condition is meant to prove the APP did something. While the
+   * tour is still driving the field, it proves nothing: `filled` is satisfied
+   * by the first character, so without this the panel moves to the next cue
+   * roughly three seconds before the typing it started has finished. A
+   * presenter who follows the cue promptly then submits a half-typed form --
+   * which is how mode 1 stalled on intake-submit, with the app rejecting a
+   * description below the 30-character minimum.
+   */
+  const performing = useRef<string | null>(null);
   const handedOffFor = useRef<string | null>(null);
   const wasFilled = useRef<string | null>(null);
 
@@ -129,10 +141,31 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
     setError(null);
   }, []);
 
+  /**
+   * The one place a perform() is started. Autopilot and the mode-1 button both
+   * come through here so the in-flight guard cannot be bypassed by one of
+   * them.
+   */
+  const runPerform = useCallback(async () => {
+    if (!step?.perform || !ctx) return;
+    performedFor.current = step.id;
+    performing.current = step.id;
+    try {
+      await step.perform(ctx, driver);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Could not do that");
+    } finally {
+      // Guarded: a step exited early (an exit, a restart) must not clear a
+      // perform belonging to whatever is running now.
+      if (performing.current === step.id) performing.current = null;
+    }
+  }, [step, ctx, driver]);
+
   const start = useCallback(
     (autopilot: boolean) => {
       navigatedFor.current = null;
       performedFor.current = null;
+      performing.current = null;
       handedOffFor.current = null;
       wasFilled.current = null;
       setError(null);
@@ -234,7 +267,9 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
       return;
     }
 
-    return observeUntil(() => satisfied(a), advance);
+    // performing.current is read fresh on every poll, so the guard lifts on
+    // its own when the perform resolves -- no re-render needed to release it.
+    return observeUntil(() => performing.current === null && satisfied(a), advance);
   }, [step, identityOk, pathname, satisfied, advance]);
 
   // --- Get us to the right identity and the right page.
@@ -272,10 +307,7 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
       return () => clearTimeout(timer);
     }
     if (!step.perform || performedFor.current === step.id) return;
-    performedFor.current = step.id;
-    void step.perform(ctx, driver).catch((err: unknown) => {
-      setError(err instanceof Error ? err.message : "Autopilot could not do that");
-    });
+    void runPerform();
   }, [
     session?.autopilot,
     step,
@@ -285,7 +317,7 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
     wandered,
     advance,
     handoff,
-    driver,
+    runPerform,
     fast,
   ]);
 
@@ -435,14 +467,7 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => {
-                      performedFor.current = step.id;
-                      void step.perform?.(ctx, driver).catch((err: unknown) => {
-                        setError(
-                          err instanceof Error ? err.message : "Could not do that",
-                        );
-                      });
-                    }}
+                    onClick={() => void runPerform()}
                   >
                     {performLabel}
                   </Button>
