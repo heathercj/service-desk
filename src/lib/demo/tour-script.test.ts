@@ -107,11 +107,30 @@ feature("Guided tour manifest", () => {
 
   scenario("The run token threads through every value that must match", async (s) => {
     const fresh = await s.given("a fresh context", () => createTourContext(42));
-    await s.then("the token is in both subjects and the article summary", () => {
-      expect(fresh.subject).toContain(fresh.run);
-      expect(fresh.similarSubject).toContain(fresh.run);
-      expect(fresh.articleSummary).toContain(fresh.run);
+
+    await s.then("it is in both descriptions, so demo:clean can sweep them", () => {
+      expect(fresh.description).toContain(fresh.run);
+      expect(fresh.similarDescription).toContain(fresh.run);
     });
+
+    // The publish beat scopes its row by article title. Without a unique one
+    // it picks the first matching row in a console full of old drafts and
+    // then waits forever for someone else's article to say PUBLISHED.
+    await s.and("it is in the article title, so the publish beat finds its row", () =>
+      expect(fresh.articleTitle).toContain(fresh.run),
+    );
+
+    // The subject is the line the room reads. A token in it undoes the point
+    // of a realistic scenario, so this asserts its absence deliberately.
+    await s.and("it is NOT in either subject, which the audience reads", () => {
+      expect(fresh.subject).not.toContain(fresh.run);
+      expect(fresh.similarSubject).not.toContain(fresh.run);
+    });
+
+    await s.and("Jordan does not reuse Casey's words", () =>
+      expect(fresh.similarDescription).not.toBe(fresh.description),
+    );
+
     await s.and("two runs never collide", () =>
       expect(createTourContext(42).run).not.toBe(createTourContext(43).run),
     );

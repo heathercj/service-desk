@@ -183,6 +183,7 @@ export function KnowledgeOutcomePanel({
                 <label className="text-xs">
                   Title
                   <Input
+                    data-tour="draft-title"
                     value={draftTitle}
                     onChange={(e) => setDraftTitle(e.target.value)}
                   />

@@ -5,6 +5,11 @@
  * spec proves the path still works in CI, and this narrates the same path to
  * a room. Keeping them in step is what the anchor test is for.
  *
+ * The two currently tell DIFFERENT stories -- the tour walks an email
+ * sign-in problem, the spec still walks the older Buildertrend one. Same
+ * beats, same order, different strings, and both pass. Worth aligning so the
+ * demo and its CI proof read alike, but not required for either to work.
+ *
  * Audience is the people who will USE the desk -- franchise partners, triage,
  * department agents, whoever ends up looking after the knowledge base. So the
  * narration is instructional and names the job being done, never the
@@ -27,37 +32,57 @@ const TECH_SUPPORT_QUEUE = "/queue/TECHNOLOGY_SUPPORT";
 
 /**
  * A fresh run token per tour, so consecutive demos never collide and the
- * final beat's lookup cannot match a previous run's article. Same reason the
- * e2e spec does it.
+ * final beat's lookup cannot match a previous run's article.
  *
- * It is visible on screen in the ticket subject, so `welcome-cast` tells the
- * room what it is rather than leaving them puzzling over it. The `henry`
- * prefix is what scripts/demo-clean.ts sweeps on -- do not change it without
- * changing the pattern there.
+ * Deliberately NOT in the ticket subject. The subject is the line everyone in
+ * the room reads, and "I cannot sign into my email (henryabc123)" undercuts
+ * the point of a realistic scenario. It lives in the description, where it
+ * reads as a reference number, and in the article title -- which is where it
+ * has to be: `publish-article` finds its row by title, and without a unique
+ * one a demo database holding a dozen past drafts hands it the wrong row, and
+ * the beat waits forever for someone else's article to say PUBLISHED.
+ *
+ * The `henry` prefix is what scripts/demo-clean.ts sweeps on -- do not change
+ * it without changing the pattern there.
  */
 export function createTourContext(now: number = Date.now()): TourContext {
   const run = `henry${now.toString(36)}`;
   return {
     run,
-    subject: `Buildertrend ${run} change order will not submit`,
-    similarSubject: `Cannot submit a ${run} change order in Buildertrend`,
+    subject: "I cannot sign into my email",
+    similarSubject: "Email login not working since this morning",
     description:
-      `I was trying to submit a ${run} change order in Buildertrend, but clicking ` +
-      `Submit does nothing at all. The page shows "Session expired" in the top ` +
-      `corner and the change order stays in draft.`,
-    reply: "Thanks for the detail -- I can see the expired session. Looking now.",
-    resolutionSummary: "Cleared the stale Buildertrend session and re-authenticated.",
+      "Since this morning I cannot sign into my email. I type my password and " +
+      "the page just returns me to the sign-in screen -- no error message, it " +
+      "simply will not let me through. The same password works fine on my " +
+      `phone. (ref ${run})`,
+    similarDescription:
+      "My email will not let me log in today. It keeps bouncing me back to the " +
+      "login page after I enter my password. It works on my phone, just not on " +
+      `my laptop. (ref ${run})`,
+    reply:
+      "Thanks -- the part that helps is that it works on your phone. That points " +
+      "at the browser on your laptop rather than at your account. Could you " +
+      "clear your cache and cookies and try signing in again?",
+    resolutionSummary:
+      "Stale cached sign-in data in the browser. Clearing cache and cookies " +
+      "restored access.",
     resolutionSteps:
-      "1. Signed the user out of Buildertrend. 2. Cleared cached credentials. " +
-      "3. Signed back in and resubmitted the change order successfully.",
+      "1. Confirmed the account itself was fine -- sign-in worked on another " +
+      "device. 2. Had the user clear cached data and cookies in the browser on " +
+      "the affected laptop. 3. Sign-in succeeded on the next attempt.",
+    articleTitle: `Email sign-in keeps returning to the login page (ref ${run})`,
     articleSummary:
-      `How to recover when a ${run} change order will not submit in Buildertrend ` +
-      `because the session has expired.`,
+      "What to do when email sign-in bounces back to the login page on one " +
+      "device but works on another: the browser is holding stale sign-in data.",
     articleBody:
-      "## Symptoms\n\nClicking Submit on a change order does nothing, and " +
-      '"Session expired" appears in the top corner.\n\n' +
-      "## Resolution\n\n1. Sign out of Buildertrend.\n2. Clear cached credentials.\n" +
-      "3. Sign back in and resubmit the change order.",
+      "## Symptoms\n\nEntering the correct password returns you to the sign-in " +
+      "screen with no error message. The same account signs in normally on " +
+      "another device, such as a phone.\n\n" +
+      "## Cause\n\nThe browser is reusing cached sign-in data that is no longer " +
+      "valid, so the attempt never reaches the account.\n\n" +
+      "## Resolution\n\n1. Clear cached data and cookies in the affected " +
+      "browser.\n2. Close the browser and open it again.\n3. Sign in as normal.",
   };
 }
 
@@ -114,9 +139,7 @@ export const TOUR: TourBeat[] = [
           "One practical note before we start. Five different jobs touch a single " +
           "ticket, so I will sign you in as five different people along the way and " +
           "tell you each time. Everything you are about to see is real -- a real " +
-          "ticket, a real help article at the end of it, nothing staged. You will " +
-          "spot an odd code in the subject line; that is just me tagging this run " +
-          "so it is easy to find and tidy up afterwards. Ignore it.",
+          "ticket, a real help article at the end of it, nothing staged.",
         advance: { kind: "read" },
       },
     ],
@@ -188,8 +211,8 @@ export const TOUR: TourBeat[] = [
         say:
           "And that is Casey done. Her ticket gets a number she can quote to " +
           "anyone, and the desk decides which department it belongs to and sends it " +
-          "there. Casey never had to know that Buildertrend problems are Technology " +
-          "Support's job -- which is the point, because she does not.",
+          "there. Casey never had to work out that an email problem belongs to " +
+          "Technology Support -- which is the point, because she does not.",
         cue: "Submit the ticket.",
         anchor: "ticket-submit",
         advance: { kind: "route", pattern: /^\/tickets\/SD-\d+$/ },
@@ -433,13 +456,31 @@ export const TOUR: TourBeat[] = [
         perform: (_ctx, dom) => dom.click("knowledge-draft-toggle"),
       },
       {
+        id: "kb-title",
+        as: "dept-agent",
+        route: ticketRoute,
+        say:
+          "The title starts as Casey's own sentence, and it is worth changing. She " +
+          "wrote what happened to her; the next person will search for what is " +
+          "happening to them. Naming the symptom -- sign-in returning to the login " +
+          "page -- is what makes this findable by somebody who has never seen this " +
+          "ticket.",
+        cue: "Give it a title someone would search for.",
+        anchor: "draft-title",
+        advance: {
+          kind: "value",
+          anchor: "draft-title",
+          pattern: /^Email sign-in keeps returning/,
+        },
+        perform: (ctx, dom) => dom.type("draft-title", ctx.articleTitle),
+      },
+      {
         id: "kb-summary",
         as: "dept-agent",
         route: ticketRoute,
         say:
-          "The title comes straight across from the ticket. The summary is the bit " +
-          "somebody skims in a list of results, so it is worth writing for a person " +
-          "who does not already know what went wrong.",
+          "The summary is the bit somebody skims in a list of results, so it is " +
+          "worth writing for a person who does not already know what went wrong.",
         cue: "Write the summary.",
         anchor: "draft-summary",
         advance: { kind: "filled", anchor: "draft-summary" },
@@ -502,12 +543,12 @@ export const TOUR: TourBeat[] = [
           "wrong way.",
         cue: "Publish the draft.",
         anchor: "article-publish",
-        within: { anchor: "article-row", containing: (ctx) => ctx.subject },
+        within: { anchor: "article-row", containing: (ctx) => ctx.articleTitle },
         advance: { kind: "text", pattern: /PUBLISHED/, within: "article-row" },
         perform: (ctx, dom) =>
           dom.click("article-publish", {
             anchor: "article-row",
-            containing: ctx.subject,
+            containing: ctx.articleTitle,
           }),
       },
     ],
@@ -548,7 +589,7 @@ export const TOUR: TourBeat[] = [
         cue: "Describe the issue.",
         anchor: "ticket-description",
         advance: { kind: "filled", anchor: "ticket-description" },
-        perform: (ctx, dom) => dom.type("ticket-description", ctx.description),
+        perform: (ctx, dom) => dom.type("ticket-description", ctx.similarDescription),
       },
       {
         id: "deflect-suggested",
@@ -573,12 +614,16 @@ export const TOUR: TourBeat[] = [
           "rewritten.",
         cue: "Mark it solved.",
         anchor: "deflect-solved",
-        within: { anchor: "suggestion-row", containing: (ctx) => ctx.subject },
+        // The suggestion row names the ARTICLE, not Casey's ticket. Those used
+        // to be the same string, because the draft inherited the ticket
+        // subject -- now the article has its own title, so scoping by subject
+        // matches nothing and the step waits out the driver's timeout.
+        within: { anchor: "suggestion-row", containing: (ctx) => ctx.articleTitle },
         advance: { kind: "appears", anchor: "deflected-confirmation" },
         perform: (ctx, dom) =>
           dom.click("deflect-solved", {
             anchor: "suggestion-row",
-            containing: ctx.subject,
+            containing: ctx.articleTitle,
           }),
       },
       {

@@ -10,11 +10,15 @@ import {
 /**
  * Clears up after the guided demo tour and the golden-path e2e walk.
  *
- * Both plant a one-off run token in the ticket subject, which carries into
- * the article drafted from it -- so this keys off that token rather than
- * guessing from filenames. Every run leaves behind a ticket, an article row,
- * and a real Markdown file under knowledge-base/, and the files are the part
- * that leaks into version control if nobody sweeps them.
+ * Both plant a one-off run token per run, so this keys off that token rather
+ * than guessing from filenames. Every run leaves behind a ticket, an article
+ * row, and a real Markdown file under knowledge-base/, and the files are the
+ * part that leaks into version control if nobody sweeps them.
+ *
+ * The token is in the ticket DESCRIPTION, not the subject: the subject is the
+ * line a demo audience reads, so it is kept realistic (see
+ * createTourContext in src/lib/demo/tour-script.ts). It is still in the
+ * article title, which is what the article and file matches below rely on.
  *
  * Destructive, so it reports and does nothing unless passed --yes.
  *
@@ -53,8 +57,18 @@ async function main() {
   // the link does cascade from the ticket, so removing the ticket clears
   // the way.
   const tickets = (
-    await db.ticket.findMany({ select: { id: true, ticketNumber: true, subject: true } })
-  ).filter((t) => TOKEN.test(t.subject));
+    await db.ticket.findMany({
+      select: {
+        id: true,
+        ticketNumber: true,
+        subject: true,
+        description: true,
+      },
+    })
+  )
+    // Subject as well as description: older demo runs put the token in the
+    // subject, and this has to keep sweeping the litter they left behind.
+    .filter((t) => TOKEN.test(t.description) || TOKEN.test(t.subject));
 
   const articles = (
     await db.knowledgeArticle.findMany({

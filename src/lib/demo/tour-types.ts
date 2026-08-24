@@ -25,19 +25,30 @@ export type DevIdentityKey =
   | "knowledge-manager";
 
 /**
- * Values threaded through the run. `run` is a rare token planted in the
- * subject -- and therefore in the article title drafted from it -- so the
- * final beat's suggestion lookup finds THIS article and not seed data. Same
- * trick, and the same reason, as the e2e spec.
+ * Values threaded through the run. `run` is a rare token, planted in the
+ * description and in the article title -- NOT in the subject, which is the
+ * line the room reads. It is what makes the final beat's suggestion lookup
+ * find THIS article rather than seed data, and what lets `publish-article`
+ * pick its own row out of a console full of old drafts. Same trick, and the
+ * same reason, as the e2e spec.
  */
 export interface TourContext {
   run: string;
   subject: string;
   similarSubject: string;
   description: string;
+  /** Jordan's wording, not Casey's -- the deflection has to survive a reword. */
+  similarDescription: string;
   reply: string;
   resolutionSummary: string;
   resolutionSteps: string;
+  /**
+   * The article's own title, rather than inheriting the ticket subject. A good
+   * knowledge title describes the problem someone will search for, which is
+   * rarely the sentence the customer typed -- and it is the field that carries
+   * the run token, so the publish beat can find its row.
+   */
+  articleTitle: string;
   articleSummary: string;
   articleBody: string;
   /** Captured from the URL in beat 1; every later beat needs it. */
@@ -78,6 +89,17 @@ export type Advance =
   | { kind: "read" }
   | { kind: "appears"; anchor: string }
   | { kind: "filled"; anchor: string }
+  /**
+   * The field's value now matches `pattern`.
+   *
+   * For a field that arrives EMPTY, `filled` is the right condition. For one
+   * the app pre-fills -- the draft title, which starts as the ticket subject
+   * -- `filled` is already true on arrival, so the step satisfies itself
+   * instantly and advances before anyone has typed. That is not a race that
+   * can be won by ordering: the condition is simply asking the wrong
+   * question. This asks whether the value became the thing we wanted.
+   */
+  | { kind: "value"; anchor: string; pattern: RegExp }
   | { kind: "emptied"; anchor: string }
   | { kind: "checked"; anchor: string }
   | { kind: "text"; pattern: RegExp; within?: string }

@@ -209,7 +209,11 @@ test.describe("Guided tour, mode 1", () => {
       }
 
       // Typing steps: take the affordance, as a presenter would.
-      if (step.advance.kind === "filled" || step.advance.kind === "checked") {
+      if (
+        step.advance.kind === "filled" ||
+        step.advance.kind === "checked" ||
+        step.advance.kind === "value"
+      ) {
         await panel.getByRole("button", { name: "Fill it in for me" }).click();
         await advanced;
         continue;
