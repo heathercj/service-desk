@@ -150,6 +150,13 @@ looking at one, not by a test.
 
 ## Known limits
 
+- **The spotlight does not scroll its anchor into view.** Only `perform()`
+  does, through `focusInto`. So in mode 1, a step whose control sits below the
+  fold points at something the presenter cannot see -- `work-claim` is the one
+  to look at, and `docs/screenshots/light/11-work-claim.png` is it happening.
+  Autopilot never shows this because it always goes through `perform()`.
+  Pressing "Do it for me" scrolls and recovers it; so does scrolling by hand.
+
 - Dev-auth only, by construction. `src/lib/env.ts` refuses to boot with
   `ENABLE_DEMO_TOUR=true` in production, or without `ENABLE_DEV_AUTH`.
 - `IN_REVIEW` is not on the path. The management console publishes straight
