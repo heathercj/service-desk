@@ -15,7 +15,7 @@ export function SafeExternalLink({ url, hostname }: { url: string; hostname: str
       >
         {url}
       </a>
-      <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+      <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-foreground">
         User-submitted · {hostname}
       </span>
     </div>

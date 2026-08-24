@@ -68,6 +68,7 @@ export default async function DashboardPage({
         />
         <select
           name="status"
+          aria-label="Filter by status"
           defaultValue={status ?? ""}
           className="h-10 rounded-md border border-input bg-background px-3 text-sm"
         >

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 interface SiteNavProps {
   auth: { displayName: string; roles: string[] } | null;
@@ -71,6 +72,7 @@ export function SiteNav({ auth }: SiteNavProps) {
         </ul>
         <div className="flex items-center gap-3">
           <span className="text-sm text-muted-foreground">{auth.displayName}</span>
+          <ThemeToggle />
           <Button
             variant="outline"
             size="sm"
