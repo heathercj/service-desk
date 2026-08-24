@@ -1,0 +1,19 @@
+# Without this, `COPY . .` in the build stage drags the host node_modules over
+# the one the deps stage just installed, which is both slow and wrong: a
+# Windows or macOS host has platform-specific binaries in there that will not
+# run in the image. .next and .git are just wasted bytes and cache busting.
+node_modules
+.next
+.git
+.github
+coverage
+playwright-report
+test-results
+security-reports
+sbom.cdx.json
+.env
+.env.*
+!.env.example
+*.log
+Dockerfile
+.dockerignore

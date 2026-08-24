@@ -1,0 +1,4 @@
+# Next.js serves this directory verbatim at the site root. It is empty today,
+# but the Dockerfile copies it into the runtime image unconditionally, and a
+# COPY of a path that does not exist is a hard build failure -- so this file
+# is what keeps `docker build` working until the first real asset lands here.
