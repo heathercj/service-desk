@@ -36,6 +36,12 @@ export function Spotlight({
     }
 
     let frame = 0;
+    // Once per arrival at an anchor, never from inside `measure`: that runs on
+    // every scroll, mutation and poll tick, so scrolling there would drag the
+    // page back the moment a viewer scrolled away to look at something else.
+    // The driver does the same for steps it performs (dom-drive.ts) -- this is
+    // what covers the steps a human performs.
+    let brought = false;
     const measure = () => {
       const el = queryAnchor(anchor, scope);
       if (!el) {
@@ -50,6 +56,10 @@ export function Spotlight({
         return;
       }
       setBox({ top: r.top, left: r.left, width: r.width, height: r.height });
+      if (!brought) {
+        brought = true;
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+      }
     };
 
     const schedule = () => {

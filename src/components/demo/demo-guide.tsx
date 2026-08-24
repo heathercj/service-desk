@@ -18,6 +18,7 @@ import {
   queryAnchor,
   queryScopedRow,
 } from "@/lib/demo/dom-drive";
+import { nextIsAvailable, onConditionMet } from "@/lib/demo/advance-policy";
 import { Henry, HenrySays } from "./henry";
 import { Spotlight } from "./spotlight";
 import { loadTourSession, saveTourSession, type TourSession } from "./tour-state";
@@ -139,6 +140,7 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
     if (hydrated) saveTourSession(session);
   }, [hydrated, session]);
 
+  const autopilot = session?.autopilot ?? false;
   const entry = session ? TOUR_STEPS[session.stepIndex] : undefined;
   const step: TourStep | undefined = entry?.step;
   const ctx = session?.ctx;
@@ -156,6 +158,11 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
         : undefined,
     [step, ctx],
   );
+
+  // Set by the observer below when the step's own condition is met, and
+  // cleared on every step change. In mode 1 this is what Next waits for.
+  const [armed, setArmed] = useState(false);
+  useEffect(() => setArmed(false), [step]);
 
   const expected = step ? identityFor(step.as) : undefined;
   const identityOk = Boolean(expected && signedInAs === expected.displayName);
@@ -222,13 +229,17 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
    * that has already performed, Next does nothing and the app's own condition
    * is what moves it -- a moment later, and for the right reason.
    */
+  /**
+   * Next, in mode 1. Narration ends when the presenter says so; every other
+   * step is only offered once the app has confirmed its effect landed, which
+   * is what `armed` means. Running a perform is NOT Next's job any more --
+   * that is the button beside it -- so pressing Next can never stand in for
+   * something the app did not actually do.
+   */
   const nextStep = useCallback(async () => {
-    if (step?.perform && performedFor.current !== step.id) {
-      await runPerform();
-      return;
-    }
-    if (step?.advance.kind === "read") advance();
-  }, [step, runPerform, advance]);
+    if (!step) return;
+    if (nextIsAvailable(step.advance.kind, armed)) advance();
+  }, [step, armed, advance]);
 
   const start = useCallback(
     (autopilot: boolean) => {
@@ -333,15 +344,21 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
 
     if (a.kind === "read") return;
 
+    // Autopilot moves itself; a presenter's tour only becomes finishable, and
+    // waits for Next. See advance-policy.ts for why the condition alone is
+    // not a safe moment to move -- most of them are met mid-keystroke.
+    const met = () =>
+      onConditionMet({ autopilot }) === "advance" ? advance() : setArmed(true);
+
     if (a.kind === "route") {
-      if (a.pattern.test(pathname)) advance();
+      if (a.pattern.test(pathname)) met();
       return;
     }
 
     // performing.current is read fresh on every poll, so the guard lifts on
     // its own when the perform resolves -- no re-render needed to release it.
-    return observeUntil(() => performing.current === null && satisfied(a), advance);
-  }, [step, identityOk, pathname, satisfied, advance]);
+    return observeUntil(() => performing.current === null && satisfied(a), met);
+  }, [step, identityOk, pathname, satisfied, advance, autopilot]);
 
   // --- Get us to the right identity and the right page.
   useEffect(() => {
@@ -553,15 +570,20 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
                 </p>
               )}
               <div className="flex flex-wrap gap-2">
-                {/* Next is the primary control on every step now, not just
-                    the narration-only ones. The perform button stays beside
-                    it: it is the affordance a presenter reaches for when they
-                    want the form filled without committing to moving on, and
-                    it is what e2e/demo-tour-guided.spec.ts clicks, so the walk
-                    keeps being proved through the panel a presenter uses. */}
-                {(step.advance.kind === "read" || step.perform) && (
-                  <Button onClick={() => void nextStep()}>Next</Button>
-                )}
+                {/* Next is on every step, and in mode 1 it is the ONLY thing
+                    that moves the tour: nothing advances under a presenter
+                    mid-sentence. On a step with a side effect it stays
+                    disabled until the app confirms the effect landed, so it
+                    adds a press to that rule rather than a way around it.
+                    The perform button beside it fills the form in without
+                    committing to moving on, and is what
+                    e2e/demo-tour-guided.spec.ts drives. */}
+                <Button
+                  disabled={!nextIsAvailable(step.advance.kind, armed)}
+                  onClick={() => void nextStep()}
+                >
+                  Next
+                </Button>
                 {step.perform && step.advance.kind !== "read" && (
                   <Button variant="outline" onClick={() => void runPerform()}>
                     {performLabel}

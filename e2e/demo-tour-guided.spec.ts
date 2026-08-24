@@ -201,38 +201,36 @@ test.describe("Guided tour, mode 1", () => {
       }
 
       const advanced = waitForAdvance(page, index);
+      const next = panel.getByRole("button", { name: "Next", exact: true });
 
-      if (step.advance.kind === "read") {
-        await panel.getByRole("button", { name: "Next", exact: true }).click();
-        await advanced;
-        continue;
+      // Nothing in mode 1 moves on its own, so every branch below does the
+      // step's work and then presses Next. On a step with a side effect Next
+      // is disabled until the app confirms that effect landed -- so waiting
+      // for it to enable is itself the assertion that the write happened,
+      // and a step that silently failed stalls here instead of sailing past.
+      if (step.advance.kind !== "read") {
+        if (
+          step.advance.kind === "filled" ||
+          step.advance.kind === "checked" ||
+          step.advance.kind === "value"
+        ) {
+          // Typing steps: take the affordance, as a presenter would.
+          await panel.getByRole("button", { name: "Fill it in for me" }).click();
+        } else if (step.perform) {
+          // The real click, on the real control, through the overlay. This is
+          // the assertion this spec exists for.
+          const targetEl = anchorLocator(page, step, await tourContext(page));
+          await expect(targetEl).toHaveCount(1);
+          await targetEl.click({ timeout: 30_000 });
+          clickedForReal.push(step.id);
+        }
+        // A step with no perform has nothing for anyone to click -- the app
+        // reaches the state on its own (the suggestion card arriving on the
+        // debounce). Waiting IS the correct behaviour here.
+        await expect(next).toBeEnabled({ timeout: 60_000 });
       }
 
-      // Typing steps: take the affordance, as a presenter would.
-      if (
-        step.advance.kind === "filled" ||
-        step.advance.kind === "checked" ||
-        step.advance.kind === "value"
-      ) {
-        await panel.getByRole("button", { name: "Fill it in for me" }).click();
-        await advanced;
-        continue;
-      }
-
-      // A step with no perform has nothing for anyone to click -- the app
-      // reaches the state on its own (the suggestion card arriving on the
-      // debounce). Waiting IS the correct behaviour here.
-      if (!step.perform) {
-        await advanced;
-        continue;
-      }
-
-      // Everything else: the real click, on the real control, through the
-      // overlay. This is the assertion this spec exists for.
-      const targetEl = anchorLocator(page, step, await tourContext(page));
-      await expect(targetEl).toHaveCount(1);
-      await targetEl.click({ timeout: 30_000 });
-      clickedForReal.push(step.id);
+      await next.click();
       await advanced;
     }
 
