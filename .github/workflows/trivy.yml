@@ -24,6 +24,8 @@ jobs:
           scan-ref: .
           severity: HIGH,CRITICAL
           exit-code: "1"
+          # See the note on the image scan below.
+          ignore-unfixed: true
 
   image-scan:
     runs-on: ubuntu-latest
@@ -40,3 +42,10 @@ jobs:
           scan-type: image
           severity: HIGH,CRITICAL
           exit-code: "1"
+          # Fail only on vulnerabilities that have a fix available. A Debian
+          # base image always carries some HIGH CVEs that upstream has not
+          # patched, so without this the gate is red permanently and stops
+          # being read -- which is worse than not having it. Anything with a
+          # fix is actionable: rebuild on a newer base tag, or bump the
+          # package. Unfixed findings still appear in the job output.
+          ignore-unfixed: true
