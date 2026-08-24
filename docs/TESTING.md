@@ -289,3 +289,43 @@ Depth on the demo path outranks breadth everywhere else. In order:
 See [TICKET_LIFECYCLE.md](TICKET_LIFECYCLE.md) and
 [KNOWLEDGE_LIFECYCLE.md](KNOWLEDGE_LIFECYCLE.md) for the state rules those
 scenarios assert against.
+
+## Known flake: the full e2e suite against `next dev`
+
+Every spec passes in isolation. The three demo walks -- `demo-golden-path`,
+`demo-tour-guided`, `demo-tour-autopilot` -- pass together in under a minute.
+The whole suite at full width does not pass reliably.
+
+What it looks like when it goes wrong:
+
+- `dev-auth.ts` waits for the sign-in navigation to leave `/login` and it
+  never does. The log shows two hops to `/login?callbackUrl=%2F`: the
+  credentials post came back to the login page instead of through it.
+- Occasionally an `accessibility.spec.ts` check fails in under three seconds
+  against a page that passes on its own moments later.
+
+Both are the same underlying condition. Playwright takes half the cores
+locally (six on a twelve-core machine), every spec signs in through the
+dev-credentials provider, and they all share one `next dev` that compiles
+routes on first hit. That server does not have six workers' worth of
+simultaneous compile-and-authenticate in it.
+
+Things that were tried and did NOT fix it:
+
+- Capping local workers to 4. The failure moved to a different spec rather
+  than going away, so the change was reverted rather than left in as an
+  unjustified knob.
+- Raising the per-assertion timeout to 15s. Worth keeping on its own merits --
+  5s against a compile-on-demand server is a latent flake wherever a bare
+  `toBeVisible()` follows a route change -- but it does not address a sign-in
+  that comes back to `/login`.
+
+The real fix is to stop running the suite against `next dev`. `E2E_WEB_SERVER`
+already exists for exactly this, and `.github/workflows/dast.yml` launches the
+standalone build with `NODE_ENV=test` because `next start` hard-sets
+production and `src/lib/env.ts` refuses dev auth there. Pointing the default
+local run at a prebuilt server the same way would remove compile-on-demand
+from the picture entirely. Not attempted here.
+
+Until then: `pnpm exec playwright test <file>` per spec is reliable, and CI is
+already capped at two workers.
