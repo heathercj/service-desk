@@ -10,13 +10,18 @@ import { signInAsDevIdentity, DEV_IDENTITIES } from "./dev-auth";
  * order for the completion card to appear. If any single step's anchor or
  * completion condition is wrong, the tour stalls there and this fails.
  *
+ * It does NOT cover mode 1. Autopilot reaches every control through
+ * perform(), which drives elements directly and so cannot notice a control a
+ * real cursor could not have reached. demo-tour-guided.spec.ts is the one
+ * that clicks the app.
+ *
  * Runs with ?tour=fast, which strips the deliberate typing and reading
  * pauses -- a live audience needs those, a test does not.
  *
  * Requires ENABLE_DEV_AUTH=true, ENABLE_DEMO_TOUR=true and `pnpm db:seed`.
  */
 test.describe("Guided tour autopilot", () => {
-  // Twenty-six steps, five sign-ins, and a dev-mode compile on first hit of
+  // Thirty-one steps, five sign-ins, and a dev-mode compile on first hit of
   // each route. Nothing like the default 30s.
   test.describe.configure({ mode: "serial", timeout: 300_000 });
 
@@ -29,7 +34,7 @@ test.describe("Guided tour autopilot", () => {
     await expect(launcher).toBeVisible();
     await launcher.click();
 
-    // Arriving here means all twenty-six steps advanced on observed state --
+    // Arriving here means all thirty-one steps advanced on observed state --
     // no step was skipped, because a stalled step never advances.
     await expect(page.getByText("That is the whole loop.")).toBeVisible({
       timeout: 280_000,

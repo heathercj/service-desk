@@ -25,6 +25,34 @@ import { resolveDynamic, type TourContext } from "../src/lib/demo/tour-types";
 
 const TOUR_SESSION_KEY = "demo-tour.v1";
 
+/**
+ * Screenshot capture, off by default.
+ *
+ * Hung off this walk rather than given its own driver: the shots are only
+ * worth having if they show the tour in a state it genuinely reaches, and
+ * this is the walk that proves it reaches them.
+ *
+ *   HENRY_SHOTS=1 HENRY_SHOTS_THEME=dark pnpm exec playwright test demo-tour-guided
+ */
+const SHOOTING = process.env.HENRY_SHOTS === "1";
+const SHOT_THEME = process.env.HENRY_SHOTS_THEME === "dark" ? "dark" : "light";
+const SHOT_DIR = `docs/screenshots/${SHOT_THEME}`;
+
+/** The states worth a picture: Henry talking, handing off, pointing, done. */
+const SHOT_STEPS = new Set([
+  "intake-intro",
+  "intake-subject",
+  "triage-handoff",
+  "work-claim",
+  "gate-blocked",
+  "deflect-suggested",
+]);
+
+async function shoot(page: Page, name: string): Promise<void> {
+  if (!SHOOTING) return;
+  await page.screenshot({ path: `${SHOT_DIR}/${name}.png`, fullPage: false });
+}
+
 /** The panel Henry speaks from. */
 function panelOf(page: Page): Locator {
   return page.getByRole("complementary");
@@ -115,6 +143,14 @@ test.describe("Guided tour, mode 1", () => {
     await signInAsDevIdentity(page, DEV_IDENTITIES.customer);
     await page.goto("/dashboard?tour=fast");
 
+    if (SHOOTING && SHOT_THEME === "dark") {
+      await page.getByRole("button", { name: /Switch to dark theme/ }).click();
+      await expect(
+        page.getByRole("button", { name: /Switch to light theme/ }),
+      ).toBeVisible();
+    }
+    await shoot(page, "00-launcher");
+
     // Nothing starts on its own; the launcher is the only way in.
     await page.getByRole("button", { name: "Start", exact: true }).click();
 
@@ -136,6 +172,10 @@ test.describe("Guided tour, mode 1", () => {
           `The panel reported step ${index + 1}, which is not in the manifest`,
         );
       const { step } = entry;
+
+      if (SHOT_STEPS.has(step.id)) {
+        await shoot(page, `${String(index + 1).padStart(2, "0")}-${step.id}`);
+      }
 
       // A handoff belongs to the step it precedes, so it is handled first and
       // does not count as progress.
@@ -186,6 +226,7 @@ test.describe("Guided tour, mode 1", () => {
     }
 
     await expect(finished).toBeVisible({ timeout: 60_000 });
+    await shoot(page, "99-finished");
 
     // Guards the premise: if a refactor turned these into "Do it for me"
     // presses, the walk would still pass while testing nothing it claims to.

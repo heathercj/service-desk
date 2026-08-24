@@ -74,7 +74,7 @@ gone, which is what a `db:reset` between runs leaves behind.
 | `src/lib/demo/dom-drive.ts`          | Anchor resolution, `observeUntil`, and the autopilot driver.                               |
 | `src/components/demo/demo-guide.tsx` | The engine: identity, routing, advance detection, autopilot.                               |
 | `src/components/demo/spotlight.tsx`  | Scrim and ring, drawn as one element's box-shadow.                                         |
-| `src/components/demo/henry.tsx`      | Inline SVG lion.                                                                           |
+| `src/components/demo/henry.tsx`      | Inline SVG lion, and the speech bubble his narration sits in.                              |
 | `src/components/demo/tour-state.ts`  | `sessionStorage` persistence.                                                              |
 | `scripts/demo-clean.ts`              | Litter sweep.                                                                              |
 
@@ -85,7 +85,15 @@ of the choreography.
 
 A step finishes when the app confirms it did something -- never when a human
 presses Next. `read` steps, which have no side effect, are the only
-exception. The `emptied` condition exists because of a bug the golden-path
+exception. There is deliberately no `click` advance: firing because the human
+hit the button, rather than because the app did something, is the same silent
+failure `emptied` exists to catch.
+
+A step also does not advance while its own `perform()` is still running.
+`filled` is satisfied by the first character, so without that guard clicking
+"Fill it in for me" moved the panel to the next cue seconds before the typing
+finished -- and a presenter following the cue promptly submitted a form the
+server then rejected. The `emptied` condition exists because of a bug the golden-path
 spec documents at `demo-golden-path.spec.ts:139-142`: asserting the reply
 text is visible passes against the copy still sitting in the textarea, while
 the POST was cancelled and nothing saved. The box clearing is the proof.
@@ -110,10 +118,35 @@ exists but has become ambiguous or unreachable.
 
 ### Does the tour itself still work?
 
+Two specs, and the difference between them matters.
+
 `e2e/demo-tour-autopilot.spec.ts` hands the wheel to Henry and checks only
 that he arrives. Every handoff, route push, `perform()` and advance condition
 has to fire for the completion card to appear, because a stalled step never
 advances.
+
+`e2e/demo-tour-guided.spec.ts` walks **mode 1** -- the mode the demo is
+actually given in -- by clicking the real controls through the overlay,
+taking only the "Fill it in for me" affordance a presenter would take. This
+is the one that can catch a control autopilot reaches and a cursor cannot: a
+button under the scrim, or one that has scrolled out of reach. It asserts the
+list of thirteen real clicks, so a refactor cannot quietly turn the walk back
+into autopilot and keep passing.
+
+### Screenshots
+
+Captured from the mode-1 walk itself, so they only ever show states the tour
+genuinely reaches:
+
+```bash
+HENRY_SHOTS=1 pnpm exec playwright test demo-tour-guided                       # light
+HENRY_SHOTS=1 HENRY_SHOTS_THEME=dark pnpm exec playwright test demo-tour-guided # dark
+```
+
+They land in `docs/screenshots/<theme>/`. Worth re-taking after a narration
+edit: the false claim in the closing beat -- Henry insisting Jordan's ticket
+list was empty while five seeded tickets sat behind the panel -- was found by
+looking at one, not by a test.
 
 ## Known limits
 
