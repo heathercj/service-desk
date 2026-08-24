@@ -1,0 +1,4 @@
+# Working agreements for this repo
+
+- **Commit and push directly to `main`.** When asked to make a change, commit it and push to `origin main` as part of finishing the task — no feature branches, no PRs, unless explicitly asked for one. Still follow standard commit hygiene: review `git status`/`git diff` before staging, and never push if `pnpm typecheck`, `pnpm lint`, or the test suites are failing because of the change just made.
+- **Every change ships with its tests, written test-first.** Follow `docs/TESTING.md`: BDD-style Given/When/Then (`src/test/bdd.ts`) for unit/route scenarios, real-Postgres coverage in `*.integration.test.ts` for service-layer behavior, and a component test for new UI behavior. Write the failing test before the implementation, not after. Run `pnpm test`, `pnpm test:integration` (needs the test DB, see `docs/TESTING.md`), `pnpm typecheck`, and `pnpm lint` before committing.
