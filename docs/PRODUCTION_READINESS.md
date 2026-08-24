@@ -19,6 +19,17 @@ Track these items before any real deployment.
 - [ ] **Rate limiting**: replace the in-memory limiter
       (`src/lib/http/rate-limit.ts`) with a shared store (Redis) if running
       more than one instance.
+- [ ] **Confirm the proxy sets `x-forwarded-for`** before trusting the sign-in
+      limit. `src/middleware.ts` keys that bucket on the header and falls back
+      to the single key `auth:unknown` when it is absent -- so behind a proxy
+      that does not set it, every user in the organisation shares one budget of
+      `RATE_LIMIT_AUTH_MAX` sign-ins a minute, and one person fumbling their
+      password locks out everyone. Fails closed, which is the right direction
+      for a security control and an availability risk worth knowing about. It
+      is how the e2e suite used to lock itself out -- see "The flake that was
+      not about `next dev`" in TESTING.md. Note also that the header is
+      client-supplied: whatever terminates TLS must overwrite it, not append
+      to it, or the limit is trivially evaded by spoofing.
 - [ ] **Object storage**: implement an Azure Blob Storage
       `ObjectStorageProvider` if not deploying with a persistent local disk;
       keep downloads proxied through the authorized route rather than

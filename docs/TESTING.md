@@ -290,13 +290,10 @@ See [TICKET_LIFECYCLE.md](TICKET_LIFECYCLE.md) and
 [KNOWLEDGE_LIFECYCLE.md](KNOWLEDGE_LIFECYCLE.md) for the state rules those
 scenarios assert against.
 
-## Known flake: the full e2e suite against `next dev`
+## The flake that was not about `next dev`
 
-Every spec passes in isolation. The three demo walks -- `demo-golden-path`,
-`demo-tour-guided`, `demo-tour-autopilot` -- pass together in under a minute.
-The whole suite at full width does not pass reliably.
-
-What it looks like when it goes wrong:
+For a while the whole e2e suite would not pass at full width, while every
+spec passed on its own. It looked like this:
 
 - `dev-auth.ts` waits for the sign-in navigation to leave `/login` and it
   never does. The log shows two hops to `/login?callbackUrl=%2F`: the
@@ -304,28 +301,113 @@ What it looks like when it goes wrong:
 - Occasionally an `accessibility.spec.ts` check fails in under three seconds
   against a page that passes on its own moments later.
 
-Both are the same underlying condition. Playwright takes half the cores
-locally (six on a twelve-core machine), every spec signs in through the
-dev-credentials provider, and they all share one `next dev` that compiles
-routes on first hit. That server does not have six workers' worth of
-simultaneous compile-and-authenticate in it.
+**The cause was the sign-in rate limit, not compilation.** `src/middleware.ts`
+limits `/api/auth/signin` and `/api/auth/callback` to twenty requests a
+minute, keyed on `x-forwarded-for` -- and localhost never sends one, so the
+key falls back to the literal string `unknown` and _every Playwright worker
+shares one bucket_. The suite signs in around thirty times, because handing a
+ticket between roles is what most of these specs are for. Everything past the
+twentieth got a 429, `next-auth` returned to `/login`, and whichever spec lost
+the race reported a mystery timeout.
 
-Things that were tried and did NOT fix it:
+You can watch it happen in one line:
 
-- Capping local workers to 4. The failure moved to a different spec rather
-  than going away, so the change was reverted rather than left in as an
-  unjustified knob.
-- Raising the per-assertion timeout to 15s. Worth keeping on its own merits --
-  5s against a compile-on-demand server is a latent flake wherever a bare
-  `toBeVisible()` follows a route change -- but it does not address a sign-in
-  that comes back to `/login`.
+```bash
+for i in $(seq 1 25); do curl -s -o /dev/null -w "%{http_code} " localhost:3000/api/auth/signin; done
+# 302 x20, then 429 429 429 429 429
+```
 
-The real fix is to stop running the suite against `next dev`. `E2E_WEB_SERVER`
-already exists for exactly this, and `.github/workflows/dast.yml` launches the
-standalone build with `NODE_ENV=test` because `next start` hard-sets
-production and `src/lib/env.ts` refuses dev auth there. Pointing the default
-local run at a prebuilt server the same way would remove compile-on-demand
-from the picture entirely. Not attempted here.
+That also explains the two things that had been tried and had not worked, both
+of which look sensible until you know the cause:
 
-Until then: `pnpm exec playwright test <file>` per spec is reliable, and CI is
-already capped at two workers.
+- **Capping local workers to 4.** Fewer workers is the same thirty sign-ins,
+  so the limit was still reached and the failure only moved to a different
+  spec. It was reverted rather than kept as an unjustified knob -- correctly,
+  as it turns out.
+- **Raising the per-assertion timeout to 15s.** A 429 is instant and stays
+  that way for the rest of the window, so no timeout was ever going to help.
+  Worth keeping anyway: 5s against a compile-on-demand server is a latent
+  flake wherever a bare `toBeVisible()` follows a route change.
+
+And a third, attempted later and also not the fix: **running the suite against
+a prebuilt server** (below). It removes compile-on-demand entirely and the
+sign-in loop happened just the same, which is what finally ruled compilation
+out.
+
+### The fix
+
+`RATE_LIMIT_AUTH_MAX` and `RATE_LIMIT_AUTH_WINDOW_MS` now configure that
+limit, defaulting to the same 20/60s. `pnpm test:e2e` sets the max to 1000.
+
+Twenty a minute is right for humans and wrong for a parallel suite arriving
+from one IP; the shared-bucket fallback is the safe direction for a security
+control and the hostile direction for tests. Nothing exercises the limit in
+the e2e suite either way -- it is covered in
+[`src/lib/http/rate-limit.test.ts`](../src/lib/http/rate-limit.test.ts),
+including the twenty-first-request boundary and the shared-key behaviour, so
+that this particular afternoon does not have to be repeated.
+
+Do not raise the default to make something else pass. Raising the max raises
+it for every caller at once, which is the whole point of the shared bucket.
+
+## Running the suite against a prebuilt server
+
+```bash
+pnpm test:e2e:built
+```
+
+Not needed for the flake above, but worth having anyway: it builds once and
+serves the build, so no route is compiled while a spec waits on it. The whole
+suite runs in about **20 seconds** that way, against about **90 seconds**
+on `next dev`, because almost all of that minute was compile-on-demand. Plain
+`pnpm test:e2e` stays the right default for iterating on one spec, where the
+build would cost more than it saves.
+
+Getting there was not a matter of setting `E2E_WEB_SERVER`, and the reason is
+worth writing down.
+
+`next start` hard-sets `NODE_ENV=production` and `src/lib/env.ts` refuses to
+start with `ENABLE_DEV_AUTH=true` there -- a deliberate hard guard, and every
+spec signs in through the dev identity picker. The standalone build looks like
+the way around it, since `node .next/standalone/server.js` is a plain Node
+process that ought to inherit whatever `NODE_ENV` you give it. It does not:
+**the launcher Next generates sets `process.env.NODE_ENV = 'production'` on
+its fifth line**, before `require('next')`, so it overwrites what you passed
+and the guard fires.
+
+Which means `.github/workflows/dast.yml` had never worked, since the initial
+commit. It sets `NODE_ENV: test` for exactly this reason and the generated
+launcher discarded it; middleware matches `/api/health` too, so _every_
+request 500ed and the "wait for the health endpoint" step could only exhaust
+its thirty attempts and fail the job.
+
+[`scripts/e2e-server.ts`](../scripts/e2e-server.ts) is that launcher without
+the overwrite -- a transcription of the generated `server.js` minus one line.
+The guard in `env.ts` is untouched and `NODE_ENV` really is `test`; the script
+refuses to run under `production`, so it cannot become the route by which dev
+auth reaches a real deployment. It also does two things the generated one does
+not:
+
+- **Copies `.next/static`.** `output: "standalone"` deliberately omits the
+  client bundles, expecting the deployment to serve them. Without the copy
+  every page renders once and then sits there unhydrated with every asset a
+  404 -- which reads as a broken app, not a missing build step. (That is what
+  ZAP would have been scanning, had DAST got that far.)
+- **Does not `chdir` into the standalone directory.** `KNOWLEDGE_BASE_ROOT`
+  and the default `OBJECT_STORAGE_ROOT` both resolve against `process.cwd()`,
+  so a chdir would publish the suite's articles into
+  `.next/standalone/knowledge-base`, where `pnpm demo:clean` and
+  `pnpm kb:validate` would never look.
+
+Three things to know when you use it:
+
+- `reuseExistingServer` is on locally, so a `pnpm dev` already listening on
+  3000 wins and the run quietly measures _that_ server instead. Stop it first.
+- **`next dev` deletes the standalone build.** It rewrites `.next` on start,
+  so any `pnpm test:e2e` after a build takes `.next/standalone` with it.
+  `pnpm test:e2e:built` always rebuilds, so this only bites if you run
+  `pnpm e2e:server` by hand; it fails loudly and tells you to build.
+- The build is a real one, so a source change needs a rebuild.
+
+Per-spec, `pnpm exec playwright test <file>` against `next dev` is reliable,
+and CI is capped at two workers.
