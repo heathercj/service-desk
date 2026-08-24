@@ -25,15 +25,35 @@ import { loadTourSession, saveTourSession, type TourSession } from "./tour-state
 /**
  * How long autopilot lingers on a narration-only step, by reading length.
  *
- * Half again as long as it used to be, ceiling included. The old pace was
- * tuned for a room that already knew what it was looking at; someone being
- * taught this for the first time is still on the second sentence when the
- * panel moves on. 68ms a character is roughly the speed of reading it aloud,
- * which is what a presenter is doing anyway.
+ * Twice the original pace, ceiling included, arrived at in two goes: the pace
+ * was first tuned for a room that already knew what it was looking at, and
+ * someone being taught this for the first time was still on the second
+ * sentence when the panel moved on. 85ms a character is slower than reading
+ * aloud on purpose -- the narration is explaining something new, and the
+ * viewer is also looking at the part of the screen it refers to.
  */
 function dwellMs(say: string, fast: boolean): number {
-  return fast ? 250 : Math.min(22_500, 4_500 + say.length * 68);
+  return fast ? 250 : Math.min(28_000, 6_000 + say.length * 85);
 }
+
+/**
+ * How long a step holds after its perform() finishes, before it may advance.
+ *
+ * Without this the advance is instantaneous, and not by a little: `filled` is
+ * satisfied by the FIRST character typed, so the moment the driver stops
+ * typing the advance poll fires and the panel jumps. The audience watches a
+ * form being filled in and then never sees it filled -- which is the one
+ * frame that shows what the step accomplished.
+ *
+ * It reuses the in-flight guard rather than adding a second mechanism: the
+ * step simply stays un-advanceable a little longer, so both entry points get
+ * the hold and neither can skip it. See runPerform.
+ */
+function settleMs(fast: boolean): number {
+  return fast ? 0 : 2_000;
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function identityFor(key: string) {
   return DEV_IDENTITIES.find((i) => i.key === key);
@@ -169,6 +189,9 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
     performing.current = step.id;
     try {
       await step.perform(ctx, driver);
+      // Hold before releasing the guard, so the completed form is on screen
+      // long enough to be read rather than flashing past on the way out.
+      await sleep(settleMs(fast));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Could not do that");
     } finally {
@@ -176,7 +199,36 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
       // perform belonging to whatever is running now.
       if (performing.current === step.id) performing.current = null;
     }
-  }, [step, ctx, driver]);
+  }, [step, ctx, driver, fast]);
+
+  /**
+   * The Next button: one control that moves the tour on, whatever this step
+   * happens to need.
+   *
+   * This is the way the tour is meant to be given. Autopilot has to guess how
+   * long a room needs, and a full run at presentation pace is over seven
+   * minutes of watching software drive itself -- whereas a presenter clicking
+   * Next talks over each beat and moves when the room is ready, which is the
+   * pace that was always wanted.
+   *
+   * A step with a perform() gets it run, and then this says nothing more: the
+   * advance condition observes the app and carries the step from there.
+   *
+   * So Next cannot advance a step whose work the app has not actually done.
+   * That is the point, and it is why this does not simply call advance(): a
+   * button that moves the tour on because a human pressed it is the `click`
+   * advance that was deliberately removed from this file, and the silent
+   * failure the whole advance-condition design exists to prevent. On a step
+   * that has already performed, Next does nothing and the app's own condition
+   * is what moves it -- a moment later, and for the right reason.
+   */
+  const nextStep = useCallback(async () => {
+    if (step?.perform && performedFor.current !== step.id) {
+      await runPerform();
+      return;
+    }
+    if (step?.advance.kind === "read") advance();
+  }, [step, runPerform, advance]);
 
   const start = useCallback(
     (autopilot: boolean) => {
@@ -235,6 +287,8 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
           return queryAnchor(a.anchor, scopeFor(a.anchor)) !== null;
         case "filled":
           return (valueOf(queryAnchor(a.anchor, scopeFor(a.anchor))) ?? "").trim() !== "";
+        case "value":
+          return a.pattern.test(valueOf(queryAnchor(a.anchor, scopeFor(a.anchor))) ?? "");
         case "emptied": {
           const value = valueOf(queryAnchor(a.anchor, scopeFor(a.anchor)));
           if (value === null) return false;
@@ -407,8 +461,14 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
 
   const say = resolveDynamic(step.say, ctx);
   const cue = step.cue ? resolveDynamic(step.cue, ctx) : null;
+  // `value` belongs with the typing kinds: it is a text field either way, and
+  // the label is what e2e/demo-tour-guided.spec.ts reaches for to decide it is
+  // a typing step. Leaving it out made that spec hang waiting for a button
+  // that said something else.
   const performLabel =
-    step.advance.kind === "filled" || step.advance.kind === "checked"
+    step.advance.kind === "filled" ||
+    step.advance.kind === "checked" ||
+    step.advance.kind === "value"
       ? "Fill it in for me"
       : "Do it for me";
 
@@ -493,7 +553,15 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
                 </p>
               )}
               <div className="flex flex-wrap gap-2">
-                {step.advance.kind === "read" && <Button onClick={advance}>Next</Button>}
+                {/* Next is the primary control on every step now, not just
+                    the narration-only ones. The perform button stays beside
+                    it: it is the affordance a presenter reaches for when they
+                    want the form filled without committing to moving on, and
+                    it is what e2e/demo-tour-guided.spec.ts clicks, so the walk
+                    keeps being proved through the panel a presenter uses. */}
+                {(step.advance.kind === "read" || step.perform) && (
+                  <Button onClick={() => void nextStep()}>Next</Button>
+                )}
                 {step.perform && step.advance.kind !== "read" && (
                   <Button variant="outline" onClick={() => void runPerform()}>
                     {performLabel}

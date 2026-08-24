@@ -23,9 +23,48 @@ the knowledge base. That shapes everything about the narration.
   Jordan's ticket list is empty because it is not.
 
 The pace is set for someone seeing this for the first time: reading dwell,
-per-character typing and the pause before each click are all half again
-slower than a rehearsal pace, and the panel type is sized to be read across
-a room rather than over a shoulder.
+per-character typing, the pause before each click and the hold after each
+form is filled are all deliberately slow, and the panel type is sized to be
+read across a room rather than over a shoulder. See **Pace** below.
+
+## The scenario
+
+Deliberately the most ordinary problem the desk gets, because the point is
+the loop and not the ticket:
+
+1. Casey cannot sign into her email. She says her password is not working and
+   that the same password is fine on her phone.
+2. Technology Support works it with her. The detail that matters -- it works
+   on another device -- points at the browser, not the account. The fix is to
+   clear cache and cookies.
+3. The fix becomes an article, titled for what the next person will search
+   for rather than what Casey happened to type.
+4. Jordan hits the same wall, in his own words, and is offered that article
+   before he finishes filling in the form.
+
+It routes itself, too, with no help from the tour: `email` and `password` are
+Technology Support keywords in `src/lib/tickets/department-suggestion.ts`, so
+the triage beat shows a real suggestion rather than a staged one.
+
+All of it lives in `createTourContext()` in `src/lib/demo/tour-script.ts` --
+one function, so the scenario can be swapped without touching the beats.
+
+## Driving it
+
+Three ways, and the first is the one to use:
+
+- **Next.** A presenter clicks Next and talks over each beat. On a step with
+  something to do, Next does it and then lets the app's own advance condition
+  carry the step, so it cannot skip past work the app has not really done.
+  This is the recommended way to give the tour: it moves when the room is
+  ready, which no timer can guess.
+- **Autopilot.** Runs itself on timers. Useful unattended -- a screen in a
+  corner, or the e2e spec that proves all thirty-six steps still advance --
+  but a full run at presentation pace is over seven minutes of watching
+  software drive itself.
+- **Clicking the real app.** The advance conditions watch the app, not the
+  panel, so a presenter can ignore the buttons entirely and just use the
+  product. `Fill it in for me` sits beside Next for the typing steps.
 
 ## Running it
 
@@ -106,6 +145,23 @@ exception. There is deliberately no `click` advance: firing because the human
 hit the button, rather than because the app did something, is the same silent
 failure `emptied` exists to catch.
 
+**The Next button does not weaken this.** On a step with a `perform()`, Next
+runs the perform and then stops; the advance condition still has to observe
+the app before the step moves. Next never calls `advance()` except on a
+`read` step. That is deliberate and slightly awkward on purpose: a Next that
+force-advanced would be the `click` advance under another name, so on a step
+whose action has already run Next does nothing and the app's own condition is
+what moves things on. `deflect-suggested` has no `perform()` and is not a
+`read` step, so it shows no Next at all -- the suggestion appearing is the
+condition, and there is nothing for a human to do but see it.
+
+There is one more advance kind than there used to be. `filled` asks whether a
+field is non-empty, which is the wrong question for a field the app
+pre-fills: the draft title starts as the ticket subject, so `filled` is true
+on arrival and the step satisfies itself before anyone types. `value` asks
+whether the field's value matches a pattern, which is the question that step
+actually has.
+
 A step also does not advance while its own `perform()` is still running.
 `filled` is satisfied by the first character, so without that guard clicking
 "Fill it in for me" moved the panel to the next cue seconds before the typing
@@ -152,17 +208,27 @@ into autopilot and keep passing.
 
 ### Pace
 
-Three knobs, all deliberately slow:
+Four knobs, all deliberately slow:
 
-| What                                   | Where                            |
-| -------------------------------------- | -------------------------------- |
-| Reading dwell on a narration-only step | `dwellMs` in `demo-guide.tsx`    |
-| Per-character typing                   | `typeDelayMs` in `dom-drive.ts`  |
-| Pause before autopilot clicks          | `clickDelayMs` in `dom-drive.ts` |
+| What                                   | Where                            | Value          |
+| -------------------------------------- | -------------------------------- | -------------- |
+| Reading dwell on a narration-only step | `dwellMs` in `demo-guide.tsx`    | 6s + 85ms/char |
+| Per-character typing                   | `typeDelayMs` in `dom-drive.ts`  | 50ms           |
+| Pause before autopilot clicks          | `clickDelayMs` in `dom-drive.ts` | 650ms          |
+| Hold after a step's `perform()` ends   | `settleMs` in `demo-guide.tsx`   | 2s             |
 
-`?tour=fast` overrides all three (dwell drops to 250ms, the delays to zero).
+`?tour=fast` overrides all four (dwell drops to 250ms, the rest to zero).
 That is for rehearsal and for the two e2e specs -- a live audience needs the
 pauses, and a viewer being taught this for the first time needs them most.
+
+**The settle hold is not just another pause.** Without it the advance after a
+form is filled is instantaneous, because `filled` is satisfied by the _first_
+character typed: the moment the driver stops typing, the advance poll fires
+and the panel jumps. So the audience watched a form being filled in and then
+never saw it filled, which is the one frame showing what the step achieved.
+It is implemented by holding the in-flight guard (see `runPerform`) rather
+than as a second mechanism, so both autopilot and the mode-1 button get it and
+neither can skip it -- the same guard described under Mode 1 below.
 
 ### Screenshots
 

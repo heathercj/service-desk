@@ -164,11 +164,11 @@ export interface DomDriverOptions {
   /**
    * Per-character delay. 0 fills instantly.
    *
-   * 27ms is a deliberate half-again slower than the ~18ms this started at:
-   * brisk typing reads as a machine filling a form, and the room stops
-   * following what is being typed and waits for it to stop. Slow enough to
-   * read along with is the point -- the narration beside it is explaining
-   * what the words mean.
+   * 50ms, up from ~18ms originally and 27ms after the first pass. Brisk
+   * typing reads as a machine filling a form, and the room stops following
+   * what is being typed and waits for it to stop. Slow enough to read along
+   * with is the point -- the narration beside it is explaining what the words
+   * mean, so the words have to still be arriving while it is read.
    */
   typeDelayMs?: number;
   /** Pause before a click, so the audience sees what is about to be hit. */
@@ -177,8 +177,8 @@ export interface DomDriverOptions {
 }
 
 export function createDomDriver({
-  typeDelayMs = 27,
-  clickDelayMs = 390,
+  typeDelayMs = 50,
+  clickDelayMs = 650,
   findTimeoutMs = 15_000,
 }: DomDriverOptions = {}): DomDriver {
   async function focusInto(anchor: string, scope?: ResolvedScope) {
