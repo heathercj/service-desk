@@ -317,9 +317,13 @@ export function NewTicketForm({
           id="description"
           data-tour="ticket-description"
           rows={6}
+          // Names a tool nobody has to recognise, and models the three things
+          // the label above asks for: what you were doing, what stopped, and
+          // anything the screen said.
           placeholder={
-            "e.g. I was trying to submit a change order in Buildertrend, but clicking " +
-            'Submit does nothing. I see the error "Session expired" in the top corner.'
+            "e.g. I cannot sign into my email. I enter my password and the page " +
+            "returns me to the sign-in screen without an error. The same password " +
+            "works on my phone."
           }
           {...register("description")}
           aria-invalid={Boolean(errors.description)}
