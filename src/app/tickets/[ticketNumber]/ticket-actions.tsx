@@ -25,6 +25,8 @@ interface TicketActionsProps {
     departmentKey: string;
   };
   roles: string[];
+  /** Whether the signed-in user is this ticket's current assignee. */
+  isAssignee: boolean;
   allowedNextStatuses: string[];
   knowledgeLinks: Array<{ id: string; outcomeType: string; articleTitle: string | null }>;
   departmentAgents: Record<string, DepartmentAgentOption[]>;
@@ -56,6 +58,7 @@ async function post(url: string, body: unknown) {
 export function TicketActions({
   ticket,
   roles,
+  isAssignee,
   allowedNextStatuses,
   knowledgeLinks,
   departmentAgents,
@@ -68,7 +71,9 @@ export function TicketActions({
   const [resolutionSummary, setResolutionSummary] = useState("");
   const [resolutionSteps, setResolutionSteps] = useState("");
   const [transferReason, setTransferReason] = useState("");
-  const [transferDept, setTransferDept] = useState(ticket.departmentKey);
+  const [transferDeptKey, setTransferDeptKey] = useState(ticket.departmentKey);
+  const [transferAssigneeId, setTransferAssigneeId] = useState("");
+  const [triageDept, setTriageDept] = useState(ticket.departmentKey);
   const [triageAssigneeId, setTriageAssigneeId] = useState("");
   const [cancelReason, setCancelReason] = useState("");
   const [reopenReason, setReopenReason] = useState("");
@@ -104,7 +109,7 @@ export function TicketActions({
     [...roleSet].some((r) => AGENT_ROLES.has(r)) &&
     ["IN_PROGRESS", "PENDING", "RESOLUTION_REVIEW"].includes(ticket.status);
   const canTransfer =
-    [...roleSet].some((r) => TRANSFER_ROLES.has(r)) &&
+    ([...roleSet].some((r) => TRANSFER_ROLES.has(r)) || isAssignee) &&
     !["RESOLVED", "CLOSED", "CANCELLED"].includes(ticket.status);
   const canCancel =
     [...roleSet].some((r) => CANCEL_ROLES.has(r)) &&
@@ -195,9 +200,9 @@ export function TicketActions({
             <label className="text-sm">
               Department
               <Select
-                value={transferDept}
+                value={triageDept}
                 onChange={(e) => {
-                  setTransferDept(e.target.value);
+                  setTriageDept(e.target.value);
                   setTriageAssigneeId("");
                 }}
                 className="mt-1"
@@ -217,7 +222,7 @@ export function TicketActions({
                 className="mt-1"
               >
                 <option value="">Leave in queue (unassigned)</option>
-                {(departmentAgents[transferDept] ?? []).map((agent) => (
+                {(departmentAgents[triageDept] ?? []).map((agent) => (
                   <option key={agent.id} value={agent.id}>
                     {agent.displayName}
                   </option>
@@ -231,7 +236,7 @@ export function TicketActions({
                 run(async () => {
                   await post(`/api/tickets/${ticket.id}/triage`, {
                     version: ticket.version,
-                    departmentKey: transferDept,
+                    departmentKey: triageDept,
                     priority: "MEDIUM",
                     tags: [],
                     assigneeId: triageAssigneeId || undefined,
@@ -240,8 +245,8 @@ export function TicketActions({
               }
             >
               {triageAssigneeId
-                ? `Confirm triage, route to ${titleCase(transferDept)}, and assign`
-                : `Confirm triage & route to ${titleCase(transferDept)}`}
+                ? `Confirm triage, route to ${titleCase(triageDept)}, and assign`
+                : `Confirm triage & route to ${titleCase(triageDept)}`}
             </Button>
           </CardContent>
         </Card>
@@ -384,14 +389,19 @@ export function TicketActions({
       <ConfirmDialog
         ref={transferDialog}
         title="Transfer to another department"
-        description="This will move the ticket to a new department queue and clear its current assignee."
+        description={
+          transferAssigneeId
+            ? "This will move the ticket to a new department queue and assign it to the person you chose."
+            : "This will move the ticket to a new department queue and clear its current assignee."
+        }
         confirmLabel="Transfer"
         onConfirm={() =>
           run(async () => {
             await post(`/api/tickets/${ticket.id}/transfer`, {
               version: ticket.version,
-              departmentKey: transferDept,
+              departmentKey: transferDeptKey,
               reason: transferReason,
+              newAssigneeId: transferAssigneeId || undefined,
             });
           })
         }
@@ -435,6 +445,42 @@ export function TicketActions({
             <CardTitle className="text-base">Reasons for the actions above</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-3">
+            {canTransfer && (
+              <label className="text-xs">
+                New department
+                <Select
+                  value={transferDeptKey}
+                  onChange={(e) => {
+                    setTransferDeptKey(e.target.value);
+                    setTransferAssigneeId("");
+                  }}
+                  className="mt-1"
+                >
+                  {DEPARTMENT_KEYS.map((k) => (
+                    <option key={k} value={k}>
+                      {titleCase(k)}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            )}
+            {canTransfer && (
+              <label className="text-xs">
+                New assignee
+                <Select
+                  value={transferAssigneeId}
+                  onChange={(e) => setTransferAssigneeId(e.target.value)}
+                  className="mt-1"
+                >
+                  <option value="">Leave unassigned in new department</option>
+                  {(departmentAgents[transferDeptKey] ?? []).map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.displayName}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            )}
             {canTransfer && (
               <label className="text-xs">
                 Transfer reason

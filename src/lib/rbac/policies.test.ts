@@ -35,11 +35,13 @@ const ticketOwnedByU1 = {
   submittedById: "u1",
   departmentId: TECH,
   status: "IN_PROGRESS",
+  assigneeId: null,
 };
 const ticketOwnedByOther = {
   submittedById: "u2",
   departmentId: TECH,
   status: "IN_PROGRESS",
+  assigneeId: null,
 };
 
 describe("customer access", () => {
@@ -82,6 +84,22 @@ describe("triage access", () => {
   it("lets triage transfer department on any ticket", () => {
     const t = actor(["TRIAGE_AGENT"]);
     expect(canTransferDepartment(t, ticketOwnedByOther)).toBe(true);
+  });
+});
+
+describe("mis-route transfer by the assignee", () => {
+  it("lets a department agent transfer a ticket they are currently assigned", () => {
+    const agent = actor(["DEPARTMENT_AGENT"], [[TECH, false]], "agent-1");
+    expect(
+      canTransferDepartment(agent, { ...ticketOwnedByOther, assigneeId: "agent-1" }),
+    ).toBe(true);
+  });
+
+  it("still blocks a department agent who is not the assignee", () => {
+    const agent = actor(["DEPARTMENT_AGENT"], [[TECH, false]], "agent-1");
+    expect(
+      canTransferDepartment(agent, { ...ticketOwnedByOther, assigneeId: "someone-else" }),
+    ).toBe(false);
   });
 });
 

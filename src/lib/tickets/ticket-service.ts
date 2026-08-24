@@ -771,6 +771,7 @@ export async function transferDepartment(
   version: number,
   newDepartmentKey: DepartmentKey,
   reason: string,
+  newAssigneeId?: string,
 ) {
   const policyActor = toPolicyActor(actor);
   if (!reason?.trim())
@@ -778,7 +779,7 @@ export async function transferDepartment(
 
   const newDepartment = await requireActiveDepartment(newDepartmentKey);
 
-  return db.$transaction(async (tx) => {
+  const result = await db.$transaction(async (tx) => {
     const ticket = await loadTicketOrThrow(ticketId, tx);
     assertAuthorized(
       canTransferDepartment(policyActor, ticket),
@@ -792,21 +793,38 @@ export async function transferDepartment(
       "This ticket cannot be transferred in its current status",
     );
 
+    if (newAssigneeId) {
+      const membership = await tx.departmentMembership.findUnique({
+        where: {
+          userId_departmentId: { userId: newAssigneeId, departmentId: newDepartment.id },
+        },
+      });
+      assertAuthorized(
+        Boolean(membership),
+        "Target user is not a member of this department",
+      );
+    }
+
     // Department transfer is orthogonal to the linear status lifecycle:
-    // any in-flight ticket is simply requeued in the new department rather
-    // than walking every intermediate status-machine transition.
+    // any in-flight ticket is simply requeued (or, with a named assignee,
+    // reassigned) in the new department rather than walking every
+    // intermediate status-machine transition.
     const updated = await tx.ticket.update({
       where: { id: ticket.id },
       data: {
         version: { increment: 1 },
         departmentId: newDepartment.id,
-        assigneeId: null,
+        assigneeId: newAssigneeId ?? null,
         status:
           ticket.status === "SUBMITTED" || ticket.status === "IN_TRIAGE"
             ? ticket.status
-            : "QUEUED",
+            : newAssigneeId
+              ? "ASSIGNED"
+              : "QUEUED",
       },
     });
+
+    const assigneeChanged = ticket.assigneeId !== updated.assigneeId;
 
     await Promise.all([
       tx.ticketDepartmentHistory.create({
@@ -818,6 +836,16 @@ export async function transferDepartment(
           reason,
         },
       }),
+      assigneeChanged
+        ? tx.ticketAssignmentHistory.create({
+            data: {
+              ticketId: ticket.id,
+              fromAssigneeId: ticket.assigneeId,
+              toAssigneeId: updated.assigneeId,
+              changedById: actor.userId,
+            },
+          })
+        : Promise.resolve(),
       recordAuditEvent(
         {
           actorId: actor.userId,
@@ -825,8 +853,15 @@ export async function transferDepartment(
           action: "TICKET_DEPARTMENT_TRANSFERRED",
           entityType: "Ticket",
           entityId: ticket.id,
-          previousValue: { departmentId: ticket.departmentId },
-          newValue: { departmentId: newDepartment.id, reason },
+          previousValue: {
+            departmentId: ticket.departmentId,
+            assigneeId: ticket.assigneeId,
+          },
+          newValue: {
+            departmentId: newDepartment.id,
+            assigneeId: updated.assigneeId,
+            reason,
+          },
         },
         tx,
       ),
@@ -834,6 +869,25 @@ export async function transferDepartment(
 
     return updated;
   });
+
+  // Deliberately after the transaction commits -- see addConversationMessage
+  // above for why an external side effect (and here, a lookup outside the
+  // transaction's connection) has no business inside a DB transaction.
+  if (newAssigneeId) {
+    const newAssignee = await db.user.findUnique({ where: { id: newAssigneeId } });
+    if (newAssignee) {
+      await getEmailProvider().send({
+        ticketId: result.id,
+        toEmail: newAssignee.email,
+        subject: `[${result.ticketNumber}] Ticket transferred to you`,
+        bodyText:
+          `${result.ticketNumber} (${result.subject}) has been transferred to ${newDepartment.name} ` +
+          `and assigned to you.\n\nReason: ${reason}`,
+      });
+    }
+  }
+
+  return result;
 }
 
 export interface AddConversationMessageInput {

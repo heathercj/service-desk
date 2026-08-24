@@ -21,6 +21,7 @@ export interface TicketAccessShape {
   submittedById: string;
   departmentId: string;
   status: string;
+  assigneeId: string | null;
 }
 
 export interface KnowledgeAccessShape {
@@ -100,6 +101,7 @@ export function canTransferDepartment(
   ticket: TicketAccessShape,
 ): boolean {
   if (isAdministrator(actor) || isTriageAgent(actor)) return true;
+  if (ticket.assigneeId === actor.userId) return true;
   return isDepartmentManager(actor, ticket.departmentId);
 }
 

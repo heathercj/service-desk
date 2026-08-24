@@ -8,6 +8,7 @@ const schema = z.object({
   version: z.number().int().positive(),
   departmentKey: z.enum(DEPARTMENT_KEYS),
   reason: z.string().trim().min(1, "A reason is required to transfer a ticket").max(2000),
+  newAssigneeId: z.string().uuid().optional(),
 });
 
 export async function POST(
@@ -16,7 +17,16 @@ export async function POST(
 ) {
   const { ticketId } = await params;
   return withAuth(async (actor) => {
-    const { version, departmentKey, reason } = schema.parse(await req.json());
-    return transferDepartment(actor, ticketId, version, departmentKey, reason);
+    const { version, departmentKey, reason, newAssigneeId } = schema.parse(
+      await req.json(),
+    );
+    return transferDepartment(
+      actor,
+      ticketId,
+      version,
+      departmentKey,
+      reason,
+      newAssigneeId,
+    );
   });
 }

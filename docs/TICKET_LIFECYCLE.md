@@ -62,6 +62,16 @@ stateDiagram-v2
   `transferDepartment()`. The reason is stored in `TicketStatusHistory`
   (or `TicketDepartmentHistory` for transfers) and shown in the ticket
   timeline.
+- **Mis-route transfer**: `transferDepartment()` can name a new assignee in
+  the same call as the department change -- for the case where a ticket
+  landed in the wrong department *and* with the wrong owner. The ticket's
+  current assignee may initiate this themselves (not only a manager, triage
+  agent, or admin, per `canTransferDepartment()`); the named assignee must
+  belong to the destination department, and is emailed via the same
+  mechanism that notifies customers of staff replies (`getEmailProvider()`,
+  captured to `/dev-mailbox` in development). Omitting the new assignee
+  keeps the original behavior: the ticket is requeued unassigned in the new
+  department.
 - **Resolution only via `RESOLUTION_REVIEW`**: there is no direct
   `IN_PROGRESS -> RESOLVED` transition. Submitting a resolution always
   lands the ticket in `RESOLUTION_REVIEW` first; it only continues to

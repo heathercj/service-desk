@@ -16,6 +16,7 @@ import {
   resolveTicket,
   searchTickets,
   selfAssignTicket,
+  transferDepartment,
   transitionTicketStatus,
 } from "./ticket-service";
 import type { CreateTicketInput } from "@/lib/validation/ticket-schemas";
@@ -433,6 +434,148 @@ describe("ticket-service integration", () => {
 
     const byNumber = await searchTickets(triage, { query: ticket.ticketNumber });
     expect(byNumber.items.map((t) => t.id)).toEqual([ticket.id]);
+  });
+
+  it("lets the current assignee transfer a mis-routed ticket to a new department and assignee, notifying the new assignee", async () => {
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+    const techAgent = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+    });
+    const trainingAgent = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TRAINING" }],
+    });
+
+    const ticket = await createTicket(customer, await baseTicketInput(franchise.id));
+    const routed = await confirmTriage(triage, {
+      ticketId: ticket.id,
+      version: ticket.version,
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      priority: "MEDIUM",
+      tags: [],
+      assigneeId: techAgent.userId,
+    });
+
+    // The assignee -- not a manager, triage, or admin -- notices the
+    // mis-route and fixes it themselves.
+    const transferred = await transferDepartment(
+      techAgent,
+      routed.id,
+      routed.version,
+      "TRAINING",
+      "This is a training question, not a technical fault -- wrong department.",
+      trainingAgent.userId,
+    );
+
+    expect(transferred.status).toBe("ASSIGNED");
+    expect(transferred.assigneeId).toBe(trainingAgent.userId);
+
+    const deptHistory = await db.ticketDepartmentHistory.findFirst({
+      where: { ticketId: ticket.id },
+      orderBy: { createdAt: "desc" },
+    });
+    expect(deptHistory?.reason).toMatch(/training question/);
+
+    const assignmentHistory = await db.ticketAssignmentHistory.findFirst({
+      where: { ticketId: ticket.id },
+      orderBy: { createdAt: "desc" },
+    });
+    expect(assignmentHistory?.fromAssigneeId).toBe(techAgent.userId);
+    expect(assignmentHistory?.toAssigneeId).toBe(trainingAgent.userId);
+
+    const email = await db.outboundEmail.findFirst({
+      where: { ticketId: ticket.id },
+      orderBy: { createdAt: "desc" },
+    });
+    expect(email?.toEmail).toBe(trainingAgent.email);
+    expect(email?.status).toBe("CAPTURED_DEV");
+  });
+
+  it("still clears the assignee and requeues when a department transfer names no new assignee", async () => {
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+    const techAgent = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+    });
+
+    const ticket = await createTicket(customer, await baseTicketInput(franchise.id));
+    const routed = await confirmTriage(triage, {
+      ticketId: ticket.id,
+      version: ticket.version,
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      priority: "MEDIUM",
+      tags: [],
+      assigneeId: techAgent.userId,
+    });
+
+    const transferred = await transferDepartment(
+      triage,
+      routed.id,
+      routed.version,
+      "TRAINING",
+      "Routed to the wrong department at triage.",
+    );
+
+    expect(transferred.status).toBe("QUEUED");
+    expect(transferred.assigneeId).toBeNull();
+
+    const email = await db.outboundEmail.findFirst({ where: { ticketId: ticket.id } });
+    expect(email).toBeNull();
+  });
+
+  it("refuses to transfer to a new assignee who is not a member of the destination department", async () => {
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+    const techAgent = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+    });
+
+    const ticket = await createTicket(customer, await baseTicketInput(franchise.id));
+    const routed = await confirmTriage(triage, {
+      ticketId: ticket.id,
+      version: ticket.version,
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      priority: "MEDIUM",
+      tags: [],
+      assigneeId: techAgent.userId,
+    });
+
+    await expect(
+      transferDepartment(
+        techAgent,
+        routed.id,
+        routed.version,
+        "TRAINING",
+        "Wrong department.",
+        techAgent.userId, // not a member of TRAINING
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("refuses a department transfer with a blank reason", async () => {
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+
+    const ticket = await createTicket(customer, await baseTicketInput(franchise.id));
+    const routed = await confirmTriage(triage, {
+      ticketId: ticket.id,
+      version: ticket.version,
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      priority: "MEDIUM",
+      tags: [],
+    });
+
+    await expect(
+      transferDepartment(triage, routed.id, routed.version, "TRAINING", "   "),
+    ).rejects.toBeInstanceOf(ForbiddenError);
   });
 });
 

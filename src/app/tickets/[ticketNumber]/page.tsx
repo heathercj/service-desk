@@ -304,6 +304,7 @@ export default async function TicketDetailPage({
           departmentKey: ticket.department.key,
         }}
         roles={Array.from(auth.roles)}
+        isAssignee={ticket.assigneeId === auth.userId}
         allowedNextStatuses={allowedNextStatuses}
         knowledgeLinks={knowledgeLinks.map((l) => ({
           id: l.id,
