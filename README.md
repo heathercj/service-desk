@@ -23,9 +23,18 @@ and [docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md).
 
 ## Prerequisites
 
-- Node.js >= 20.11 (developed against Node 22/24)
-- pnpm (`corepack enable && corepack prepare pnpm@9.15.4 --activate`, or `npm install -g pnpm`)
-- Docker Desktop (for local PostgreSQL via Docker Compose)
+| Tool       | Version                                                       |
+| ---------- | ------------------------------------------------------------- |
+| Node.js    | 22.17.0 (`.nvmrc`)                                            |
+| pnpm       | 9.15.4                                                        |
+| Docker     | any current release, Compose v2                               |
+| PostgreSQL | 16.6-alpine, supplied by Docker Compose -- nothing to install |
+
+Full checklist, including the end-to-end browser build and the optional
+security tooling: **[docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md)**.
+
+Run `pnpm preflight` at any point to check a machine against this list; it
+prints the fix command for anything missing.
 
 ## Quick start (development authentication)
 
@@ -90,6 +99,9 @@ Summary:
 ## All commands
 
 ```bash
+# Check this machine has the right versions of everything
+pnpm preflight
+
 # Install
 pnpm install
 

@@ -4,10 +4,12 @@
   "private": true,
   "license": "UNLICENSED",
   "engines": {
-    "node": ">=20.11.0"
+    "node": ">=22.11.0 <23",
+    "pnpm": "9.15.4"
   },
   "packageManager": "pnpm@9.15.4",
   "scripts": {
+    "preflight": "tsx scripts/preflight.ts",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -30,10 +32,11 @@
     "db:reset": "tsx scripts/db-reset.ts",
     "kb:reindex": "tsx scripts/kb-reindex.ts",
     "kb:validate": "tsx scripts/kb-validate.ts",
+    "sbom": "pnpm dlx @cyclonedx/cdxgen@11 -t pnpm -o sbom.cdx.json --no-recurse",
     "sim:run": "tsx scripts/sim-run.ts",
     "demo:clean": "tsx scripts/demo-clean.ts",
     "security": "pnpm security:secrets && pnpm security:sca && pnpm security:sast && pnpm security:container",
-    "security:sast": "semgrep --config auto --config p/typescript --config p/react --config p/nextjs --error --severity ERROR .",
+    "security:sast": "semgrep --config p/typescript --config p/react --config p/nextjs --error --severity ERROR .",
     "security:sca": "osv-scanner scan --lockfile=pnpm-lock.yaml && pnpm audit --audit-level=high || true",
     "security:secrets": "gitleaks detect --source . --no-git -v",
     "security:dast": "bash scripts/security-dast-local.sh",
@@ -47,7 +50,7 @@
     "@radix-ui/react-slot": "1.1.1",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
-    "file-type": "21.3.1",
+    "file-type": "21.3.2",
     "gray-matter": "4.0.3",
     "lucide-react": "0.469.0",
     "next": "15.5.21",
@@ -80,6 +83,7 @@
     "@typescript-eslint/eslint-plugin": "8.19.1",
     "@typescript-eslint/parser": "8.19.1",
     "@vitejs/plugin-react": "4.3.4",
+    "@vitest/coverage-v8": "2.1.9",
     "autoprefixer": "10.4.20",
     "dotenv": "16.4.7",
     "eslint": "9.18.0",
@@ -97,5 +101,12 @@
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
+  },
+  "pnpm": {
+    "overrides": {
+      "sharp": "0.35.3",
+      "postcss": "8.5.23",
+      "@eslint/plugin-kit": "0.3.4"
+    }
   }
 }

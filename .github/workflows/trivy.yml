@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4 # v4.2.2
 
       - name: Trivy filesystem + config scan
-        uses: aquasecurity/trivy-action@0.29.0
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -34,7 +34,7 @@ jobs:
         run: docker build -t service-desk:ci .
 
       - name: Trivy image scan
-        uses: aquasecurity/trivy-action@0.29.0
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           image-ref: service-desk:ci
           scan-type: image

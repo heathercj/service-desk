@@ -1,0 +1,35 @@
+# Advisories we are knowingly carrying, and until when.
+#
+# Everything here is confined to the local dev toolchain: it is reachable
+# only from `vitest`/`vite dev` on a contributor's laptop, never from a
+# built artefact. Nothing in the vite chain is a production dependency, and
+# the SCA gate is deliberately left failing for anything not listed below.
+#
+# All five need a major (vite 5->6+, vitest 2->4), which is out of scope for
+# the pass that made CI green on the current pins. `ignoreUntil` is the
+# point at which that decision has to be made again rather than inherited.
+
+[[IgnoredVulns]]
+id = "CVE-2026-47429"
+ignoreUntil = 2026-11-24
+reason = "vitest 2.1.9 UI server reads/executes arbitrary files. We never pass --ui: the suite runs `vitest run` locally and in CI, so the server is never listening. Fix is vitest 3.2.6/4.1.0."
+
+[[IgnoredVulns]]
+id = "CVE-2026-39365"
+ignoreUntil = 2026-11-24
+reason = "vite 5.4.21 path traversal in optimized-deps .map handling. vite is present only as @vitejs/plugin-react's peer for the vitest transform; we do not run a vite dev server. Fix is vite 6.4.2+."
+
+[[IgnoredVulns]]
+id = "CVE-2026-53571"
+ignoreUntil = 2026-11-24
+reason = "vite 5.4.21 server.fs.deny bypass on Windows alternate paths. Same reasoning: no vite dev server, and it is a dev-server control either way. Fix is vite 6.4.3+."
+
+[[IgnoredVulns]]
+id = "CVE-2026-53632"
+ignoreUntil = 2026-11-24
+reason = "launch-editor NTLMv2 hash disclosure via UNC paths on Windows, pulled in under vite. Reached only by the dev server's click-to-open-in-editor overlay. Fix is vite 6.4.3+."
+
+[[IgnoredVulns]]
+id = "GHSA-67mh-4wv8-2f99"
+ignoreUntil = 2026-11-24
+reason = "esbuild 0.21.5/0.23.1 dev server answers cross-origin requests. Transitive under vite and tsx; neither runs a listening esbuild server here. Fix is esbuild 0.25.0, which arrives with the vite major."
