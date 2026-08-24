@@ -10,6 +10,7 @@
   "packageManager": "pnpm@9.15.4",
   "scripts": {
     "preflight": "tsx scripts/preflight.ts",
+    "tdd:audit": "tsx scripts/tdd-audit.ts",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
