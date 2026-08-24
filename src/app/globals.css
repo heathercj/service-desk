@@ -3,29 +3,87 @@
 @tailwind utilities;
 
 @layer base {
+  /*
+   * Colour tokens ported from APEX's design system so the service desk reads
+   * as the same product. Source of truth:
+   * frontend-mono/libs/design-system/src/styles/theme.css (read-only).
+   *
+   * Two things to know before editing:
+   *
+   * 1. Values are stored as bare oklch *components*, not complete colours, so
+   *    tailwind.config.ts can wrap them as `oklch(var(--x) / <alpha-value>)`
+   *    and opacity modifiers (`bg-destructive/10`) keep working. This mirrors
+   *    the `hsl(var(--x))` arrangement it replaced. `--border` and `--input`
+   *    are the exceptions: they hold complete colours, because APEX defines
+   *    them with alpha in dark mode and nothing applies an opacity modifier
+   *    to them.
+   * 2. Every token needs a light AND a dark value (an APEX hard rule).
+   *    theme-tokens.test.ts fails the build if one is missing.
+   *
+   * APEX's neutral scale is zinc, and its primary is a near-black zinc rather
+   * than a brand hue -- colour is reserved for status. Values in square
+   * brackets name the Tailwind v4 palette entry APEX referenced.
+   */
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --primary: 221 83% 41%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 40%;
-    --accent: 210 40% 92%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 72% 42%;
-    --destructive-foreground: 0 0% 100%;
-    --success: 142 71% 30%;
-    --success-foreground: 0 0% 100%;
-    --warning: 32 95% 38%;
-    --warning-foreground: 0 0% 100%;
-    --border: 214 32% 88%;
-    --input: 214 32% 88%;
-    --ring: 221 83% 41%;
+    --background: 1 0 0;
+    --foreground: 0.141 0.005 285.823;
+    --card: 1 0 0;
+    --card-foreground: 0.141 0.005 285.823;
+    --primary: 0.21 0.006 285.885;
+    --primary-foreground: 0.985 0 0;
+    --secondary: 0.92 0.004 286.32; /* zinc-200 */
+    --secondary-foreground: 0.21 0.006 285.885;
+    --muted: 0.92 0.004 286.32; /* zinc-200 */
+    --muted-foreground: 0.552 0.016 285.938;
+    --accent: 0.92 0.004 286.32; /* zinc-200 */
+    --accent-foreground: 0.21 0.006 285.885;
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 0.985 0 0;
+    --success: 0.508 0.118 165.612; /* emerald-700 */
+    --success-foreground: 0.985 0 0;
+    --warning: 0.666 0.179 58.318; /* amber-600 */
+    /*
+     * amber-950, not APEX's amber-800 and not near-white. APEX only ever tints
+     * text with `warning-foreground` over a *faint* amber wash, so it never had
+     * to clear AA against solid amber-600 -- and neither candidate does
+     * (amber-800 is 2.23:1, near-white 3.06:1). This app paints solid
+     * `bg-warning` in the dev-auth banner and the warning Badge, so it needs a
+     * foreground that survives there: amber-950 is 4.70:1 and stays in family.
+     */
+    --warning-foreground: 0.279 0.077 45.635; /* amber-950 */
+    --ring: 0.705 0.015 286.067;
+    --border: oklch(0.92 0.004 286.32);
+    --input: oklch(0.92 0.004 286.32);
     --radius: 0.5rem;
+  }
+
+  /*
+   * Class-based, matching APEX -- never a prefers-color-scheme media query,
+   * so the in-app toggle stays authoritative.
+   */
+  .dark {
+    --background: 0.141 0.005 285.823;
+    --foreground: 0.985 0 0;
+    --card: 0.21 0.006 285.885;
+    --card-foreground: 0.985 0 0;
+    --primary: 0.92 0.004 286.32;
+    --primary-foreground: 0.21 0.006 285.885;
+    --secondary: 0.37 0.013 285.805; /* zinc-700 */
+    --secondary-foreground: 0.985 0 0;
+    --muted: 0.37 0.013 285.805; /* zinc-700 */
+    --muted-foreground: 0.705 0.015 286.067;
+    --accent: 0.37 0.013 285.805; /* zinc-700 */
+    --accent-foreground: 0.985 0 0;
+    --destructive: 0.704 0.191 22.216;
+    /* Dark status colours are light, so their foregrounds invert. */
+    --destructive-foreground: 0.141 0.005 285.823;
+    --success: 0.696 0.17 162.48; /* emerald-500 */
+    --success-foreground: 0.141 0.005 285.823;
+    --warning: 0.828 0.189 84.429; /* amber-400 */
+    --warning-foreground: 0.141 0.005 285.823;
+    --ring: 0.552 0.016 285.938;
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
   }
 }
 
