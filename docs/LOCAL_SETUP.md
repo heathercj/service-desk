@@ -44,9 +44,15 @@ pnpm dev
 | Docker     | any current release | Docker Desktop (macOS/Windows) or Docker Engine (Linux)      | Only used to run PostgreSQL. Compose v2 syntax (`docker compose`, not `docker-compose`).                                                                           |
 | PostgreSQL | **16.6-alpine**     | Nothing to install -- `docker compose up -d` pulls it        | Pinned in `docker-compose.yml` and matched by CI's service container. Needs the extensions in `scripts/init-pg-extensions.sql`, which Compose loads on first boot. |
 
-You do **not** need a local `psql`, or a local PostgreSQL of any kind. If you
-already run one on 5432, either stop it or change the port in both
-`docker-compose.yml` and `DATABASE_URL`.
+You do **not** need a local `psql`, or a local PostgreSQL of any kind.
+
+This project publishes Postgres on host port **5433**, not the default 5432 --
+5432 is contended on developer machines here, and another project claims it
+with a hardcoded binding we cannot edit. Inside the container, and for anything
+speaking to it over the Docker network, it is still 5432; only the host side
+moved. If 5433 is taken on your machine too, change the LEFT side of the port
+mapping in `docker-compose.yml` and the port in `DATABASE_URL` to match --
+never the right side.
 
 ## Required for end-to-end tests only
 

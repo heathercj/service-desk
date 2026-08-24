@@ -176,7 +176,7 @@ async function main() {
         readFileSync(path.join(root, ".env"), "utf8"),
       )?.[1] ?? "")
     : "";
-  const port = Number(/:(\d+)\//.exec(dbUrl)?.[1] ?? 5432);
+  const port = Number(/:(\d+)\//.exec(dbUrl)?.[1] ?? 5433);
   function portAnswering(port: number): Promise<boolean> {
     return new Promise((resolve) => {
       const socket = net.connect({ host: "127.0.0.1", port });

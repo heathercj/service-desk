@@ -17,7 +17,7 @@ export default defineConfig({
     env: {
       NODE_ENV: "test",
       DATABASE_URL:
-        "postgresql://service_desk:service_desk_dev_password@localhost:5432/service_desk_test?schema=public",
+        "postgresql://service_desk:service_desk_dev_password@localhost:5433/service_desk_test?schema=public",
       AUTH_SECRET: "test-only-not-a-real-secret-000000000000000",
       ENTRA_TENANT_ID: "11111111-1111-1111-1111-111111111111",
       ENABLE_DEV_AUTH: "false",

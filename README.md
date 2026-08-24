@@ -157,7 +157,7 @@ Prisma-backed service layer and need a live database:
 
 ```bash
 docker compose up -d
-DATABASE_URL="postgresql://service_desk:service_desk_dev_password@localhost:5432/service_desk_test?schema=public" \
+DATABASE_URL="postgresql://service_desk:service_desk_dev_password@localhost:5433/service_desk_test?schema=public" \
   pnpm exec prisma migrate deploy
 pnpm test
 ```

@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: service_desk_dev_password
       POSTGRES_DB: service_desk
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - service_desk_pg_data:/var/lib/postgresql/data
       - ./scripts/init-pg-extensions.sql:/docker-entrypoint-initdb.d/init-pg-extensions.sql:ro

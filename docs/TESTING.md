@@ -142,7 +142,7 @@ creates it for you:
 docker compose exec postgres psql -U service_desk -d postgres \
   -c "CREATE DATABASE service_desk_test OWNER service_desk"
 
-export DATABASE_URL="postgresql://service_desk:service_desk_dev_password@localhost:5432/service_desk_test?schema=public"
+export DATABASE_URL="postgresql://service_desk:service_desk_dev_password@localhost:5433/service_desk_test?schema=public"
 pnpm exec prisma migrate deploy && pnpm db:search:setup
 pnpm test:integration
 ```
@@ -172,7 +172,7 @@ Two rules make it worth having:
 Running it needs a live app and database:
 
 ```bash
-docker compose up -d                  # Postgres on :5432 (service is "postgres")
+docker compose up -d                  # Postgres on :5433 (service is "postgres")
 pnpm db:migrate && pnpm db:seed       # schema, search setup, dev identities
 pnpm test:e2e e2e/demo-golden-path.spec.ts
 ```
