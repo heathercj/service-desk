@@ -18,7 +18,7 @@ import {
   queryAnchor,
   queryScopedRow,
 } from "@/lib/demo/dom-drive";
-import { Henry } from "./henry";
+import { Henry, HenrySays } from "./henry";
 import { Spotlight } from "./spotlight";
 import { loadTourSession, saveTourSession, type TourSession } from "./tour-state";
 
@@ -327,16 +327,16 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
   if (!session) {
     if (dismissed) return null;
     return (
-      <div className="fixed bottom-4 right-4 z-50 flex max-w-sm items-center gap-3 rounded-xl border border-border bg-background/95 p-3 shadow-lg backdrop-blur">
-        <Henry />
-        <div className="min-w-0 flex-1">
+      <div className="fixed bottom-4 right-4 z-50 flex max-w-sm items-center gap-2.5 rounded-xl border border-border bg-background/95 p-3 shadow-lg backdrop-blur">
+        <Henry className="h-12 w-12" />
+        <HenrySays>
           <p className="text-sm font-medium leading-tight">
             Henry can walk you through it
           </p>
           <p className="text-xs text-muted-foreground">
             Intake to reuse, on real records.
           </p>
-        </div>
+        </HenrySays>
         <div className="flex shrink-0 flex-col gap-1">
           <Button size="sm" onClick={() => start(false)}>
             Start
@@ -363,14 +363,16 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
   if (!entry || !step || !ctx) {
     return (
       <div className="fixed bottom-4 right-4 z-50 flex max-w-sm items-start gap-3 rounded-xl border border-border bg-background/95 p-4 shadow-lg backdrop-blur">
-        <Henry />
+        <Henry className="h-12 w-12" />
         <div className="min-w-0 flex-1 space-y-2">
-          <p className="text-sm font-medium">That is the whole loop.</p>
-          <p className="text-xs text-muted-foreground">
-            One ticket in, one article out, and the second report of the same problem cost
-            the desk nothing. Everything you just saw is real data -- the article is a
-            file on disk under knowledge-base/.
-          </p>
+          <HenrySays>
+            <p className="text-sm font-medium">That is the whole loop.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              One ticket in, one article out, and the second report of the same problem
+              cost the desk nothing. Everything you just saw is real data -- the article
+              is a file on disk under knowledge-base/.
+            </p>
+          </HenrySays>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={() => start(false)}>
               Again
@@ -399,10 +401,9 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
 
       <aside
         aria-live="polite"
-        className="fixed bottom-4 right-4 z-50 w-[min(24rem,calc(100vw-2rem))] rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur"
+        className="fixed bottom-4 right-4 z-50 w-[min(26rem,calc(100vw-2rem))] rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur"
       >
         <div className="flex items-start gap-3">
-          <Henry speaking />
           <div className="min-w-0 flex-1">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {entry.beat.title} &middot; step {session.stepIndex + 1} of {total}
@@ -419,39 +420,50 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
           </button>
         </div>
 
-        <div className="mt-3 space-y-3">
-          {!identityOk && expected ? (
-            <>
+        {/* Henry and what he is saying. All three states speak through the one
+            bubble -- a handoff and a wander are Henry talking too, and giving
+            them their own treatment made the panel jump around mid-demo. */}
+        <div className="mt-3 flex items-start gap-2.5">
+          <Henry className="mt-0.5 h-14 w-14" />
+          <HenrySays>
+            {!identityOk && expected ? (
               <p className="text-sm">
                 <span className="font-medium">Hand-off.</span> This beat belongs to{" "}
                 {expected.displayName} ({expected.roles.join(", ").toLowerCase()}).{" "}
                 {expected.description}
               </p>
-              <Button size="sm" onClick={handoff}>
-                Sign in as {expected.displayName}
-              </Button>
-            </>
-          ) : wandered ? (
-            <>
+            ) : wandered ? (
               <p className="text-sm">
                 You have wandered off the path -- which is fine, have a look around. When
                 you are ready I will put us back.
               </p>
-              <Button
-                size="sm"
-                onClick={() => {
-                  navigatedFor.current = null;
-                  setWandered(false);
-                  if (route) router.push(route);
-                }}
-              >
-                Back to {entry.beat.title}
-              </Button>
-            </>
+            ) : (
+              <>
+                <p className="text-sm leading-relaxed">{say}</p>
+                {cue && <p className="mt-2 text-sm font-medium text-warning">{cue}</p>}
+              </>
+            )}
+          </HenrySays>
+        </div>
+
+        <div className="mt-3 space-y-3">
+          {!identityOk && expected ? (
+            <Button size="sm" onClick={handoff}>
+              Sign in as {expected.displayName}
+            </Button>
+          ) : wandered ? (
+            <Button
+              size="sm"
+              onClick={() => {
+                navigatedFor.current = null;
+                setWandered(false);
+                if (route) router.push(route);
+              }}
+            >
+              Back to {entry.beat.title}
+            </Button>
           ) : (
             <>
-              <p className="text-sm leading-relaxed">{say}</p>
-              {cue && <p className="text-sm font-medium text-warning">{cue}</p>}
               {error && (
                 <p role="alert" className="text-xs text-destructive">
                   {error}
@@ -464,11 +476,7 @@ export function DemoGuide({ signedInAs }: { signedInAs: string | null }) {
                   </Button>
                 )}
                 {step.perform && step.advance.kind !== "read" && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void runPerform()}
-                  >
+                  <Button size="sm" variant="outline" onClick={() => void runPerform()}>
                     {performLabel}
                   </Button>
                 )}
