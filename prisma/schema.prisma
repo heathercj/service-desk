@@ -205,6 +205,11 @@ enum TicketPriority {
   URGENT
 }
 
+enum TicketSource {
+  WEB
+  EMAIL
+}
+
 model Ticket {
   id           String @id @default(uuid())
   ticketNumber String @unique
@@ -236,6 +241,10 @@ model Ticket {
   urgencyNote String?
 
   status TicketStatus @default(SUBMITTED)
+
+  // How this ticket reached Triage. EMAIL tickets are shown a "Received
+  // via support@..." marker on the detail page (Section: email intake).
+  source TicketSource @default(WEB)
 
   assigneeId String?
 
@@ -281,6 +290,7 @@ model Ticket {
   knowledgeLinks       TicketKnowledgeLink[]
   similarityChecks     KnowledgeSimilarityCheck[]
   knowledgeFeedback    KnowledgeFeedback[]
+  emailIntakeMessages  EmailIntakeMessage[]
 
   @@index([status])
   @@index([departmentId])
@@ -400,6 +410,23 @@ model OutboundEmail {
 
   @@index([ticketId])
   @@index([status])
+}
+
+/**
+ * One row per Graph email message ingested into a ticket (Section: email
+ * intake). Graph sometimes redelivers a webhook notification for the same
+ * message; the unique constraint on graphMessageId is what makes intake
+ * idempotent -- a redelivery is looked up and skipped, not reprocessed.
+ */
+model EmailIntakeMessage {
+  id             String   @id @default(uuid())
+  graphMessageId String   @unique
+  ticketId       String
+  createdAt      DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
 }
 
 model TicketStatusHistory {

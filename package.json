@@ -36,6 +36,7 @@
     "sbom": "pnpm dlx @cyclonedx/cdxgen@11 -t pnpm -o sbom.cdx.json --no-recurse",
     "sim:run": "tsx scripts/sim-run.ts",
     "demo:clean": "tsx scripts/demo-clean.ts",
+    "graph:subscribe": "tsx scripts/graph-subscribe.ts",
     "demo:prep": "tsx scripts/demo-prep.ts",
     "demo:build": "cross-env ENABLE_DEV_AUTH=true ENABLE_DEMO_TOUR=true next build",
     "demo:serve": "tsx scripts/demo-serve.ts",

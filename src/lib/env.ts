@@ -26,6 +26,18 @@ const envSchema = z.object({
     .optional()
     .transform((v) => v === "true"),
 
+  // Inbound email intake (support@alairhomes.com -> ticket, via a
+  // Microsoft Graph webhook subscription). Opt-in: most deployments won't
+  // have the Graph application permissions/Exchange access policy set up.
+  ENABLE_EMAIL_INTAKE: z
+    .string()
+    .optional()
+    .transform((v) => v === "true"),
+  SUPPORT_MAILBOX_ADDRESS: z.string().optional().default(""),
+  // Echoed back by Graph on every webhook notification; validates that a
+  // call to the public webhook route actually came from our subscription.
+  GRAPH_WEBHOOK_CLIENT_STATE: z.string().optional().default(""),
+
   OBJECT_STORAGE_ROOT: z.string().default("./storage/uploads"),
   OBJECT_STORAGE_MAX_FILE_BYTES: z.coerce
     .number()
@@ -109,6 +121,16 @@ function loadEnv(): AppEnv {
   if (parsed.data.ENABLE_DEMO_TOUR && !parsed.data.ENABLE_DEV_AUTH) {
     throw new Error(
       "Refusing to start: ENABLE_DEMO_TOUR=true requires ENABLE_DEV_AUTH=true.",
+    );
+  }
+
+  if (
+    parsed.data.ENABLE_EMAIL_INTAKE &&
+    (!parsed.data.SUPPORT_MAILBOX_ADDRESS || !parsed.data.GRAPH_WEBHOOK_CLIENT_STATE)
+  ) {
+    throw new Error(
+      "Refusing to start: ENABLE_EMAIL_INTAKE=true requires both " +
+        "SUPPORT_MAILBOX_ADDRESS and GRAPH_WEBHOOK_CLIENT_STATE to be set.",
     );
   }
 

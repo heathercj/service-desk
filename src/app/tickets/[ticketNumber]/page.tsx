@@ -14,6 +14,7 @@ import { StatusBadge, PriorityBadge, DepartmentBadge } from "@/components/ticket
 import { SafeExternalLink } from "@/components/safe-external-link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateTime } from "@/lib/utils";
+import { env } from "@/lib/env";
 import { TicketActions } from "./ticket-actions";
 import { KnowledgeOutcomePanel } from "./knowledge-outcome-panel";
 import { AttachmentUploader } from "./attachment-uploader";
@@ -70,6 +71,11 @@ export default async function TicketDetailPage({
           <div>
             <p className="text-sm text-muted-foreground">{ticket.ticketNumber}</p>
             <CardTitle className="text-xl">{ticket.subject}</CardTitle>
+            {ticket.source === "EMAIL" && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Received via {env.SUPPORT_MAILBOX_ADDRESS || "email"}
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             {/* The tour watches this span's text to know a transition

@@ -8,7 +8,18 @@ import { checkRateLimit } from "@/lib/http/rate-limit";
 // listed here. This only proves *authentication*; role/department
 // authorization is enforced again, per-operation, in the server-side
 // service layer (src/lib/rbac, src/lib/tickets, src/lib/knowledge).
-const PUBLIC_PATHS = ["/login", "/api/auth", "/api/health", "/api/ready", "/favicon.ico"];
+// /api/webhooks/graph-email is unauthenticated by design -- Microsoft Graph
+// calls it directly, with no session to present. It is protected instead by
+// GRAPH_WEBHOOK_CLIENT_STATE, checked inside the route itself (see
+// docs/ENTRA_SETUP.md and src/app/api/webhooks/graph-email/route.ts).
+const PUBLIC_PATHS = [
+  "/login",
+  "/api/auth",
+  "/api/health",
+  "/api/ready",
+  "/api/webhooks/graph-email",
+  "/favicon.ico",
+];
 
 function isPublicPath(pathname: string): boolean {
   if (pathname.startsWith("/_next")) return true;
