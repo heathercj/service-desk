@@ -110,7 +110,8 @@ export function TicketActions({
     ["IN_PROGRESS", "PENDING", "RESOLUTION_REVIEW"].includes(ticket.status);
   const canTransfer =
     ([...roleSet].some((r) => TRANSFER_ROLES.has(r)) || isAssignee) &&
-    !["RESOLVED", "CLOSED", "CANCELLED"].includes(ticket.status);
+    !["RESOLVED", "CLOSED", "CANCELLED"].includes(ticket.status) &&
+    !isTriageEligible;
   const canCancel =
     [...roleSet].some((r) => CANCEL_ROLES.has(r)) &&
     !["RESOLVED", "CLOSED", "CANCELLED"].includes(ticket.status);

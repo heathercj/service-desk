@@ -41,10 +41,14 @@ const BASE_TICKET = {
   departmentKey: "TECHNOLOGY_SUPPORT",
 };
 
-function renderActions(overrides: { roles: string[]; isAssignee: boolean }) {
+function renderActions(overrides: {
+  roles: string[];
+  isAssignee: boolean;
+  status?: string;
+}) {
   return render(
     <TicketActions
-      ticket={BASE_TICKET}
+      ticket={{ ...BASE_TICKET, status: overrides.status ?? BASE_TICKET.status }}
       roles={overrides.roles}
       isAssignee={overrides.isAssignee}
       allowedNextStatuses={[]}
@@ -71,6 +75,35 @@ feature("Mis-route transfer", () => {
       );
 
       await s.then("no transfer control is offered", () => {
+        expect(
+          screen.queryByRole("button", { name: "Transfer department" }),
+        ).not.toBeInTheDocument();
+      });
+    },
+  );
+
+  scenario(
+    "Triage does not see the transfer control while a ticket still awaits triage",
+    async (s) => {
+      // Confirm triage & route already IS the department-routing tool at
+      // this stage; showing the mis-route transfer flow alongside it is
+      // just a second, redundant way to do the same thing before the
+      // ticket has even entered the normal lifecycle once.
+      await s.given("a triage agent viewing a ticket awaiting triage", () =>
+        renderActions({
+          roles: ["TRIAGE_AGENT"],
+          isAssignee: false,
+          status: "SUBMITTED",
+        }),
+      );
+
+      await s.then("the confirm-triage panel is offered", () => {
+        expect(
+          screen.getByRole("heading", { name: /confirm triage/i }),
+        ).toBeInTheDocument();
+      });
+
+      await s.and("no separate transfer control is offered", () => {
         expect(
           screen.queryByRole("button", { name: "Transfer department" }),
         ).not.toBeInTheDocument();
