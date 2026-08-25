@@ -237,7 +237,11 @@ export function NewTicketForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button variant="outline" onClick={() => setDeflected(false)}>
+          <Button
+            variant="outline"
+            data-tour="deflect-undo"
+            onClick={() => setDeflected(false)}
+          >
             Actually, I still need help
           </Button>
         </CardContent>

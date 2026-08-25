@@ -201,6 +201,39 @@ feature("Guided tour manifest", () => {
     });
   });
 
+  scenario("The tour admits deflection can be wrong", async (s) => {
+    // Jordan is shown an article and says it solved his problem, so no ticket
+    // is raised. The app offers him a way back if it did not actually work,
+    // and a demo that skips past that is selling deflection as infallible.
+    const found = await s.given("the escape-hatch step and its neighbours", () => ({
+      undo: TOUR_STEPS.findIndex(({ step }) => step.id === "deflect-undo"),
+      solved: TOUR_STEPS.findIndex(({ step }) => step.id === "deflect-solved"),
+      proof: TOUR_STEPS.findIndex(({ step }) => step.id === "deflect-proof"),
+    }));
+
+    await s.then("the tour mentions it at all", () =>
+      expect(found.undo).toBeGreaterThanOrEqual(0),
+    );
+
+    await s.and("it comes after the article is marked solved", () =>
+      expect(found.undo).toBeGreaterThan(found.solved),
+    );
+
+    await s.and("it comes before the closing proof", () =>
+      expect(found.undo).toBeLessThan(found.proof),
+    );
+
+    await s.and("it points at the way back without taking it", () => {
+      const entry = TOUR_STEPS[found.undo];
+      expect(entry?.step.anchor).toBe("deflect-undo");
+      expect(
+        entry?.step.perform,
+        "deflect-undo must not click the escape hatch -- it would reopen the form",
+      ).toBeUndefined();
+      expect(entry?.step.advance.kind).toBe("read");
+    });
+  });
+
   scenario("Each beat carries a premise and at least one step", async (s) => {
     await s.then("no beat is empty or unexplained", () => {
       for (const beat of TOUR) {

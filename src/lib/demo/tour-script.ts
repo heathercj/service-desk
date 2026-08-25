@@ -621,6 +621,20 @@ export const TOUR: TourBeat[] = [
           }),
       },
       {
+        id: "deflect-undo",
+        as: "customer2",
+        route: "/tickets/new",
+        say:
+          "One thing worth saying out loud: an article can look right and still " +
+          "not work. If it does not, this puts Jordan straight back to the form " +
+          "he had filled in, and he raises his ticket after all. Nobody gets " +
+          "talked out of asking for help.",
+        // Pointed at, not pressed: clicking it reopens the form and undoes the
+        // deflection the closing beat is about to point at.
+        anchor: "deflect-undo",
+        advance: { kind: "read" },
+      },
+      {
         id: "deflect-proof",
         as: "customer2",
         route: "/dashboard",
