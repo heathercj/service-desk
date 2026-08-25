@@ -63,6 +63,33 @@ feature("Deciding which files the TDD audit scores", () => {
     });
   });
 
+  scenario("Infrastructure and config are not business logic", async (s) => {
+    const classified = await s.given("the plumbing files under src/lib", () =>
+      classifySourceFiles([
+        "src/lib/admin/admin-service.ts",
+        "src/lib/db.ts",
+        "src/lib/env.ts",
+        "src/lib/utils.ts",
+        "src/lib/dev-auth/dev-identities.ts",
+      ]),
+    );
+
+    await s.then("only the service carrying business rules is scored", () => {
+      expect(classified.features.map((f) => f.relPath)).toEqual([
+        "src/lib/admin/admin-service.ts",
+      ]);
+    });
+
+    await s.and("the Prisma singleton, env parser, formatters and dev identity table are named, not hidden", () => {
+      expect(classified.notScored).toEqual([
+        "src/lib/db.ts",
+        "src/lib/env.ts",
+        "src/lib/utils.ts",
+        "src/lib/dev-auth/dev-identities.ts",
+      ]);
+    });
+  });
+
   scenario("Test files are never features in their own right", async (s) => {
     const classified = await s.given("a service beside its unit and integration tests", () =>
       classifySourceFiles([

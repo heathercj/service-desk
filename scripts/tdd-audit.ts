@@ -119,6 +119,18 @@ const NOT_A_FEATURE_PREFIXES = [
   "src/lib/simulation/",
 ];
 
+// The bar this repo actually holds itself to is that business logic is
+// covered. These are plumbing underneath it: no desk rule lives in any of
+// them, so a test would restate the implementation rather than pin down
+// behaviour. Listed one by one rather than by directory, so that adding a
+// real service beside one of them cannot inherit the exemption by accident.
+const NOT_A_FEATURE_FILES = new Set([
+  "src/lib/db.ts", // Prisma client singleton.
+  "src/lib/env.ts", // Environment parsing; wrong values fail at boot, loudly.
+  "src/lib/utils.ts", // cn() plus date/label formatters for the UI.
+  "src/lib/dev-auth/dev-identities.ts", // A fixed table of seeded dev accounts.
+]);
+
 export interface ClassifiedFiles {
   /** Files held to the "ships with its tests" bar. */
   features: FeatureFile[];
@@ -147,7 +159,10 @@ export function classifySourceFiles(allFiles: string[]): ClassifiedFiles {
       continue;
     }
 
-    if (NOT_A_FEATURE_PREFIXES.some((prefix) => relPath.startsWith(prefix))) {
+    if (
+      NOT_A_FEATURE_FILES.has(relPath) ||
+      NOT_A_FEATURE_PREFIXES.some((prefix) => relPath.startsWith(prefix))
+    ) {
       notScored.push(relPath);
       continue;
     }
@@ -391,8 +406,8 @@ function main(): void {
   );
   if (notScored.length > 0) {
     console.log(
-      `\n  Demo scaffolding, excluded from the score: ${notScored.length} file(s)` +
-        ` -- simulated agents and customers, not desk behaviour.`,
+      `\n  Not business logic, excluded from the score: ${notScored.length} file(s)` +
+        ` -- demo simulation, plus plumbing (Prisma client, env, formatters).`,
     );
     for (const f of notScored) console.log(`    - ${f}`);
   }
