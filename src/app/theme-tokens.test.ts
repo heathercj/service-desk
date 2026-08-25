@@ -8,7 +8,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { expect } from "vitest";
 import { feature, scenario } from "@/test/bdd";
-import { AA_NORMAL_TEXT, contrastRatio } from "@/test/contrast";
+import { AA_NON_TEXT, AA_NORMAL_TEXT, contrastRatio } from "@/test/contrast";
 
 const REPO_ROOT = path.resolve(__dirname, "../..");
 const globalsCss = readFileSync(path.join(REPO_ROOT, "src/app/globals.css"), "utf8");
@@ -196,6 +196,70 @@ feature("APEX colour contrast", () => {
             AA_NORMAL_TEXT,
           );
         }
+      });
+    },
+  );
+});
+
+/**
+ * The focus indicator. Its own feature because it is not a foreground/background
+ * pair -- it is a line drawn *outside* the element, so what it has to contrast
+ * with is whatever surface the element is sitting on, and the two surfaces this
+ * app puts focusable controls on are `background` and `card`.
+ */
+feature("Focus indicator", () => {
+  /** The single `:focus-visible` rule in globals.css, as written. */
+  function focusVisibleRule(): string {
+    const match = /:focus-visible\s*\{([\s\S]*?)\}/.exec(globalsCss);
+    if (!match) throw new Error("No :focus-visible rule found in globals.css");
+    return (match[1] ?? "").trim();
+  }
+
+  scenario.each(["light", "dark"] as const)(
+    "The focus ring is visible against every surface it is drawn on in %s mode",
+    async (mode, s) => {
+      const tokens = await s.given(`the ${mode} token block`, () =>
+        tokensIn(mode === "light" ? ":root" : "\\.dark"),
+      );
+
+      const failures = await s.when("measuring the ring against each surface", () =>
+        ["background", "card"].flatMap((surface) => {
+          const ratio = contrastRatio(
+            tokens.get(surface) as string,
+            tokens.get("ring") as string,
+          );
+          return ratio < AA_NON_TEXT
+            ? [`--ring on --${surface} is ${ratio.toFixed(2)}:1`]
+            : [];
+        }),
+      );
+
+      await s.then("every surface clears WCAG 1.4.11's 3:1", () => {
+        expect(failures).toEqual([]);
+      });
+    },
+  );
+
+  /*
+   * `ring-offset-background` paints the gap in `--background`, which is a lie
+   * anywhere the control is not sitting on `--background`. In light mode
+   * `--card` and `--background` are both pure white so the lie is invisible;
+   * in dark mode a card is two steps lighter than the page, so a focused input
+   * inside a Card gets a dark halo that reads as part of the ring and muddies
+   * it. An `outline` offset is transparent, so it shows the real surface.
+   */
+  scenario(
+    "The gap around the ring shows the real surface, not an assumed one",
+    async (s) => {
+      const rule = await s.given("the :focus-visible rule", () => focusVisibleRule());
+
+      await s.then("the gap is not painted in a fixed surface colour", () => {
+        expect(rule).not.toMatch(/ring-offset-(background|card)/);
+      });
+
+      await s.and("the indicator is an outline, whose offset is transparent", () => {
+        expect(rule).toMatch(/outline-offset-\d/);
+        expect(rule).toMatch(/outline-ring/);
       });
     },
   );

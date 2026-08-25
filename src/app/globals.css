@@ -51,7 +51,15 @@
      * foreground that survives there: amber-950 is 4.70:1 and stays in family.
      */
     --warning-foreground: 0.279 0.077 45.635; /* amber-950 */
-    --ring: 0.705 0.015 286.067;
+    /*
+     * zinc-500. The port originally had the two ring values the other way
+     * round -- zinc-400 here, zinc-500 in dark -- which is backwards from
+     * every other pair in this file and left the light ring at 2.63:1 on
+     * white, under WCAG 1.4.11's 3:1 for a focus indicator. Swapped: 4.87:1
+     * light, 7.56:1 dark. focus-indicator scenarios in theme-tokens.test.ts
+     * hold the line.
+     */
+    --ring: 0.552 0.016 285.938; /* zinc-500 */
     --border: oklch(0.92 0.004 286.32);
     --input: oklch(0.92 0.004 286.32);
     --radius: 0.5rem;
@@ -81,7 +89,7 @@
     --success-foreground: 0.141 0.005 285.823;
     --warning: 0.828 0.189 84.429; /* amber-400 */
     --warning-foreground: 0.141 0.005 285.823;
-    --ring: 0.552 0.016 285.938;
+    --ring: 0.705 0.015 286.067; /* zinc-400 */
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
   }
@@ -97,8 +105,18 @@
       "rlig" 1,
       "calt" 1;
   }
+  /*
+   * An outline, not a ring. `ring-offset-background` painted the 2px gap in
+   * `--background`, which is only the truth when the control sits on the page
+   * itself. In light mode `--card` and `--background` are both pure white, so
+   * the lie was invisible; in dark mode a Card is two steps lighter than the
+   * page, so every focused input inside one drew a dark halo that blurred the
+   * ring into the card edge. An outline's offset is transparent, so the gap
+   * shows whatever surface is really behind the control, on every surface and
+   * in both themes.
+   */
   :focus-visible {
-    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+    @apply outline outline-2 outline-offset-2 outline-ring;
   }
 }
 

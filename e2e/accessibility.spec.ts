@@ -55,3 +55,56 @@ test("triage queue has no critical accessibility violations", async ({ page }) =
     results.violations.filter((v) => v.impact === "critical" || v.impact === "serious"),
   ).toEqual([]);
 });
+
+/*
+ * Dark mode gets its own focus check because that is where it broke: the
+ * indicator used to be a `ring` whose 2px gap was painted in `--background`,
+ * and inside a Card -- which in dark mode is two steps lighter than the page
+ * -- that gap read as a dark halo blurring the ring into the card edge. Light
+ * mode hid it, because `--card` and `--background` are both pure white there.
+ *
+ * The split with theme-tokens.test.ts is deliberate: the numbers (ring vs
+ * background, ring vs card, both themes, WCAG 1.4.11's 3:1) are checked there,
+ * against the tokens themselves. What only a browser can say is that the rule
+ * actually reaches a focused input, and that the gap is transparent.
+ */
+test.describe("focus indicator in dark mode", () => {
+  test.use({ colorScheme: "dark" });
+
+  test("a keyboard-focused field draws an outline, not a surface-coloured ring", async ({
+    page,
+  }) => {
+    await signInAsDevIdentity(page, DEV_IDENTITIES.customer);
+    await page.goto("/tickets/new");
+    await expect(page.locator("html")).toHaveClass(/dark/);
+
+    const subject = page.getByLabel(/subject/i);
+    await subject.focus();
+    // Focus alone does not always set :focus-visible on a mouse-driven page;
+    // a keyboard interaction does, and that is the state under test.
+    await page.keyboard.press("Shift+Tab");
+    await page.keyboard.press("Tab");
+    await expect(subject).toBeFocused();
+
+    const style = await subject.evaluate((node) => {
+      const computed = getComputedStyle(node);
+      return {
+        outlineStyle: computed.outlineStyle,
+        outlineWidth: computed.outlineWidth,
+        outlineOffset: computed.outlineOffset,
+        outlineColor: computed.outlineColor,
+        boxShadow: computed.boxShadow,
+      };
+    });
+
+    expect(style.outlineStyle).toBe("solid");
+    expect(style.outlineWidth).toBe("2px");
+    expect(style.outlineOffset).toBe("2px");
+    // The gap is the outline's own offset, so nothing paints it. A box-shadow
+    // here would mean the ring utilities are back.
+    expect(style.boxShadow === "none" || style.boxShadow === "").toBe(true);
+    // And the line itself is drawn -- an outline colour that resolved to
+    // transparent would satisfy every check above and show nothing.
+    expect(style.outlineColor).not.toMatch(/transparent|rgba?\([^)]*,\s*0\)/);
+  });
+});

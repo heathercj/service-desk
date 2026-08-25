@@ -76,3 +76,10 @@ export function contrastRatio(oneToken: string, otherToken: string): number {
 
 /** WCAG 2.1 AA for normal-size text. Small text is the case that bites. */
 export const AA_NORMAL_TEXT = 4.5;
+
+/**
+ * WCAG 2.1 AA for non-text contrast (1.4.11) -- the bar a focus indicator has
+ * to clear against the surface it is drawn on. Lower than the text bar, but a
+ * ring that misses it is exactly the "I cannot see where I am" complaint.
+ */
+export const AA_NON_TEXT = 3;
