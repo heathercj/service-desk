@@ -33,7 +33,6 @@ import { PrismaClient } from "@prisma/client";
  */
 
 /** What the room sees first on the queue beat. */
-/** What the room sees first on the queue beat. */
 const PREVIEW_ROWS = 3;
 const TOUR_QUEUE = "TECHNOLOGY_SUPPORT";
 
@@ -77,7 +76,13 @@ async function main() {
   );
   run("Resetting and reseeding", "pnpm db:reset");
   await reportQueueHead();
-  console.log("\nReady. Start the app with `pnpm dev`.\n");
+  // Not `pnpm dev`: it compiles each route on first hit, so a walkthrough
+  // compiles in front of the room. See "Present from the build" in
+  // docs/DEMO_TOUR.md.
+  console.log(
+    "\nReady. Serve it prebuilt -- stop `pnpm dev` first, the two share .next:\n" +
+      "  pnpm demo:build && pnpm demo:serve\n",
+  );
   await db.$disconnect();
 }
 

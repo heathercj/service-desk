@@ -55,6 +55,18 @@ On Windows 11 this all runs natively in PowerShell -- substitute
 [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md#windows-11) for the handful of
 other differences.
 
+**Giving the demo** is a different three commands, and `pnpm dev` is not one
+of them -- a dev server compiles each route the first time it is hit, which
+during a walkthrough means compiling in front of the room:
+
+```bash
+pnpm demo:prep    # reset to the seeded desk
+pnpm demo:build   # compile everything ahead of time
+pnpm demo:serve   # http://localhost:3000
+```
+
+See **[docs/DEMO_TOUR.md](docs/DEMO_TOUR.md)** for the guided tour itself.
+
 Open <http://localhost:3000>. You'll land on `/login`, which -- because
 `.env` ships with `ENABLE_DEV_AUTH=true` -- shows a **development sign-in**
 panel in addition to the Microsoft button. Pick any seeded identity:

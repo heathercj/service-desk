@@ -37,6 +37,8 @@
     "sim:run": "tsx scripts/sim-run.ts",
     "demo:clean": "tsx scripts/demo-clean.ts",
     "demo:prep": "tsx scripts/demo-prep.ts",
+    "demo:build": "cross-env ENABLE_DEV_AUTH=true ENABLE_DEMO_TOUR=true next build",
+    "demo:serve": "tsx scripts/demo-serve.ts",
     "security": "pnpm security:secrets && pnpm security:sca && pnpm security:sast && pnpm security:container",
     "security:sast": "semgrep --config p/typescript --config p/react --config p/nextjs --error --severity ERROR .",
     "security:sca": "osv-scanner scan --lockfile=pnpm-lock.yaml && pnpm audit --audit-level=high || true",

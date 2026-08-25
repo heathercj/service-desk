@@ -73,9 +73,40 @@ Three ways, and the first is the one to use:
 ENABLE_DEV_AUTH=true
 ENABLE_DEMO_TOUR=true
 
-pnpm demo:prep   # reset to the seeded desk -- run this before every demo
-pnpm dev
+pnpm demo:prep    # reset to the seeded desk -- run this before every demo
+pnpm demo:build   # compile everything now, so nothing compiles during the walk
+pnpm demo:serve   # http://localhost:3000
 ```
+
+**Present from the build, not from `pnpm dev`.** `next dev` compiles each
+route the first time it is hit, so every route in the tour is compiled
+_during_ the walk -- and the compile lands at the least forgiving moment,
+because the identity handoffs are full page navigations out of a sign-in POST.
+The first hit of `/queue/TECHNOLOGY_SUPPORT` happens mid-redirect, on the beat
+where Alex meets his team's queue. This repo already treats first-hit compiles
+as its flakiest surface: the e2e timeouts are 90s for it
+(`playwright.config.ts`), "Known flake" in `docs/TESTING.md` is it, and
+`scripts/e2e-server.ts` exists because of it. A prebuilt server has no compile
+step, so none of that can reach a room.
+
+It also closes a foot-gun that only bites during a demo. A `next build` --
+or `pnpm test:e2e:built`, or `pnpm ci:local` -- run while `pnpm dev` is
+serving overwrites the `.next` that dev server is reading, and the symptom is
+a "Something went wrong" boundary on the next route it tries to compile: the
+next _new_ page of the walk, not the page anyone touched. Presenting from a
+build makes the build the artefact, and rebuilding a deliberate step between
+walks rather than something that can happen underneath one.
+
+`pnpm dev` is still right for developing the tour -- Fast Refresh on a
+narration edit is worth far more than the compile risk. Just do not present
+from it. Rebuild with `pnpm demo:build` after a code change.
+
+**Stop `pnpm dev` before `pnpm demo:build`.** They share one `.next` and
+whichever started last wins: a build overwrites what a running dev server is
+reading (that server then 500s on the next route it compiles), and `next dev`
+starting up removes the standalone build (`demo:serve` then says there is
+nothing to serve). Neither is subtle once you know to look, and both are
+invisible until the walk reaches a page nobody has opened yet.
 
 `demo:prep` is not optional politeness. Department queues are newest-first,
 so anything a previous walk or e2e run left behind sits at the TOP of the
@@ -296,13 +327,6 @@ the shot catching it mid-transition rather than a layout bug; `shoot()` now
 waits for it to settle.
 
 ## Known limits
-
-- **The spotlight does not scroll its anchor into view.** Only `perform()`
-  does, through `focusInto`. So in mode 1, a step whose control sits below the
-  fold points at something the presenter cannot see -- `work-claim` is the one
-  to look at, and `docs/screenshots/light/15-work-claim.png` is it happening.
-  Autopilot never shows this because it always goes through `perform()`.
-  Pressing "Do it for me" scrolls and recovers it; so does scrolling by hand.
 
 - Dev-auth only, by construction. `src/lib/env.ts` refuses to boot with
   `ENABLE_DEMO_TOUR=true` in production, or without `ENABLE_DEV_AUTH`.
