@@ -46,3 +46,10 @@ semgrep-results.sarif
 Thumbs.db
 .vscode/*
 !.vscode/extensions.json
+
+# Articles the guided tour and the golden-path e2e walk publish for real.
+# They carry the run token that scripts/demo-clean.ts sweeps on, and they are
+# artifacts of a run rather than knowledge anyone curated -- twice now they
+# have been swept into a commit by a `git add -A` after an e2e run.
+knowledge-base/**/*ref-henry*.md
+knowledge-base/**/*ref-grommet*.md
