@@ -20,12 +20,9 @@ vi.mock("@/lib/tickets/ticket-service", () => ({
 const { createTicket } = await import("@/lib/tickets/ticket-service");
 const { POST } = await import("./route");
 
-const FRANCHISE_ID = "22222222-0000-4000-8000-000000000001";
-
 /** A payload that satisfies createTicketSchema; scenarios override one field. */
 function validIntake(overrides: Record<string, unknown> = {}) {
   return {
-    franchiseId: FRANCHISE_ID,
     subject: "Laptop will not connect to the office WiFi",
     description:
       "Since this morning my laptop cannot join the office WiFi network. " +
@@ -126,7 +123,6 @@ feature("Ticket intake", () => {
       value: "too short",
       why: "a description under the minimum length",
     },
-    { field: "franchiseId", value: "not-a-uuid", why: "a malformed franchise id" },
   ])("Intake is rejected for $why", async (example, s) => {
     await s.given("a signed-in customer", () => setCurrentActor(actors.customer()));
 

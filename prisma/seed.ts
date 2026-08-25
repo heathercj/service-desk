@@ -36,6 +36,10 @@ const FRANCHISES = [
   { code: "VAN", name: "Alair Homes Vancouver" },
   { code: "CAL", name: "Alair Homes Calgary" },
   { code: "TOR", name: "Alair Homes Toronto" },
+  // Fallback for ticket intake (web and email) when the submitter's Entra
+  // department value doesn't match a real franchise -- see
+  // src/lib/tickets/franchise-lookup.ts. Triage can correct it afterward.
+  { code: "HQ", name: "Head Office / Unassigned" },
 ];
 
 async function seedRolesAndDepartments() {

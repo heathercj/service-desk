@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { RoleName, DepartmentKey } from "@prisma/client";
 import { db } from "@/lib/db";
 import type { AuthContext } from "@/lib/auth/session";
+import { FALLBACK_FRANCHISE_CODE } from "@/lib/tickets/franchise-lookup";
 
 /**
  * Test-only fixture helpers for integration tests. These talk directly to
@@ -34,6 +35,16 @@ export async function ensureRolesAndDepartments() {
   for (const d of departments) {
     await db.department.upsert({ where: { key: d.key }, create: d, update: {} });
   }
+
+  // createTicket() derives franchiseId from the actor's Entra department
+  // rather than taking it as input, falling back to this franchise when
+  // there's no match -- see src/lib/tickets/franchise-lookup.ts. Every
+  // ticket-creating test needs it to exist.
+  await db.franchise.upsert({
+    where: { code: FALLBACK_FRANCHISE_CODE },
+    create: { code: FALLBACK_FRANCHISE_CODE, name: "Head Office / Unassigned" },
+    update: {},
+  });
 }
 
 export async function createFranchise(namePrefix = "Test Franchise") {

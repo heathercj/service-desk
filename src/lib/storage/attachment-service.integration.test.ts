@@ -1,10 +1,18 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { ForbiddenError } from "@/lib/rbac/errors";
 import { createFranchise, createTestUser } from "@/test-support/fixtures";
 import { createTicket } from "@/lib/tickets/ticket-service";
 import type { CreateTicketInput } from "@/lib/validation/ticket-schemas";
 import { downloadAttachment, uploadAttachment } from "./attachment-service";
+
+// createTicket() looks up the submitter's Entra department over the
+// network (src/lib/tickets/franchise-lookup.ts) -- stubbed as "not found"
+// so this suite never depends on real network access. Falls back to the
+// FALLBACK_FRANCHISE_CODE franchise seeded by ensureRolesAndDepartments().
+vi.mock("@/lib/graph/client", () => ({
+  graphFetch: vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }),
+}));
 
 const PNG_HEADER = Buffer.from([
   0x89,
@@ -29,9 +37,10 @@ describe("attachment-service integration", () => {
     await db.$disconnect();
   });
 
-  async function ticketInput(franchiseId: string): Promise<CreateTicketInput> {
+  // franchiseId param kept (unused) so existing call sites stay valid --
+  // franchise is now derived server-side, not supplied.
+  async function ticketInput(_franchiseId: string): Promise<CreateTicketInput> {
     return {
-      franchiseId,
       subject: "Screenshot attached of the error",
       description:
         "See attached screenshot for the exact error message shown on screen when this happens.",

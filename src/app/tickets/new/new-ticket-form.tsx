@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
 import {
   Card,
   CardContent,
@@ -62,11 +61,9 @@ interface Suggestion {
 }
 
 export function NewTicketForm({
-  franchises,
   submitterName,
   submitterEmail,
 }: {
-  franchises: Array<{ id: string; name: string }>;
   submitterName: string;
   submitterEmail: string;
 }) {
@@ -92,7 +89,6 @@ export function NewTicketForm({
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      franchiseId: franchises[0]?.id ?? "",
       subject: "",
       description: "",
       impact: "",
@@ -278,24 +274,6 @@ export function NewTicketForm({
           <Label htmlFor="submitterEmail">Email</Label>
           <Input id="submitterEmail" value={submitterEmail} disabled aria-readonly />
         </div>
-      </div>
-
-      <div>
-        <Label htmlFor="franchiseId">Franchise / work-with company</Label>
-        <Select
-          id="franchiseId"
-          {...register("franchiseId")}
-          aria-invalid={Boolean(errors.franchiseId)}
-        >
-          {franchises.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.name}
-            </option>
-          ))}
-        </Select>
-        {errors.franchiseId && (
-          <p className="mt-1 text-sm text-destructive">{errors.franchiseId.message}</p>
-        )}
       </div>
 
       <div>

@@ -61,7 +61,6 @@ const urlSchema = z
 // project-number check is applied separately in `createTicketSchema` below
 // and is re-validated there even if a caller skips it earlier.
 export const createTicketObjectSchema = z.object({
-  franchiseId: z.string().uuid(),
   subject: z
     .string()
     .trim()

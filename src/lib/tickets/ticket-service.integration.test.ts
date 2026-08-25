@@ -1,7 +1,8 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { ForbiddenError } from "@/lib/rbac/errors";
 import { InvalidTransitionError } from "@/lib/tickets/state-machine";
+import { FALLBACK_FRANCHISE_CODE } from "@/lib/tickets/franchise-lookup";
 import {
   createFranchise,
   createTestUser,
@@ -21,6 +22,22 @@ import {
 } from "./ticket-service";
 import type { CreateTicketInput } from "@/lib/validation/ticket-schemas";
 
+// Ticket creation now derives franchiseId from the actor's Entra
+// department (src/lib/tickets/franchise-lookup.ts), which calls Graph over
+// the network. Stubbed here so the suite never depends on real network
+// access; defaults to "not found" (no department), which resolves to the
+// FALLBACK_FRANCHISE_CODE franchise seeded by ensureRolesAndDepartments().
+// Tests that care about a specific department value override this.
+vi.mock("@/lib/graph/client", () => ({ graphFetch: vi.fn() }));
+const { graphFetch } = await import("@/lib/graph/client");
+
+function mockGraphDepartment(department: string | null) {
+  vi.mocked(graphFetch).mockResolvedValue({
+    ok: department !== null,
+    json: async () => (department !== null ? { department } : {}),
+  } as Response);
+}
+
 /**
  * Requires a live Postgres connection (DATABASE_URL). See README "Running
  * integration tests against Postgres". Covers the integration-test list
@@ -37,9 +54,17 @@ describe("ticket-service integration", () => {
     await db.$disconnect();
   });
 
-  async function baseTicketInput(franchiseId: string): Promise<CreateTicketInput> {
+  beforeEach(() => {
+    vi.mocked(graphFetch).mockReset();
+    mockGraphDepartment(null);
+  });
+
+  // franchiseId param kept (unused) so every existing call site --
+  // `baseTicketInput(franchise.id)`, still creating a real Franchise row
+  // via createFranchise() -- stays valid unchanged: franchise is now
+  // derived server-side from the actor's Entra department, not supplied.
+  async function baseTicketInput(_franchiseId: string): Promise<CreateTicketInput> {
     return {
-      franchiseId,
       subject: "VPN will not connect from home network",
       description:
         "The VPN client fails to authenticate every time I try to connect from home, since yesterday.",
@@ -696,6 +721,28 @@ describe("ticket-service integration", () => {
       where: { ticketId: ticket.id, toEmail: ideasAgent.email },
     });
     expect(agentEmail?.subject).toMatch(/transferred to you/i);
+  });
+
+  it("resolves the franchise from the submitter's Entra department", async () => {
+    const franchise = await createFranchise("Alair Homes Regina");
+    mockGraphDepartment(franchise.name);
+
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const ticket = await createTicket(customer, await baseTicketInput(franchise.id));
+
+    expect(ticket.franchiseId).toBe(franchise.id);
+  });
+
+  it("falls back to the default franchise when Entra has no department for the submitter", async () => {
+    mockGraphDepartment(null);
+    const fallback = await db.franchise.findUniqueOrThrow({
+      where: { code: FALLBACK_FRANCHISE_CODE },
+    });
+
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const ticket = await createTicket(customer, await baseTicketInput("unused"));
+
+    expect(ticket.franchiseId).toBe(fallback.id);
   });
 
   it("refuses a department transfer with a blank reason", async () => {

@@ -1,8 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
+
+// createTicket() looks up the submitter's Entra department over the
+// network (src/lib/tickets/franchise-lookup.ts) -- stubbed as "not found"
+// so this suite never depends on real network access. Falls back to the
+// FALLBACK_FRANCHISE_CODE franchise seeded by ensureRolesAndDepartments().
+vi.mock("@/lib/graph/client", () => ({
+  graphFetch: vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }),
+}));
 import { ForbiddenError } from "@/lib/rbac/errors";
 import { createFranchise, createTestUser } from "@/test-support/fixtures";
 import {
@@ -44,9 +52,10 @@ describe("knowledge-service integration", () => {
     await db.$disconnect();
   });
 
-  async function ticketInput(franchiseId: string): Promise<CreateTicketInput> {
+  // franchiseId param kept (unused) so existing call sites stay valid --
+  // franchise is now derived server-side, not supplied.
+  async function ticketInput(_franchiseId: string): Promise<CreateTicketInput> {
     return {
-      franchiseId,
       subject: "Printer shows offline in site office",
       description:
         "The printer has shown offline for two days and we cannot print change orders for the client.",

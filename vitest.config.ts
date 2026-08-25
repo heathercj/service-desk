@@ -21,6 +21,13 @@ export default defineConfig({
       AUTH_SECRET: "test-only-not-a-real-secret-000000000000000",
       ENTRA_TENANT_ID: "11111111-1111-1111-1111-111111111111",
       ENABLE_DEV_AUTH: "false",
+      // Forced off regardless of the developer's local .env -- the unit
+      // suite must be deterministic, not depend on whichever flags happen
+      // to be set for local manual testing. (Overriding ENABLE_DEV_AUTH
+      // above without also pinning this tripped env.ts's own
+      // ENABLE_DEMO_TOUR-requires-ENABLE_DEV_AUTH guard the first time any
+      // module transitively imported env.ts in a unit test.)
+      ENABLE_DEMO_TOUR: "false",
     },
     include: ["{src,scripts}/**/*.{test,spec}.{ts,tsx}"],
     exclude: ["e2e/**", "node_modules/**", "src/**/*.integration.test.ts"],

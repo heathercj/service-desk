@@ -31,6 +31,7 @@ import { evaluateResolutionGate } from "@/lib/knowledge/resolution-gate";
 import { validateSubmittedUrls } from "@/lib/validation/url-safety";
 import type { CreateTicketInput } from "@/lib/validation/ticket-schemas";
 import { requireActiveDepartment } from "./department-lookup";
+import { lookupEntraDepartment, resolveFranchiseForDepartment } from "./franchise-lookup";
 import { DEFAULT_DEPARTMENT_KEY, suggestDepartment } from "./department-suggestion";
 import { assertTransition, isTransitionAllowed } from "./state-machine";
 import { nextTicketNumber } from "./ticket-number";
@@ -48,9 +49,13 @@ export async function createTicket(actor: AuthContext, input: CreateTicketInput)
   const policyActor = toPolicyActor(actor);
   assertAuthorized(canCreateTicket(policyActor), "Only customers can submit tickets");
 
-  const franchise = await db.franchise.findUnique({ where: { id: input.franchiseId } });
-  if (!franchise || !franchise.isActive)
-    throw new NotFoundError("Franchise not found or inactive");
+  // Franchise is derived from the submitter's Entra department rather than
+  // picked by hand -- every employee's directory profile carries it, and
+  // trusting a client-supplied franchiseId here would let anyone submit
+  // under a franchise they have nothing to do with.
+  const franchise = await resolveFranchiseForDepartment(
+    await lookupEntraDepartment(actor.email),
+  );
 
   const urlCheck = validateSubmittedUrls(input.urls, {
     allowHttp: process.env.NODE_ENV !== "production",
