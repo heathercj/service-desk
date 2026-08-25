@@ -8,39 +8,12 @@ import {
 import { DEV_IDENTITIES } from "../src/lib/dev-auth/dev-identities";
 import { writeArticleFile } from "../src/lib/knowledge/markdown-repo";
 import type { KnowledgeFrontMatter } from "../src/lib/knowledge/front-matter-schema";
+import { ROLE_NAMES, DEPARTMENTS, FRANCHISES } from "../src/lib/reference-data";
 
 const db = new PrismaClient();
 
 const DEV_TENANT_ID =
   process.env.ENTRA_TENANT_ID || "00000000-0000-0000-0000-000000000000";
-
-const DEPARTMENTS: Array<{ key: DepartmentKey; name: string }> = [
-  { key: "TECHNOLOGY_SUPPORT", name: "Technology Support" },
-  { key: "TRAINING", name: "Training" },
-  { key: "ACCOUNTING_SERVICES", name: "Accounting Services" },
-  { key: "MARKETING", name: "Marketing" },
-  { key: "LEGAL", name: "Legal" },
-  { key: "IMPROVEMENT_IDEAS", name: "Improvement Ideas" },
-];
-
-const ROLE_NAMES: RoleName[] = [
-  "CUSTOMER",
-  "TRIAGE_AGENT",
-  "DEPARTMENT_AGENT",
-  "DEPARTMENT_MANAGER",
-  "KNOWLEDGE_MANAGER",
-  "ADMINISTRATOR",
-];
-
-const FRANCHISES = [
-  { code: "VAN", name: "Alair Homes Vancouver" },
-  { code: "CAL", name: "Alair Homes Calgary" },
-  { code: "TOR", name: "Alair Homes Toronto" },
-  // Fallback for ticket intake (web and email) when the submitter's Entra
-  // department value doesn't match a real franchise -- see
-  // src/lib/tickets/franchise-lookup.ts. Triage can correct it afterward.
-  { code: "HQ", name: "Head Office / Unassigned" },
-];
 
 async function seedRolesAndDepartments() {
   for (const name of ROLE_NAMES) {

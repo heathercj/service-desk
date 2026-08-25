@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { RoleName, DepartmentKey } from "@prisma/client";
 import { db } from "@/lib/db";
 import type { AuthContext } from "@/lib/auth/session";
-import { FALLBACK_FRANCHISE_CODE } from "@/lib/tickets/franchise-lookup";
+import { ROLE_NAMES, DEPARTMENTS, FRANCHISES } from "@/lib/reference-data";
 
 /**
  * Test-only fixture helpers for integration tests. These talk directly to
@@ -12,39 +12,19 @@ import { FALLBACK_FRANCHISE_CODE } from "@/lib/tickets/franchise-lookup";
  */
 
 export async function ensureRolesAndDepartments() {
-  const roles: RoleName[] = [
-    "CUSTOMER",
-    "TRIAGE_AGENT",
-    "DEPARTMENT_AGENT",
-    "DEPARTMENT_MANAGER",
-    "KNOWLEDGE_MANAGER",
-    "ADMINISTRATOR",
-  ];
-  for (const name of roles) {
+  for (const name of ROLE_NAMES) {
     await db.role.upsert({ where: { name }, create: { name }, update: {} });
   }
-
-  const departments: Array<{ key: DepartmentKey; name: string }> = [
-    { key: "TECHNOLOGY_SUPPORT", name: "Technology Support" },
-    { key: "TRAINING", name: "Training" },
-    { key: "ACCOUNTING_SERVICES", name: "Accounting Services" },
-    { key: "MARKETING", name: "Marketing" },
-    { key: "LEGAL", name: "Legal" },
-    { key: "IMPROVEMENT_IDEAS", name: "Improvement Ideas" },
-  ];
-  for (const d of departments) {
+  for (const d of DEPARTMENTS) {
     await db.department.upsert({ where: { key: d.key }, create: d, update: {} });
   }
-
   // createTicket() derives franchiseId from the actor's Entra department
-  // rather than taking it as input, falling back to this franchise when
-  // there's no match -- see src/lib/tickets/franchise-lookup.ts. Every
-  // ticket-creating test needs it to exist.
-  await db.franchise.upsert({
-    where: { code: FALLBACK_FRANCHISE_CODE },
-    create: { code: FALLBACK_FRANCHISE_CODE, name: "Head Office / Unassigned" },
-    update: {},
-  });
+  // rather than taking it as input, falling back to the seeded "HQ"
+  // franchise when there's no match -- see franchise-lookup.ts. Every
+  // ticket-creating test needs at least that one to exist.
+  for (const f of FRANCHISES) {
+    await db.franchise.upsert({ where: { code: f.code }, create: f, update: {} });
+  }
 }
 
 export async function createFranchise(namePrefix = "Test Franchise") {
