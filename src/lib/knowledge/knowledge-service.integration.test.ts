@@ -23,6 +23,7 @@ import {
 import type { CreateTicketInput } from "@/lib/validation/ticket-schemas";
 import {
   createDraftArticle,
+  getArticleByIdForActor,
   publishArticle,
   recordKnowledgeOutcome,
 } from "./knowledge-service";
@@ -228,5 +229,42 @@ describe("knowledge-service integration", () => {
     });
     expect(auditEvent).not.toBeNull();
     expect(auditEvent?.actorId).toBe(km.userId);
+  });
+
+  it("lets a customer fetch a published, non-internal article by id (for the ticket-form preview panel)", async () => {
+    const km = await createTestUser({ roles: ["KNOWLEDGE_MANAGER"] });
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+
+    const draft = await createDraftArticle(km, {
+      title: `VPN reset steps ${randomUUID().slice(0, 8)}`,
+      summary: "How to reset the VPN client when it will not connect.",
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      tags: ["vpn"],
+      body: "## Steps\n\n1. Sign out. 2. Clear the cached profile. 3. Sign back in.",
+    });
+    await publishArticle(km, draft.id);
+
+    const fetched = await getArticleByIdForActor(customer, draft.id);
+    expect(fetched.id).toBe(draft.id);
+    expect(fetched.summary).toBe("How to reset the VPN client when it will not connect.");
+  });
+
+  it("refuses an internal-only article to a customer", async () => {
+    const km = await createTestUser({ roles: ["KNOWLEDGE_MANAGER"] });
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+
+    const draft = await createDraftArticle(km, {
+      title: `Internal escalation notes ${randomUUID().slice(0, 8)}`,
+      summary: "Internal-only escalation contacts and steps.",
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      tags: [],
+      body: "## Escalation\n\nInternal contact list.",
+      internalOnly: true,
+    });
+    await publishArticle(km, draft.id);
+
+    await expect(getArticleByIdForActor(customer, draft.id)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
   });
 });

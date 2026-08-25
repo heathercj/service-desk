@@ -21,6 +21,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { ArticlePreviewPanel } from "@/components/article-preview-panel";
 
 // `isProjectRelated` is deliberately NOT registered with react-hook-form:
 // RHF's `setValueAs` on a native radio group does not reliably coerce the
@@ -78,7 +79,17 @@ export function NewTicketForm({
   const [screenshots, setScreenshots] = useState<File[]>([]);
   const [screenshotError, setScreenshotError] = useState<string | null>(null);
   const [createdTicketNumber, setCreatedTicketNumber] = useState<string | null>(null);
+  const [previewArticleId, setPreviewArticleId] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  async function deflectArticle(articleId: string) {
+    await fetch("/api/knowledge/deflection", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ articleId }),
+    });
+    setDeflected(true);
+  }
 
   const {
     register,
@@ -246,283 +257,290 @@ export function NewTicketForm({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit, onInvalid)}
-      className="mt-6 space-y-6"
-      noValidate
-    >
-      {isSubmitted && Object.keys(errors).length > 0 && (
-        <div
-          role="alert"
-          className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
-        >
-          <p className="font-medium">Please fix the following before submitting:</p>
-          <ul className="mt-1 list-disc pl-5">
-            {Object.entries(errors).map(([field, err]) => (
-              <li key={field}>{String(err?.message ?? `${field} is invalid`)}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+    <>
+      <form
+        onSubmit={handleSubmit(onSubmit, onInvalid)}
+        className="mt-6 space-y-6"
+        noValidate
+      >
+        {isSubmitted && Object.keys(errors).length > 0 && (
+          <div
+            role="alert"
+            className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
+          >
+            <p className="font-medium">Please fix the following before submitting:</p>
+            <ul className="mt-1 list-disc pl-5">
+              {Object.entries(errors).map(([field, err]) => (
+                <li key={field}>{String(err?.message ?? `${field} is invalid`)}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="submitterName">Name</Label>
+            <Input id="submitterName" value={submitterName} disabled aria-readonly />
+          </div>
+          <div>
+            <Label htmlFor="submitterEmail">Email</Label>
+            <Input id="submitterEmail" value={submitterEmail} disabled aria-readonly />
+          </div>
+        </div>
+
         <div>
-          <Label htmlFor="submitterName">Name</Label>
-          <Input id="submitterName" value={submitterName} disabled aria-readonly />
+          <Label htmlFor="subject">Subject</Label>
+          <Input
+            id="subject"
+            data-tour="ticket-subject"
+            {...register("subject")}
+            aria-invalid={Boolean(errors.subject)}
+          />
+          {errors.subject && (
+            <p className="mt-1 text-sm text-destructive">{errors.subject.message}</p>
+          )}
         </div>
+
         <div>
-          <Label htmlFor="submitterEmail">Email</Label>
-          <Input id="submitterEmail" value={submitterEmail} disabled aria-readonly />
+          <Label htmlFor="description">
+            Describe the issue so that the technician can identify the process you were
+            trying to complete, the action that is being prevented, and if possible, share
+            any error messages you are seeing
+          </Label>
+          <Textarea
+            id="description"
+            data-tour="ticket-description"
+            rows={6}
+            // Names a tool nobody has to recognise, and models the three things
+            // the label above asks for: what you were doing, what stopped, and
+            // anything the screen said.
+            placeholder={
+              "e.g. I cannot sign into my email. I enter my password and the page " +
+              "returns me to the sign-in screen without an error. The same password " +
+              "works on my phone."
+            }
+            {...register("description")}
+            aria-invalid={Boolean(errors.description)}
+            aria-describedby="description-hint"
+          />
+          <p id="description-hint" className="mt-1 text-xs text-muted-foreground">
+            At least {MIN_DESCRIPTION_LENGTH} characters. Do not include passwords,
+            authentication tokens, or payment card details.
+          </p>
+          {errors.description && (
+            <p className="mt-1 text-sm text-destructive">{errors.description.message}</p>
+          )}
         </div>
-      </div>
 
-      <div>
-        <Label htmlFor="subject">Subject</Label>
-        <Input
-          id="subject"
-          data-tour="ticket-subject"
-          {...register("subject")}
-          aria-invalid={Boolean(errors.subject)}
-        />
-        {errors.subject && (
-          <p className="mt-1 text-sm text-destructive">{errors.subject.message}</p>
-        )}
-      </div>
-
-      <div>
-        <Label htmlFor="description">
-          Describe the issue so that the technician can identify the process you were
-          trying to complete, the action that is being prevented, and if possible, share
-          any error messages you are seeing
-        </Label>
-        <Textarea
-          id="description"
-          data-tour="ticket-description"
-          rows={6}
-          // Names a tool nobody has to recognise, and models the three things
-          // the label above asks for: what you were doing, what stopped, and
-          // anything the screen said.
-          placeholder={
-            "e.g. I cannot sign into my email. I enter my password and the page " +
-            "returns me to the sign-in screen without an error. The same password " +
-            "works on my phone."
-          }
-          {...register("description")}
-          aria-invalid={Boolean(errors.description)}
-          aria-describedby="description-hint"
-        />
-        <p id="description-hint" className="mt-1 text-xs text-muted-foreground">
-          At least {MIN_DESCRIPTION_LENGTH} characters. Do not include passwords,
-          authentication tokens, or payment card details.
-        </p>
-        {errors.description && (
-          <p className="mt-1 text-sm text-destructive">{errors.description.message}</p>
-        )}
-      </div>
-
-      <div>
-        <Label htmlFor="screenshots">Screenshots (optional)</Label>
-        <input
-          id="screenshots"
-          type="file"
-          accept=".png,.jpg,.jpeg,.webp,.gif"
-          multiple
-          onChange={onScreenshotsChange}
-          className="block text-sm"
-        />
-        <p className="mt-1 text-xs text-muted-foreground">
-          PNG, JPG, WEBP, or GIF -- up to 10 MB each, {MAX_SCREENSHOTS} total. Screenshots
-          are scanned before staff can view them.
-        </p>
-        {screenshotError && (
-          <p className="mt-1 text-sm text-destructive">{screenshotError}</p>
-        )}
-        {screenshots.length > 0 && (
-          <ul className="mt-2 space-y-1">
-            {screenshots.map((file, index) => (
-              <li
-                key={`${file.name}-${index}`}
-                className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1 text-sm"
-              >
-                <span className="truncate">{file.name}</span>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => removeScreenshot(index)}
+        <div>
+          <Label htmlFor="screenshots">Screenshots (optional)</Label>
+          <input
+            id="screenshots"
+            type="file"
+            accept=".png,.jpg,.jpeg,.webp,.gif"
+            multiple
+            onChange={onScreenshotsChange}
+            className="block text-sm"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            PNG, JPG, WEBP, or GIF -- up to 10 MB each, {MAX_SCREENSHOTS} total.
+            Screenshots are scanned before staff can view them.
+          </p>
+          {screenshotError && (
+            <p className="mt-1 text-sm text-destructive">{screenshotError}</p>
+          )}
+          {screenshots.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {screenshots.map((file, index) => (
+                <li
+                  key={`${file.name}-${index}`}
+                  className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1 text-sm"
                 >
-                  Remove
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {suggestions.length > 0 && (
-        <Card data-tour="suggestions-card">
-          <CardHeader>
-            <CardTitle className="text-base">This might already be answered</CardTitle>
-            <CardDescription>Based on your subject and description.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {suggestions.map((s) => (
-              <div
-                key={s.articleId}
-                data-tour="suggestion-row"
-                className="rounded-md border border-border p-3"
-              >
-                <a
-                  href={`/knowledge/${s.slug}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium hover:underline"
-                  onClick={() =>
-                    setAttemptedArticleIds((prev) =>
-                      Array.from(new Set([...prev, s.articleId])),
-                    )
-                  }
-                >
-                  {s.title}
-                </a>
-                <p className="mt-1 text-sm text-muted-foreground">{s.summary}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Why: {s.matchReasons.join(", ")}
-                </p>
-                <div className="mt-2 flex gap-2">
+                  <span className="truncate">{file.name}</span>
                   <Button
                     type="button"
-                    data-tour="deflect-solved"
                     size="sm"
                     variant="outline"
-                    onClick={async () => {
-                      await fetch("/api/knowledge/deflection", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ articleId: s.articleId }),
-                      });
-                      setDeflected(true);
+                    onClick={() => removeScreenshot(index)}
+                  >
+                    Remove
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {suggestions.length > 0 && (
+          <Card data-tour="suggestions-card">
+            <CardHeader>
+              <CardTitle className="text-base">This might already be answered</CardTitle>
+              <CardDescription>Based on your subject and description.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {suggestions.map((s) => (
+                <div
+                  key={s.articleId}
+                  data-tour="suggestion-row"
+                  className="rounded-md border border-border p-3"
+                >
+                  <button
+                    type="button"
+                    className="text-left font-medium hover:underline"
+                    onClick={() => {
+                      setAttemptedArticleIds((prev) =>
+                        Array.from(new Set([...prev, s.articleId])),
+                      );
+                      setPreviewArticleId(s.articleId);
                     }}
                   >
-                    This solved it
-                  </Button>
+                    {s.title}
+                  </button>
+                  <p className="mt-1 text-sm text-muted-foreground">{s.summary}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Why: {s.matchReasons.join(", ")}
+                  </p>
+                  <div className="mt-2 flex gap-2">
+                    <Button
+                      type="button"
+                      data-tour="deflect-solved"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => deflectArticle(s.articleId)}
+                    >
+                      This solved it
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
-      <fieldset className="space-y-2">
-        <legend className="text-sm font-medium">Is this related to a project?</legend>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="radio"
-            name="isProjectRelated"
-            checked={isProjectRelated}
-            onChange={() => setIsProjectRelated(true)}
-          />
-          Yes
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="radio"
-            name="isProjectRelated"
-            checked={!isProjectRelated}
-            onChange={() => setIsProjectRelated(false)}
-          />
-          No
-        </label>
-      </fieldset>
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium">Is this related to a project?</legend>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="radio"
+              name="isProjectRelated"
+              checked={isProjectRelated}
+              onChange={() => setIsProjectRelated(true)}
+            />
+            Yes
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="radio"
+              name="isProjectRelated"
+              checked={!isProjectRelated}
+              onChange={() => setIsProjectRelated(false)}
+            />
+            No
+          </label>
+        </fieldset>
 
-      {isProjectRelated && (
+        {isProjectRelated && (
+          <div>
+            <Label htmlFor="projectNumber">Project number</Label>
+            <Input
+              id="projectNumber"
+              placeholder="2026-0142"
+              {...register("projectNumber")}
+              aria-invalid={Boolean(errors.projectNumber)}
+            />
+            {errors.projectNumber && (
+              <p className="mt-1 text-sm text-destructive">
+                {errors.projectNumber.message}
+              </p>
+            )}
+          </div>
+        )}
+
         <div>
-          <Label htmlFor="projectNumber">Project number</Label>
-          <Input
-            id="projectNumber"
-            placeholder="2026-0142"
-            {...register("projectNumber")}
-            aria-invalid={Boolean(errors.projectNumber)}
+          <Label htmlFor="urls">Issue URLs (one per line, optional)</Label>
+          <Textarea
+            id="urls"
+            rows={3}
+            value={urlsText}
+            onChange={(e) => setUrlsText(e.target.value)}
+            placeholder="https://example.com/relevant-page"
           />
-          {errors.projectNumber && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Links will never be opened automatically by our systems -- only shown to staff
+            as user-submitted references.
+          </p>
+        </div>
+
+        <div>
+          <Label htmlFor="impact">Impact</Label>
+          <Input
+            id="impact"
+            {...register("impact")}
+            placeholder="e.g. Blocks my ability to submit change orders"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="urgencyNote">Urgency (optional)</Label>
+          <Input
+            id="urgencyNote"
+            {...register("urgencyNote")}
+            placeholder="e.g. Client meeting tomorrow morning"
+          />
+        </div>
+
+        <div className="rounded-md border border-border bg-muted p-4">
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              data-tour="ticket-consent"
+              className="mt-1"
+              {...register("consentAcknowledged")}
+            />
+            <span>
+              I confirm this ticket does not contain passwords, authentication tokens,
+              payment card data, or unnecessary personal information. Attachments will be
+              scanned before they can be downloaded by staff.
+            </span>
+          </label>
+          {errors.consentAcknowledged && (
             <p className="mt-1 text-sm text-destructive">
-              {errors.projectNumber.message}
+              {errors.consentAcknowledged.message}
             </p>
           )}
         </div>
-      )}
 
-      <div>
-        <Label htmlFor="urls">Issue URLs (one per line, optional)</Label>
-        <Textarea
-          id="urls"
-          rows={3}
-          value={urlsText}
-          onChange={(e) => setUrlsText(e.target.value)}
-          placeholder="https://example.com/relevant-page"
-        />
-        <p className="mt-1 text-xs text-muted-foreground">
-          Links will never be opened automatically by our systems -- only shown to staff
-          as user-submitted references.
-        </p>
-      </div>
-
-      <div>
-        <Label htmlFor="impact">Impact</Label>
-        <Input
-          id="impact"
-          {...register("impact")}
-          placeholder="e.g. Blocks my ability to submit change orders"
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="urgencyNote">Urgency (optional)</Label>
-        <Input
-          id="urgencyNote"
-          {...register("urgencyNote")}
-          placeholder="e.g. Client meeting tomorrow morning"
-        />
-      </div>
-
-      <div className="rounded-md border border-border bg-muted p-4">
-        <label className="flex items-start gap-2 text-sm">
-          <input
-            type="checkbox"
-            data-tour="ticket-consent"
-            className="mt-1"
-            {...register("consentAcknowledged")}
-          />
-          <span>
-            I confirm this ticket does not contain passwords, authentication tokens,
-            payment card data, or unnecessary personal information. Attachments will be
-            scanned before they can be downloaded by staff.
-          </span>
-        </label>
-        {errors.consentAcknowledged && (
-          <p className="mt-1 text-sm text-destructive">
-            {errors.consentAcknowledged.message}
+        {submitError && (
+          <p
+            role="alert"
+            className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
+          >
+            {submitError}{" "}
+            {createdTicketNumber && (
+              <a href={`/tickets/${createdTicketNumber}`} className="underline">
+                Open ticket {createdTicketNumber}
+              </a>
+            )}
           </p>
         )}
-      </div>
 
-      {submitError && (
-        <p
-          role="alert"
-          className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
-        >
-          {submitError}{" "}
-          {createdTicketNumber && (
-            <a href={`/tickets/${createdTicketNumber}`} className="underline">
-              Open ticket {createdTicketNumber}
-            </a>
-          )}
-        </p>
-      )}
+        <Button type="submit" data-tour="ticket-submit" disabled={submitting}>
+          {submitting ? "Submitting..." : "Submit ticket"}
+        </Button>
+      </form>
 
-      <Button type="submit" data-tour="ticket-submit" disabled={submitting}>
-        {submitting ? "Submitting..." : "Submit ticket"}
-      </Button>
-    </form>
+      <ArticlePreviewPanel
+        articleId={previewArticleId}
+        onClose={() => setPreviewArticleId(null)}
+        onDeflect={
+          previewArticleId
+            ? () => {
+                void deflectArticle(previewArticleId);
+                setPreviewArticleId(null);
+              }
+            : undefined
+        }
+      />
+    </>
   );
 }

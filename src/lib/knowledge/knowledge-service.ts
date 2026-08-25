@@ -422,6 +422,37 @@ export async function getArticleForActor(
   return article;
 }
 
+/**
+ * Same visibility rule as getArticleForActor, keyed by id -- backs the
+ * ticket-form preview panel (Section 6), where a suggestion carries an
+ * articleId rather than a slug.
+ */
+export async function getArticleByIdForActor(
+  actor: AuthContext | null,
+  articleId: string,
+) {
+  const article = await db.knowledgeArticle.findUnique({
+    where: { id: articleId },
+    include: { department: true },
+  });
+  if (!article) throw new NotFoundError("Article not found");
+
+  const policyActor = actor
+    ? toPolicyActor(actor)
+    : { userId: "", roles: new Set<never>(), departments: new Map() };
+  assertAuthorized(
+    canViewKnowledgeArticle(policyActor as never, article),
+    "You cannot view this article",
+  );
+
+  await db.knowledgeArticle.update({
+    where: { id: article.id },
+    data: { usageCount: { increment: 1 } },
+  });
+
+  return article;
+}
+
 // Only used by department-folders.ts callers that need a folder path helper
 // re-exported alongside the service for convenience.
 export { departmentKeyToFolder };
