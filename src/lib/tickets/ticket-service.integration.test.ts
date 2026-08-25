@@ -402,6 +402,54 @@ describe("ticket-service integration", () => {
     expect(resolvedIds).not.toContain(ticketB.id);
   });
 
+  it("puts the newest ticket at the top of a department queue, not on the last page", async () => {
+    // Against a realistically full queue -- the seeded demo database holds
+    // over 200 Technology Support tickets -- oldest-first plus paging put a
+    // just-created ticket on page 9, where neither an agent nor the guided
+    // demo could find it. Newest-first is what makes a queue usable at that
+    // size, so this asserts position, not merely presence.
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+    const agent = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+    });
+    const techDeptId = [...agent.departments.keys()][0]!;
+
+    const older = await createTicket(customer, await baseTicketInput(franchise.id));
+    await confirmTriage(triage, {
+      ticketId: older.id,
+      version: older.version,
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      priority: "MEDIUM",
+      tags: [],
+    });
+
+    const newer = await createTicket(customer, await baseTicketInput(franchise.id));
+    await confirmTriage(triage, {
+      ticketId: newer.id,
+      version: newer.version,
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      priority: "MEDIUM",
+      tags: [],
+    });
+
+    const firstPage = await listDepartmentQueue(agent, techDeptId, { pageSize: 25 });
+    const ids = firstPage.items.map((t) => t.id);
+
+    // The department is shared with other tests and manual sessions, so the
+    // claim is relative: the newer of these two comes first, and a brand-new
+    // ticket is on page one at all.
+    expect(ids).toContain(newer.id);
+    expect(ids.indexOf(newer.id)).toBeLessThan(
+      ids.indexOf(older.id) === -1 ? Number.MAX_SAFE_INTEGER : ids.indexOf(older.id),
+    );
+    expect(firstPage.items[0]?.createdAt.getTime()).toBeGreaterThanOrEqual(
+      firstPage.items[firstPage.items.length - 1]?.createdAt.getTime() ?? 0,
+    );
+  });
+
   it("scopes ticket search to the searcher's own department, except for triage/admin", async () => {
     const franchise = await createFranchise();
     const customer = await createTestUser({ roles: ["CUSTOMER"] });

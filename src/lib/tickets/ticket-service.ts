@@ -343,7 +343,13 @@ export async function listDepartmentQueue(
   const [items, total] = await Promise.all([
     db.ticket.findMany({
       where,
-      orderBy: { createdAt: "asc" },
+      // Newest first. Oldest-first reads like fair FIFO order, but a real
+      // department queue is hundreds of tickets deep and paged 25 at a time,
+      // so it buried every newly arriving ticket on the last page -- where an
+      // agent looking for the thing that just came in would never see it. The
+      // triage queue above is deliberately left oldest-first: triage works a
+      // short backlog down, and there newest-first would starve the oldest.
+      orderBy: { createdAt: "desc" },
       skip,
       take,
       include: { assignee: true },
