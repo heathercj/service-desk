@@ -370,7 +370,11 @@ export function TicketActions({
 
       <div className="flex flex-wrap gap-2">
         {canTransfer && (
-          <Button variant="outline" onClick={() => transferDialog.current?.open()}>
+          <Button
+            variant="outline"
+            data-tour="transfer-open"
+            onClick={() => transferDialog.current?.open()}
+          >
             Transfer department
           </Button>
         )}

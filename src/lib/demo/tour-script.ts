@@ -318,6 +318,9 @@ export const TOUR: TourBeat[] = [
           "department, and name the colleague there who should pick it up. It " +
           "asks for a reason, so the ticket carries its own history of why it " +
           "moved. Nobody has to bounce it back to Casey and start again.",
+        // Pointed at, not pressed. See tour-script.test.ts: transferring here
+        // would send the rest of the tour to another department's queue.
+        anchor: "transfer-open",
         advance: { kind: "read" },
       },
       {

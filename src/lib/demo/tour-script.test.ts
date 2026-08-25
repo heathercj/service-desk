@@ -190,6 +190,10 @@ feature("Guided tour manifest", () => {
       expect(entry?.step.advance.kind).toBe("read");
     });
 
+    await s.and("it points at the control rather than only describing it", () => {
+      expect(TOUR_STEPS[found.misroute]?.step.anchor).toBe("transfer-open");
+    });
+
     await s.and("it names both directions a mis-routed ticket can move", () => {
       const said = TOUR_STEPS[found.misroute]?.step.say ?? "";
       expect(said).toMatch(/department/i);

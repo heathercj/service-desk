@@ -203,6 +203,21 @@ test.describe("Guided tour, mode 1", () => {
       const advanced = waitForAdvance(page, index);
       const next = panel.getByRole("button", { name: "Next", exact: true });
 
+      // A read step that points at something is the one kind of anchor nobody
+      // checks: it is never clicked, so its attribute could be renamed away
+      // and the only symptom would be the spotlight landing on nothing, live,
+      // in front of a room. Clickable steps are covered further down, where
+      // the click itself asserts the anchor -- and they must be left to do it
+      // there, because at this point in the loop their page has not
+      // necessarily arrived yet.
+      if (step.anchor && step.advance.kind === "read") {
+        const anchored = anchorLocator(page, step, await tourContext(page));
+        await expect(
+          anchored,
+          `read step "${step.id}" points at a missing anchor`,
+        ).toHaveCount(1);
+      }
+
       // Nothing in mode 1 moves on its own, so every branch below does the
       // step's work and then presses Next. On a step with a side effect Next
       // is disabled until the app confirms that effect landed -- so waiting
