@@ -273,23 +273,6 @@ export default async function TicketDetailPage({
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Timeline</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-1 text-sm text-muted-foreground">
-            {statusHistory.map((h) => (
-              <li key={h.id}>
-                {formatDateTime(h.createdAt)}: {h.fromStatus ?? "(new)"} &rarr;{" "}
-                {h.toStatus}
-                {h.reason ? ` -- ${h.reason}` : ""}
-              </li>
-            ))}
-          </ol>
-        </CardContent>
-      </Card>
-
       {isStaffView &&
         ["IN_PROGRESS", "PENDING", "RESOLUTION_REVIEW"].includes(ticket.status) && (
           <KnowledgeOutcomePanel
@@ -319,6 +302,23 @@ export default async function TicketDetailPage({
         }))}
         departmentAgents={departmentAgents}
       />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Timeline</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ol className="space-y-1 text-sm text-muted-foreground">
+            {statusHistory.map((h) => (
+              <li key={h.id}>
+                {formatDateTime(h.createdAt)}: {h.fromStatus ?? "(new)"} &rarr;{" "}
+                {h.toStatus}
+                {h.reason ? ` -- ${h.reason}` : ""}
+              </li>
+            ))}
+          </ol>
+        </CardContent>
+      </Card>
     </div>
   );
 }
