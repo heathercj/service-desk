@@ -111,6 +111,7 @@ enum DepartmentKey {
   ACCOUNTING_SERVICES
   MARKETING
   LEGAL
+  IMPROVEMENT_IDEAS
 }
 
 model Department {

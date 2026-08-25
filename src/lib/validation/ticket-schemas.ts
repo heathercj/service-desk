@@ -8,6 +8,7 @@ export const DEPARTMENT_KEYS = [
   "ACCOUNTING_SERVICES",
   "MARKETING",
   "LEGAL",
+  "IMPROVEMENT_IDEAS",
 ] as const;
 
 export type DepartmentKeyValue = (typeof DEPARTMENT_KEYS)[number];

@@ -417,6 +417,36 @@ export async function searchTickets(actor: AuthContext, filters: SearchTicketsFi
   return { items, total, page, pageSize };
 }
 
+/**
+ * Improvement Ideas has no case worker following up -- the ticket is
+ * captured for review, not worked -- so the one obligation to the submitter
+ * is telling them that up front rather than leaving them to wonder why
+ * nothing happens next. Fired after whichever transaction routed the
+ * ticket here commits (see addConversationMessage above for why: external
+ * side effects don't belong inside a DB transaction), from both
+ * confirmTriage and transferDepartment, since a ticket can land in this
+ * department either way.
+ */
+async function notifyImprovementIdeaSubmission(ticket: {
+  id: string;
+  ticketNumber: string;
+  subject: string;
+  submittedName: string;
+  submittedEmail: string;
+}) {
+  await getEmailProvider().send({
+    ticketId: ticket.id,
+    toEmail: ticket.submittedEmail,
+    subject: `[${ticket.ticketNumber}] Thanks for your improvement idea`,
+    bodyText:
+      `Hi ${ticket.submittedName},\n\n` +
+      `Thank you for sharing "${ticket.subject}" with us. We've added it to our ` +
+      `Improvement Catalogue for review.\n\n` +
+      `You won't receive further updates on this specific submission, but rest ` +
+      `assured it will be reviewed by our team.`,
+  });
+}
+
 export interface ConfirmTriageInput {
   ticketId: string;
   version: number;
@@ -435,7 +465,7 @@ export async function confirmTriage(actor: AuthContext, input: ConfirmTriageInpu
 
   const targetDepartment = await requireActiveDepartment(input.departmentKey);
 
-  return db.$transaction(async (tx) => {
+  const updated = await db.$transaction(async (tx) => {
     const ticket = await loadTicketOrThrow(input.ticketId, tx);
     if (ticket.version !== input.version) {
       throw new ConflictError(
@@ -581,6 +611,12 @@ export async function confirmTriage(actor: AuthContext, input: ConfirmTriageInpu
 
     return updated;
   });
+
+  if (input.departmentKey === "IMPROVEMENT_IDEAS") {
+    await notifyImprovementIdeaSubmission(updated);
+  }
+
+  return updated;
 }
 
 export async function selfAssignTicket(
@@ -891,6 +927,9 @@ export async function transferDepartment(
           `and assigned to you.\n\nReason: ${reason}`,
       });
     }
+  }
+  if (newDepartmentKey === "IMPROVEMENT_IDEAS") {
+    await notifyImprovementIdeaSubmission(result);
   }
 
   return result;

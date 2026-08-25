@@ -20,6 +20,7 @@ const DEPARTMENTS: Array<{ key: DepartmentKey; name: string }> = [
   { key: "ACCOUNTING_SERVICES", name: "Accounting Services" },
   { key: "MARKETING", name: "Marketing" },
   { key: "LEGAL", name: "Legal" },
+  { key: "IMPROVEMENT_IDEAS", name: "Improvement Ideas" },
 ];
 
 const ROLE_NAMES: RoleName[] = [

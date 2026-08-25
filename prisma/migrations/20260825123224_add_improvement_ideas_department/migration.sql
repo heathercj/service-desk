@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "DepartmentKey" ADD VALUE 'IMPROVEMENT_IDEAS';

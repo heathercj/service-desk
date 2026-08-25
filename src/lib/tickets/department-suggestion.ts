@@ -73,6 +73,14 @@ const DEPARTMENT_KEYWORDS: Record<DepartmentKey, string[]> = {
     "trademark",
     "nda",
   ],
+  IMPROVEMENT_IDEAS: [
+    "idea",
+    "suggestion",
+    "improve",
+    "improvement",
+    "enhancement",
+    "feature request",
+  ],
 };
 
 /**

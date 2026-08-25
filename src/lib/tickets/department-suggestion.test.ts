@@ -26,6 +26,14 @@ describe("suggestDepartment", () => {
     expect(result?.departmentKey).toBe("LEGAL");
   });
 
+  it("suggests Improvement Ideas for a feature request", () => {
+    const result = suggestDepartment(
+      "A suggestion",
+      "I have an idea that could improve how we handle onboarding paperwork",
+    );
+    expect(result?.departmentKey).toBe("IMPROVEMENT_IDEAS");
+  });
+
   it("returns null when no keywords match", () => {
     const result = suggestDepartment("Hello", "Just saying hi, nothing specific here");
     expect(result).toBeNull();

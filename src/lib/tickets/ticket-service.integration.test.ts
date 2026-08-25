@@ -607,6 +607,97 @@ describe("ticket-service integration", () => {
     ).rejects.toBeInstanceOf(ForbiddenError);
   });
 
+  it("thanks the submitter when triage routes a ticket to Improvement Ideas", async () => {
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+
+    const ticket = await createTicket(customer, {
+      ...(await baseTicketInput(franchise.id)),
+      subject: "It would help if the portal remembered my last search",
+      description: "A suggestion: keep my last search filter between visits.",
+    });
+
+    await confirmTriage(triage, {
+      ticketId: ticket.id,
+      version: ticket.version,
+      departmentKey: "IMPROVEMENT_IDEAS",
+      priority: "LOW",
+      tags: [],
+    });
+
+    const email = await db.outboundEmail.findFirst({
+      where: { ticketId: ticket.id },
+      orderBy: { createdAt: "desc" },
+    });
+    expect(email?.toEmail).toBe(customer.email);
+    expect(email?.status).toBe("CAPTURED_DEV");
+    expect(email?.bodyText).toMatch(/improvement catalogue/i);
+    expect(email?.bodyText).toMatch(/will be reviewed/i);
+  });
+
+  it("sends no thank-you email when triage routes a ticket elsewhere", async () => {
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+
+    const ticket = await createTicket(customer, await baseTicketInput(franchise.id));
+
+    await confirmTriage(triage, {
+      ticketId: ticket.id,
+      version: ticket.version,
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      priority: "MEDIUM",
+      tags: [],
+    });
+
+    const email = await db.outboundEmail.findFirst({ where: { ticketId: ticket.id } });
+    expect(email).toBeNull();
+  });
+
+  it("also thanks the submitter when a mis-routed ticket is transferred into Improvement Ideas", async () => {
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+    const techAgent = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+    });
+    const ideasAgent = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "IMPROVEMENT_IDEAS" }],
+    });
+
+    const ticket = await createTicket(customer, await baseTicketInput(franchise.id));
+    const routed = await confirmTriage(triage, {
+      ticketId: ticket.id,
+      version: ticket.version,
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      priority: "MEDIUM",
+      tags: [],
+      assigneeId: techAgent.userId,
+    });
+
+    await transferDepartment(
+      techAgent,
+      routed.id,
+      routed.version,
+      "IMPROVEMENT_IDEAS",
+      "This reads as a product suggestion, not a fault -- wrong queue.",
+      ideasAgent.userId,
+    );
+
+    const submitterEmail = await db.outboundEmail.findFirst({
+      where: { ticketId: ticket.id, toEmail: customer.email },
+    });
+    expect(submitterEmail?.bodyText).toMatch(/improvement catalogue/i);
+
+    const agentEmail = await db.outboundEmail.findFirst({
+      where: { ticketId: ticket.id, toEmail: ideasAgent.email },
+    });
+    expect(agentEmail?.subject).toMatch(/transferred to you/i);
+  });
+
   it("refuses a department transfer with a blank reason", async () => {
     const franchise = await createFranchise();
     const customer = await createTestUser({ roles: ["CUSTOMER"] });

@@ -29,6 +29,7 @@ export async function ensureRolesAndDepartments() {
     { key: "ACCOUNTING_SERVICES", name: "Accounting Services" },
     { key: "MARKETING", name: "Marketing" },
     { key: "LEGAL", name: "Legal" },
+    { key: "IMPROVEMENT_IDEAS", name: "Improvement Ideas" },
   ];
   for (const d of departments) {
     await db.department.upsert({ where: { key: d.key }, create: d, update: {} });
