@@ -1,12 +1,8 @@
 import { redirect, notFound } from "next/navigation";
 import { getAuthContext } from "@/lib/auth/session";
-import {
-  getTicketByNumberForActor,
-  findSimilarTickets,
-} from "@/lib/tickets/ticket-service";
+import { getTicketByNumberForActor } from "@/lib/tickets/ticket-service";
 import { listAgentsByDepartment } from "@/lib/tickets/department-lookup";
 import { getAllowedNextStatuses } from "@/lib/tickets/state-machine";
-import { getKnowledgeSearchProvider } from "@/lib/knowledge/similarity";
 import { ForbiddenError, NotFoundError } from "@/lib/rbac/errors";
 import { canRecordKnowledgeException, toPolicyActor } from "@/lib/rbac/policies";
 import { AccessDenied } from "@/components/access-denied";
@@ -51,18 +47,7 @@ export default async function TicketDetailPage({
   const isStaffView = includeInternal;
   const allowedNextStatuses = getAllowedNextStatuses(ticket.status, auth.roles);
 
-  const [similarTickets, suggestedArticles, departmentAgents] = isStaffView
-    ? await Promise.all([
-        findSimilarTickets(ticket.id, ticket.departmentId, ticket.subject),
-        getKnowledgeSearchProvider().findSimilarArticles({
-          proposedTitle: ticket.subject,
-          proposedSummary: ticket.description.slice(0, 300),
-          departmentId: ticket.departmentId,
-          limit: 5,
-        }),
-        listAgentsByDepartment(),
-      ])
-    : [[], [], {}];
+  const departmentAgents = isStaffView ? await listAgentsByDepartment() : {};
 
   return (
     <div className="space-y-6">
@@ -224,51 +209,6 @@ export default async function TicketDetailPage({
                 <p className="whitespace-pre-wrap">{n.body}</p>
               </div>
             ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {isStaffView && (similarTickets.length > 0 || suggestedArticles.length > 0) && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              Possible duplicates &amp; suggested knowledge
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            {similarTickets.length > 0 && (
-              <div>
-                <p className="font-medium">Similar tickets</p>
-                <ul className="mt-1 list-disc pl-5">
-                  {similarTickets.map((t) => (
-                    <li key={t.id}>
-                      <a
-                        href={`/tickets/${t.ticketNumber}`}
-                        className="text-primary underline"
-                      >
-                        {t.ticketNumber}
-                      </a>{" "}
-                      -- {t.subject} ({t.status})
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {suggestedArticles.length > 0 && (
-              <div>
-                <p className="font-medium">Suggested knowledge articles</p>
-                <ul className="mt-1 list-disc pl-5">
-                  {suggestedArticles.map((a) => (
-                    <li key={a.articleId}>
-                      <a href={`/knowledge/${a.slug}`} className="text-primary underline">
-                        {a.title}
-                      </a>{" "}
-                      ({a.status})
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </CardContent>
         </Card>
       )}

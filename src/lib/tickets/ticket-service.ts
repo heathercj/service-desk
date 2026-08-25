@@ -211,37 +211,6 @@ export async function getTicketForActor(actor: AuthContext, ticketId: string) {
   };
 }
 
-interface SimilarTicketRow {
-  id: string;
-  ticketNumber: string;
-  subject: string;
-  status: TicketStatus;
-  sim: number;
-}
-
-/**
- * Lightweight "possible duplicate" / "similar tickets" signal for the
- * triage and department workbenches (Section 7, 8): trigram similarity on
- * subject within the same department, excluding the ticket itself.
- * Deterministic and local -- no AI provider involved.
- */
-export async function findSimilarTickets(
-  ticketId: string,
-  departmentId: string,
-  subject: string,
-  limit = 5,
-) {
-  return db.$queryRaw<SimilarTicketRow[]>`
-    SELECT id, "ticketNumber", subject, status, similarity(subject, ${subject}) AS sim
-    FROM "Ticket"
-    WHERE id != ${ticketId}
-      AND "departmentId" = ${departmentId}
-      AND similarity(subject, ${subject}) > 0.2
-    ORDER BY sim DESC
-    LIMIT ${limit}
-  `;
-}
-
 export interface TicketListFilters {
   status?: TicketStatus[];
   search?: string;
