@@ -327,7 +327,7 @@ export const TOUR: TourBeat[] = [
         as: "dept-agent",
         route: ticketRoute,
         say:
-          "The ticket has been moved to 'In Progress'. These states can be " +
+          "The ticket can be moved to 'In Progress'. These states can be " +
           "reviewed by requestors to see how their ticket is progressing.",
         cue: "Move it to In Progress.",
         anchor: "transition-IN_PROGRESS",
