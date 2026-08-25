@@ -309,6 +309,18 @@ export const TOUR: TourBeat[] = [
         perform: (_ctx, dom) => dom.click("assign-self"),
       },
       {
+        id: "work-misroute",
+        as: "dept-agent",
+        route: ticketRoute,
+        say:
+          "This one is Alex's to solve. When it is not -- when a ticket lands on " +
+          "the wrong team -- whoever is holding it can send it to the right " +
+          "department, and name the colleague there who should pick it up. It " +
+          "asks for a reason, so the ticket carries its own history of why it " +
+          "moved. Nobody has to bounce it back to Casey and start again.",
+        advance: { kind: "read" },
+      },
+      {
         id: "work-progress",
         as: "dept-agent",
         route: ticketRoute,

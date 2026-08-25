@@ -162,6 +162,41 @@ feature("Guided tour manifest", () => {
     });
   });
 
+  scenario("The tour admits a ticket can land in the wrong place", async (s) => {
+    // Narration only. The demo's ticket is correctly routed, so a step that
+    // actually transferred it would send the whole rest of the tour to another
+    // department's queue -- but a room full of people who route tickets for a
+    // living will ask, and the honest answer is that mistakes are recoverable.
+    const found = await s.given("the misroute step and the step that claims it", () => ({
+      misroute: TOUR_STEPS.findIndex(({ step }) => step.id === "work-misroute"),
+      claim: TOUR_STEPS.findIndex(({ step }) => step.id === "work-claim"),
+    }));
+
+    await s.then("the tour mentions it at all", () =>
+      expect(found.misroute).toBeGreaterThanOrEqual(0),
+    );
+
+    await s.and("it comes up once somebody owns the ticket", () =>
+      expect(found.misroute).toBeGreaterThan(found.claim),
+    );
+
+    await s.and("it says so in words rather than moving the ticket", () => {
+      const entry = TOUR_STEPS[found.misroute];
+      expect(entry).toBeDefined();
+      expect(
+        entry?.step.perform,
+        "work-misroute must not actually transfer the ticket",
+      ).toBeUndefined();
+      expect(entry?.step.advance.kind).toBe("read");
+    });
+
+    await s.and("it names both directions a mis-routed ticket can move", () => {
+      const said = TOUR_STEPS[found.misroute]?.step.say ?? "";
+      expect(said).toMatch(/department/i);
+      expect(said).toMatch(/colleague|agent|teammate/i);
+    });
+  });
+
   scenario("Each beat carries a premise and at least one step", async (s) => {
     await s.then("no beat is empty or unexplained", () => {
       for (const beat of TOUR) {
