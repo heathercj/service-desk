@@ -93,21 +93,24 @@ feature("Mis-route transfer", () => {
     },
   );
 
-  scenario("The transfer control carries the anchor Henry's tour points at", async (s) => {
-    // The guided tour addresses the UI through data-tour attributes rather
-    // than button text, so renaming this button is safe but dropping the
-    // attribute would leave the tour's work-misroute card pointing at
-    // nothing, live, in front of a room.
-    await s.given("the ticket's assignee viewing their actions", () =>
-      renderActions({ roles: ["DEPARTMENT_AGENT"], isAssignee: true }),
-    );
+  scenario(
+    "The transfer control carries the anchor Henry's tour points at",
+    async (s) => {
+      // The guided tour addresses the UI through data-tour attributes rather
+      // than button text, so renaming this button is safe but dropping the
+      // attribute would leave the tour's work-misroute card pointing at
+      // nothing, live, in front of a room.
+      await s.given("the ticket's assignee viewing their actions", () =>
+        renderActions({ roles: ["DEPARTMENT_AGENT"], isAssignee: true }),
+      );
 
-    await s.then("the tour can find the transfer control", () => {
-      expect(
-        screen.getByRole("button", { name: "Transfer department" }),
-      ).toHaveAttribute("data-tour", "transfer-open");
-    });
-  });
+      await s.then("the tour can find the transfer control", () => {
+        expect(
+          screen.getByRole("button", { name: "Transfer department" }),
+        ).toHaveAttribute("data-tour", "transfer-open");
+      });
+    },
+  );
 
   scenario("Transferring to a named agent sends their id along", async (s) => {
     await s.given("the ticket's assignee viewing the transfer form", () =>

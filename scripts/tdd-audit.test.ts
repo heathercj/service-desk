@@ -80,23 +80,28 @@ feature("Deciding which files the TDD audit scores", () => {
       ]);
     });
 
-    await s.and("the Prisma singleton, env parser, formatters and dev identity table are named, not hidden", () => {
-      expect(classified.notScored).toEqual([
-        "src/lib/db.ts",
-        "src/lib/env.ts",
-        "src/lib/utils.ts",
-        "src/lib/dev-auth/dev-identities.ts",
-      ]);
-    });
+    await s.and(
+      "the Prisma singleton, env parser, formatters and dev identity table are named, not hidden",
+      () => {
+        expect(classified.notScored).toEqual([
+          "src/lib/db.ts",
+          "src/lib/env.ts",
+          "src/lib/utils.ts",
+          "src/lib/dev-auth/dev-identities.ts",
+        ]);
+      },
+    );
   });
 
   scenario("Test files are never features in their own right", async (s) => {
-    const classified = await s.given("a service beside its unit and integration tests", () =>
-      classifySourceFiles([
-        "src/lib/tickets/ticket-service.ts",
-        "src/lib/tickets/ticket-service.test.ts",
-        "src/lib/tickets/ticket-service.integration.test.ts",
-      ]),
+    const classified = await s.given(
+      "a service beside its unit and integration tests",
+      () =>
+        classifySourceFiles([
+          "src/lib/tickets/ticket-service.ts",
+          "src/lib/tickets/ticket-service.test.ts",
+          "src/lib/tickets/ticket-service.integration.test.ts",
+        ]),
     );
 
     await s.then("only the service is scored", () => {

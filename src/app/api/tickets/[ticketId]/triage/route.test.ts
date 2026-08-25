@@ -99,7 +99,9 @@ feature("Confirming a ticket's triage", () => {
   });
 
   scenario("Triage with no tags sends an empty list, not nothing", async (s) => {
-    await s.given("a signed-in triage agent", () => setCurrentActor(actors.triageAgent()));
+    await s.given("a signed-in triage agent", () =>
+      setCurrentActor(actors.triageAgent()),
+    );
 
     await s.and("the service accepts the decision", () => {
       vi.mocked(confirmTriage).mockResolvedValue(triagedTicket());
@@ -118,7 +120,9 @@ feature("Confirming a ticket's triage", () => {
   });
 
   scenario("The path decides which ticket is triaged, not the body", async (s) => {
-    await s.given("a signed-in triage agent", () => setCurrentActor(actors.triageAgent()));
+    await s.given("a signed-in triage agent", () =>
+      setCurrentActor(actors.triageAgent()),
+    );
 
     await s.and("the service accepts the decision", () => {
       vi.mocked(confirmTriage).mockResolvedValue(triagedTicket());
@@ -152,7 +156,9 @@ feature("Confirming a ticket's triage", () => {
       body: validTriage({ tags: Array.from({ length: 11 }, (_, i) => `tag-${i}`) }),
     },
   ])("A triage decision with $payload is rejected", async (example, s) => {
-    await s.given("a signed-in triage agent", () => setCurrentActor(actors.triageAgent()));
+    await s.given("a signed-in triage agent", () =>
+      setCurrentActor(actors.triageAgent()),
+    );
 
     const res = await s.when("the request arrives", () => triage(example.body));
 
@@ -178,7 +184,9 @@ feature("Confirming a ticket's triage", () => {
   });
 
   scenario("A ticket already past triage cannot be triaged again", async (s) => {
-    await s.given("a signed-in triage agent", () => setCurrentActor(actors.triageAgent()));
+    await s.given("a signed-in triage agent", () =>
+      setCurrentActor(actors.triageAgent()),
+    );
 
     await s.and("the ticket has moved on", () => {
       vi.mocked(confirmTriage).mockRejectedValue(
@@ -194,7 +202,9 @@ feature("Confirming a ticket's triage", () => {
   });
 
   scenario("Triaging an unknown ticket reports not found", async (s) => {
-    await s.given("a signed-in triage agent", () => setCurrentActor(actors.triageAgent()));
+    await s.given("a signed-in triage agent", () =>
+      setCurrentActor(actors.triageAgent()),
+    );
 
     await s.and("no such ticket exists", () => {
       vi.mocked(confirmTriage).mockRejectedValue(new NotFoundError("Ticket not found"));
@@ -212,8 +222,6 @@ feature("Confirming a ticket's triage", () => {
 
     await s.then("the request is unauthenticated", () => expect(res.status).toBe(401));
 
-    await s.and("nothing is triaged", () =>
-      expect(confirmTriage).not.toHaveBeenCalled(),
-    );
+    await s.and("nothing is triaged", () => expect(confirmTriage).not.toHaveBeenCalled());
   });
 });

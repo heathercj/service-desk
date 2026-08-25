@@ -161,9 +161,9 @@ describe("admin-service integration", () => {
       const agent = await createTestUser({ roles: ["DEPARTMENT_AGENT"] });
       const legal = await db.department.findUniqueOrThrow({ where: { key: "LEGAL" } });
 
-      await expect(
-        setDepartmentActive(agent, legal.id, false),
-      ).rejects.toBeInstanceOf(ForbiddenError);
+      await expect(setDepartmentActive(agent, legal.id, false)).rejects.toBeInstanceOf(
+        ForbiddenError,
+      );
 
       const after = await db.department.findUniqueOrThrow({ where: { key: "LEGAL" } });
       expect(after.isActive).toBe(true);
@@ -182,9 +182,9 @@ describe("admin-service integration", () => {
       const listed = users.find((u) => u.id === target.userId);
 
       expect(listed?.roles.map((r) => r.role.name)).toEqual(["DEPARTMENT_AGENT"]);
-      expect(
-        listed?.departmentMemberships.map((m) => m.department.key),
-      ).toEqual(["TECHNOLOGY_SUPPORT"]);
+      expect(listed?.departmentMemberships.map((m) => m.department.key)).toEqual([
+        "TECHNOLOGY_SUPPORT",
+      ]);
     });
 
     it("refuses to list users for a non-administrator", async () => {

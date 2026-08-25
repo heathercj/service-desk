@@ -48,13 +48,16 @@ beforeEach(() => {
 
 feature("Reassigning a ticket to another agent", () => {
   scenario("A department manager moves a ticket to a colleague", async (s) => {
-    const manager = await s.given("a signed-in manager of the ticket's department", () => {
-      const actor = actors.departmentManager({
-        departments: { [DEPARTMENTS.it]: true },
-      });
-      setCurrentActor(actor);
-      return actor;
-    });
+    const manager = await s.given(
+      "a signed-in manager of the ticket's department",
+      () => {
+        const actor = actors.departmentManager({
+          departments: { [DEPARTMENTS.it]: true },
+        });
+        setCurrentActor(actor);
+        return actor;
+      },
+    );
 
     await s.and("the target agent is in the same department", () => {
       vi.mocked(reassignTicket).mockResolvedValue(reassignedTicket());

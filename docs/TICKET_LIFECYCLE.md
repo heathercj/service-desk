@@ -64,7 +64,7 @@ stateDiagram-v2
   timeline.
 - **Mis-route transfer**: `transferDepartment()` can name a new assignee in
   the same call as the department change -- for the case where a ticket
-  landed in the wrong department *and* with the wrong owner. The ticket's
+  landed in the wrong department _and_ with the wrong owner. The ticket's
   current assignee may initiate this themselves (not only a manager, triage
   agent, or admin, per `canTransferDepartment()`); the named assignee must
   belong to the destination department, and is emailed via the same

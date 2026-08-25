@@ -73,9 +73,20 @@ Three ways, and the first is the one to use:
 ENABLE_DEV_AUTH=true
 ENABLE_DEMO_TOUR=true
 
-pnpm db:seed
+pnpm demo:prep   # reset to the seeded desk -- run this before every demo
 pnpm dev
 ```
+
+`demo:prep` is not optional politeness. Department queues are newest-first,
+so anything a previous walk or e2e run left behind sits at the TOP of the
+queue Alex opens -- the first rows the room reads. It resets rather than
+sweeps, because `demo:clean` can only find litter carrying the tour's run
+token, and the other e2e specs create tickets with no token at all. It ends
+by printing the top of that queue, which is worth reading before you
+present: anything there you do not recognise is not seed data.
+
+It is destructive and local-only. If you have exploration worth keeping, run
+`pnpm demo:clean --yes` instead and accept that non-tour leftovers stay.
 
 Nothing starts on its own. A launcher offers itself in the bottom-right
 corner and the app is otherwise untouched, so free exploration stays the
@@ -114,6 +125,11 @@ pnpm demo:clean          # report what it would remove
 pnpm demo:clean --yes    # remove it
 ```
 
+Cleaning up afterwards is still worth doing -- it is what keeps the Markdown
+files out of a commit -- but it is no longer what a demo depends on. Prepping
+at the start (`pnpm demo:prep`, above) is, because that does not rely on the
+previous presenter having remembered.
+
 It keys off the run token in the ticket subject and article title, and
 deletes files by the `filePath` on the row rather than guessing from
 filenames. Tickets go first: `TicketKnowledgeLink` does not cascade from the
@@ -133,6 +149,7 @@ gone, which is what a `db:reset` between runs leaves behind.
 | `src/components/demo/henry.tsx`      | Inline SVG lion, and the speech bubble his narration sits in.                              |
 | `src/components/demo/tour-state.ts`  | `sessionStorage` persistence.                                                              |
 | `scripts/demo-clean.ts`              | Litter sweep.                                                                              |
+| `scripts/demo-prep.ts`               | Pre-demo reset to the seeded desk, and a look at what the room will see.                   |
 
 Both modes consume the same manifest. There is deliberately no second copy
 of the choreography.

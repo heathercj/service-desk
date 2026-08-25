@@ -161,8 +161,7 @@ export const TOUR: TourBeat[] = [
         id: "intake-subject",
         as: "customer",
         route: "/tickets/new",
-        say:
-          "First a one-line summary -- think of it as the subject of an email.",
+        say: "First a one-line summary -- think of it as the subject of an email.",
         cue: "Type a subject, or let me fill it in.",
         anchor: "ticket-subject",
         advance: { kind: "filled", anchor: "ticket-subject" },
@@ -452,8 +451,7 @@ export const TOUR: TourBeat[] = [
         id: "kb-title",
         as: "dept-agent",
         route: ticketRoute,
-        say:
-          "An identifiable title is given so it can be easily searched later.",
+        say: "An identifiable title is given so it can be easily searched later.",
         cue: "Give it a title someone would search for.",
         anchor: "draft-title",
         advance: {
@@ -467,8 +465,7 @@ export const TOUR: TourBeat[] = [
         id: "kb-summary",
         as: "dept-agent",
         route: ticketRoute,
-        say:
-          "The summary should be concise and easily readable.",
+        say: "The summary should be concise and easily readable.",
         cue: "Write the summary.",
         anchor: "draft-summary",
         advance: { kind: "filled", anchor: "draft-summary" },
@@ -539,8 +536,7 @@ export const TOUR: TourBeat[] = [
         id: "publish-article",
         as: "knowledge-manager",
         route: "/knowledge/manage",
-        say:
-          "Articles are only available after being published.",
+        say: "Articles are only available after being published.",
         cue: "Publish the draft.",
         anchor: "article-publish",
         within: { anchor: "article-row", containing: (ctx) => ctx.articleTitle },

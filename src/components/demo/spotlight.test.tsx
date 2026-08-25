@@ -54,17 +54,22 @@ feature("Spotlight scrolling", () => {
     });
   });
 
-  scenario("A narration step with nothing to point at leaves the page alone", async (s) => {
-    // Most of the tour is narration. Scrolling on those steps would yank the
-    // page for no reason, and away from whatever the viewer was reading.
-    await s.given("a page with anchors on it", () => anchored("ticket-consent"));
+  scenario(
+    "A narration step with nothing to point at leaves the page alone",
+    async (s) => {
+      // Most of the tour is narration. Scrolling on those steps would yank the
+      // page for no reason, and away from whatever the viewer was reading.
+      await s.given("a page with anchors on it", () => anchored("ticket-consent"));
 
-    await s.when("the spotlight has no anchor", () => {
-      render(<Spotlight anchor={undefined} />);
-    });
+      await s.when("the spotlight has no anchor", () => {
+        render(<Spotlight anchor={undefined} />);
+      });
 
-    await s.then("nothing scrolls", () => expect(scrollIntoView).not.toHaveBeenCalled());
-  });
+      await s.then("nothing scrolls", () =>
+        expect(scrollIntoView).not.toHaveBeenCalled(),
+      );
+    },
+  );
 
   scenario("Re-measuring the same anchor does not keep scrolling", async (s) => {
     // The spotlight re-measures on scroll, on mutation, and on a 400ms poll.
