@@ -22,7 +22,7 @@ export default defineConfig({
       ENTRA_TENANT_ID: "11111111-1111-1111-1111-111111111111",
       ENABLE_DEV_AUTH: "false",
     },
-    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    include: ["{src,scripts}/**/*.{test,spec}.{ts,tsx}"],
     exclude: ["e2e/**", "node_modules/**", "src/**/*.integration.test.ts"],
     coverage: {
       provider: "v8",

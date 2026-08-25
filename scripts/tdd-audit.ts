@@ -26,6 +26,7 @@
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const root = process.cwd();
 
@@ -106,33 +107,61 @@ function discoverAllSourceFiles(): string[] {
   return all.map((f) => toPosix(path.relative(root, f))).filter((f) => /\.tsx?$/.test(f));
 }
 
-function discoverFeatureFiles(allFiles: string[]): FeatureFile[] {
+// Demo scaffolding: code that exists to drive the guided tour and seeded
+// data, not desk behaviour anyone relies on. Held to the same bar it would
+// show up as the largest gap in src/lib forever, making the coverage number
+// read worse than the product is; dropped silently it would make the number
+// read better than it is. So it is excluded from the score and named in the
+// report instead.
+const NOT_A_FEATURE_PREFIXES = [
+  // The simulated customers and agents behind the demo -- personas and the
+  // scripted responses they give, not the service desk itself.
+  "src/lib/simulation/",
+];
+
+export interface ClassifiedFiles {
+  /** Files held to the "ships with its tests" bar. */
+  features: FeatureFile[];
+  /** page.tsx/layout.tsx and friends -- covered by the e2e suite instead. */
+  frameworkEntryPoints: string[];
+  /** Scaffolding excluded from the score but still reported. */
+  notScored: string[];
+}
+
+/**
+ * Sorts a list of repo-relative source paths into what the audit scores,
+ * what it reports separately, and what it ignores outright. Pure, so the
+ * policy it encodes can be tested without a source tree on disk.
+ */
+export function classifySourceFiles(allFiles: string[]): ClassifiedFiles {
   const features: FeatureFile[] = [];
+  const frameworkEntryPoints: string[] = [];
+  const notScored: string[] = [];
+
   for (const relPath of allFiles) {
     const base = path.posix.basename(relPath);
     if (isAnyTest(base)) continue;
+
+    if (relPath.startsWith("src/app/") && FRAMEWORK_FILENAMES.has(base)) {
+      frameworkEntryPoints.push(relPath);
+      continue;
+    }
+
+    if (NOT_A_FEATURE_PREFIXES.some((prefix) => relPath.startsWith(prefix))) {
+      notScored.push(relPath);
+      continue;
+    }
 
     if (relPath.startsWith("src/lib/")) {
       features.push({ relPath, category: "lib" });
     } else if (relPath.startsWith("src/app/api/") && base === "route.ts") {
       features.push({ relPath, category: "api-route" });
-    } else if (
-      relPath.startsWith("src/components/") &&
-      base.endsWith(".tsx") &&
-      !FRAMEWORK_FILENAMES.has(base)
-    ) {
+    } else if (relPath.startsWith("src/components/") && base.endsWith(".tsx")) {
       features.push({ relPath, category: "component" });
     }
   }
-  return features;
-}
 
-function discoverFrameworkEntryPoints(allFiles: string[]): string[] {
-  return allFiles.filter(
-    (relPath) =>
-      relPath.startsWith("src/app/") &&
-      FRAMEWORK_FILENAMES.has(path.posix.basename(relPath)),
-  );
+  return { features, frameworkEntryPoints, notScored };
 }
 
 // --- Coverage: is there a test in the same directory? -------------------
@@ -246,8 +275,7 @@ function main(): void {
   }
 
   const allFiles = discoverAllSourceFiles();
-  const features = discoverFeatureFiles(allFiles);
-  const frameworkEntryPoints = discoverFrameworkEntryPoints(allFiles);
+  const { features, frameworkEntryPoints, notScored } = classifySourceFiles(allFiles);
   const e2eSpecs = (() => {
     const out: string[] = [];
     walk(path.join(root, "e2e"), out);
@@ -361,6 +389,13 @@ function main(): void {
     `  E2E specs in e2e/*.spec.ts: ${e2eSpecs.length}` +
       ` -- plain Playwright test(), not BDD-styled, by this repo's convention.`,
   );
+  if (notScored.length > 0) {
+    console.log(
+      `\n  Demo scaffolding, excluded from the score: ${notScored.length} file(s)` +
+        ` -- simulated agents and customers, not desk behaviour.`,
+    );
+    for (const f of notScored) console.log(`    - ${f}`);
+  }
 
   // --- Summary ---
   const withHistory = paired.length + testFirst.length + testAfter.length;
@@ -383,4 +418,9 @@ function main(): void {
   );
 }
 
-main();
+// Guarded so the classification above can be imported by its test without
+// the audit running as a side effect.
+const invokedDirectly =
+  process.argv[1] !== undefined &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (invokedDirectly) main();
