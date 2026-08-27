@@ -6,6 +6,7 @@ import {
   canArchiveArticle,
   canCreateTicket,
   canDraftOrLinkKnowledge,
+  canManageNotificationPreferences,
   canPublishArticle,
   canReassign,
   canRecordKnowledgeException,
@@ -220,5 +221,19 @@ describe("knowledge base access", () => {
     expect(canSetArticleVisibility(km)).toBe(true);
     expect(canSetArticleVisibility(admin)).toBe(true);
     expect(canSetArticleVisibility(agent)).toBe(false);
+  });
+});
+
+describe("notification preferences access", () => {
+  it("lets any staff role manage their own notification preferences", () => {
+    expect(canManageNotificationPreferences(actor(["TRIAGE_AGENT"]))).toBe(true);
+    expect(canManageNotificationPreferences(actor(["DEPARTMENT_AGENT"]))).toBe(true);
+    expect(canManageNotificationPreferences(actor(["DEPARTMENT_MANAGER"]))).toBe(true);
+    expect(canManageNotificationPreferences(actor(["KNOWLEDGE_MANAGER"]))).toBe(true);
+    expect(canManageNotificationPreferences(actor(["ADMINISTRATOR"]))).toBe(true);
+  });
+
+  it("blocks a customer-only actor", () => {
+    expect(canManageNotificationPreferences(actor(["CUSTOMER"]))).toBe(false);
   });
 });

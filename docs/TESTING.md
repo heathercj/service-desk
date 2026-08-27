@@ -151,6 +151,26 @@ pnpm test:integration
 the tsvector triggers, and `AUTH_SECRET`/`ENTRA_TENANT_ID` must be set for
 `src/lib/env.ts` to validate.
 
+### `DATABASE_URL` silently falls back to your dev database
+
+If you skip the `export DATABASE_URL=...service_desk_test` step above and
+just run `pnpm test:integration`, it does not fail loudly. `@prisma/client`
+loads `.env` itself at runtime whenever `DATABASE_URL` isn't already in
+`process.env` — a behaviour independent of anything in this app's own code
+— so the suite quietly connects to `service_desk` (your dev database) using
+whatever `.env` has, and every fixture user/ticket/email the run creates
+lands there instead of in the disposable test database. Nothing in the
+test output looks wrong; the tests pass and pollute real-looking dev data
+at the same time.
+
+Always export `DATABASE_URL` (pointed at `service_desk_test`) in the same
+shell invocation you run `pnpm test:integration` from — an already-set env
+var is what makes Prisma skip its own `.env` load. If you suspect this has
+already happened, `entraObjectId` distinguishes real seeded dev identities
+(`00000000-dev0-...`, from `src/lib/dev-auth/dev-identities.ts`) from
+`createTestUser()` fixtures (`test-<uuid>`), so the pollution can be found
+and deleted without touching real data.
+
 ## The demo walk
 
 [`e2e/demo-golden-path.spec.ts`](../e2e/demo-golden-path.spec.ts) carries one

@@ -51,27 +51,28 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  roles                 UserRole[]
-  departmentMemberships DepartmentMembership[]
-  submittedTickets      Ticket[]                   @relation("TicketSubmitter")
-  assignedTickets       Ticket[]                   @relation("TicketAssignee")
-  resolvedTickets       Ticket[]                   @relation("TicketResolver")
-  conversationMessages  ConversationMessage[]
-  internalNotes         InternalNote[]
-  uploadedAttachments   Attachment[]
-  statusChanges         TicketStatusHistory[]
-  assignmentChanges     TicketAssignmentHistory[]
-  departmentChanges     TicketDepartmentHistory[]
-  createdTicketLinks    TicketLink[]
-  authoredArticles      KnowledgeArticle[]         @relation("ArticleAuthor")
-  reviewedArticles      KnowledgeArticle[]         @relation("ArticleReviewer")
-  articleRevisions      KnowledgeArticleRevision[]
-  knowledgeLinks        TicketKnowledgeLink[]
-  similarityChecks      KnowledgeSimilarityCheck[]
-  knowledgeFeedback     KnowledgeFeedback[]
-  deflectionEvents      DeflectionEvent[]
-  auditEvents           AuditEvent[]
-  appSettingUpdates     AppSetting[]
+  roles                  UserRole[]
+  departmentMemberships  DepartmentMembership[]
+  submittedTickets       Ticket[]                   @relation("TicketSubmitter")
+  assignedTickets        Ticket[]                   @relation("TicketAssignee")
+  resolvedTickets        Ticket[]                   @relation("TicketResolver")
+  conversationMessages   ConversationMessage[]
+  internalNotes          InternalNote[]
+  uploadedAttachments    Attachment[]
+  statusChanges          TicketStatusHistory[]
+  assignmentChanges      TicketAssignmentHistory[]
+  departmentChanges      TicketDepartmentHistory[]
+  createdTicketLinks     TicketLink[]
+  authoredArticles       KnowledgeArticle[]         @relation("ArticleAuthor")
+  reviewedArticles       KnowledgeArticle[]         @relation("ArticleReviewer")
+  articleRevisions       KnowledgeArticleRevision[]
+  knowledgeLinks         TicketKnowledgeLink[]
+  similarityChecks       KnowledgeSimilarityCheck[]
+  knowledgeFeedback      KnowledgeFeedback[]
+  deflectionEvents       DeflectionEvent[]
+  auditEvents            AuditEvent[]
+  appSettingUpdates      AppSetting[]
+  notificationPreference NotificationPreference?
 
   @@index([entraTenantId])
   @@index([email])
@@ -262,6 +263,12 @@ model Ticket {
   // still "current" for the resolution gate (Section 11.3).
   resolutionEnteredAt  DateTime?
   lastKnowledgeCheckAt DateTime?
+
+  // Stamped when a dormant-ticket alert email fires (Section: notifications).
+  // Compared against freshly recomputed last-activity on every sweep, rather
+  // than cleared on the next touch, so a ticket that goes dormant, gets
+  // touched, and goes dormant again is re-alerted without extra bookkeeping.
+  dormantAlertSentAt DateTime?
 
   attemptedArticleIds String[] @default([])
 
@@ -699,4 +706,19 @@ model AppSetting {
   updatedAt   DateTime @updatedAt
 
   updatedBy User? @relation(fields: [updatedById], references: [id])
+}
+
+// Per-user email notification preferences (Section: notifications). One row
+// per user, created lazily on first save -- a missing row means "all
+// defaults", not "no preferences", so every existing user doesn't need a
+// backfilled row when a new toggle is added.
+model NotificationPreference {
+  id                             String   @id @default(uuid())
+  userId                         String   @unique
+  ticketAssignedEmail            Boolean  @default(true)
+  ticketCommentedEmail           Boolean  @default(true)
+  knowledgeArticlePublishedEmail Boolean  @default(true)
+  updatedAt                      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -51,6 +51,15 @@ export function SiteNav({ auth }: SiteNavProps) {
     links.push({ href: "/knowledge/manage", label: "Knowledge" });
   }
   if (roles.has("ADMINISTRATOR")) links.push({ href: "/admin", label: "Admin" });
+  if (
+    roles.has("TRIAGE_AGENT") ||
+    roles.has("DEPARTMENT_AGENT") ||
+    roles.has("DEPARTMENT_MANAGER") ||
+    roles.has("KNOWLEDGE_MANAGER") ||
+    roles.has("ADMINISTRATOR")
+  ) {
+    links.push({ href: "/settings/notifications", label: "Notification settings" });
+  }
   links.push({ href: "/dev-mailbox", label: "Dev mailbox" });
 
   return (

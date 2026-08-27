@@ -8,12 +8,14 @@ import {
   createTestUser,
   getDepartmentId,
 } from "@/test-support/fixtures";
+import { updateNotificationPreferences } from "@/lib/notifications/preferences-service";
 import {
   addConversationMessage,
   confirmTriage,
   createTicket,
   getTicketForActor,
   listDepartmentQueue,
+  reassignTicket,
   resolveTicket,
   searchTickets,
   selfAssignTicket,
@@ -292,6 +294,73 @@ describe("ticket-service integration", () => {
     expect(email?.status).toBe("CAPTURED_DEV");
   });
 
+  it("emails the assignee when the customer replies", async () => {
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+    const agent = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+    });
+
+    const created = await createTicket(customer, await baseTicketInput(franchise.id));
+    const queued = await confirmTriage(triage, {
+      ticketId: created.id,
+      version: created.version,
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      priority: "MEDIUM",
+      tags: [],
+    });
+    const assigned = await selfAssignTicket(agent, queued.id, queued.version);
+
+    const result = await addConversationMessage(customer, {
+      ticketId: assigned.id,
+      version: assigned.version,
+      body: "It's still happening this morning.",
+    });
+
+    const email = await db.outboundEmail.findFirst({
+      where: { conversationMessageId: result.message.id, toEmail: agent.email },
+    });
+    expect(email?.subject).toMatch(new RegExp(customer.displayName));
+  });
+
+  it("does not email the assignee about a customer reply once they opt out", async () => {
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+    const agent = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+    });
+
+    const created = await createTicket(customer, await baseTicketInput(franchise.id));
+    const queued = await confirmTriage(triage, {
+      ticketId: created.id,
+      version: created.version,
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      priority: "MEDIUM",
+      tags: [],
+    });
+    const assigned = await selfAssignTicket(agent, queued.id, queued.version);
+    await updateNotificationPreferences(agent, {
+      ticketAssignedEmail: true,
+      ticketCommentedEmail: false,
+      knowledgeArticlePublishedEmail: true,
+    });
+
+    const result = await addConversationMessage(customer, {
+      ticketId: assigned.id,
+      version: assigned.version,
+      body: "It's still happening this morning.",
+    });
+
+    const email = await db.outboundEmail.findFirst({
+      where: { conversationMessageId: result.message.id, toEmail: agent.email },
+    });
+    expect(email).toBeNull();
+  });
+
   it("lets triage assign a ticket directly to an agent while routing it", async () => {
     const franchise = await createFranchise();
     const customer = await createTestUser({ roles: ["CUSTOMER"] });
@@ -314,6 +383,76 @@ describe("ticket-service integration", () => {
 
     expect(routed.status).toBe("ASSIGNED");
     expect(routed.assigneeId).toBe(agent.userId);
+
+    const email = await db.outboundEmail.findFirst({
+      where: { ticketId: ticket.id, toEmail: agent.email },
+    });
+    expect(email?.subject).toMatch(/assigned to you/i);
+  });
+
+  it("does not email the assignee when they have turned off assignment notifications", async () => {
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+    const agent = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+    });
+    await updateNotificationPreferences(agent, {
+      ticketAssignedEmail: false,
+      ticketCommentedEmail: true,
+      knowledgeArticlePublishedEmail: true,
+    });
+
+    const ticket = await createTicket(customer, await baseTicketInput(franchise.id));
+    await confirmTriage(triage, {
+      ticketId: ticket.id,
+      version: ticket.version,
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      priority: "MEDIUM",
+      tags: [],
+      assigneeId: agent.userId,
+    });
+
+    const email = await db.outboundEmail.findFirst({
+      where: { ticketId: ticket.id, toEmail: agent.email },
+    });
+    expect(email).toBeNull();
+  });
+
+  it("emails the new assignee on a plain reassignment", async () => {
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+    const manager = await createTestUser({
+      roles: ["DEPARTMENT_MANAGER"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT", isManager: true }],
+    });
+    const agentA = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+    });
+    const agentB = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+    });
+
+    const ticket = await createTicket(customer, await baseTicketInput(franchise.id));
+    const routed = await confirmTriage(triage, {
+      ticketId: ticket.id,
+      version: ticket.version,
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      priority: "MEDIUM",
+      tags: [],
+      assigneeId: agentA.userId,
+    });
+
+    await reassignTicket(manager, routed.id, routed.version, agentB.userId);
+
+    const email = await db.outboundEmail.findFirst({
+      where: { ticketId: ticket.id, toEmail: agentB.email },
+    });
+    expect(email?.subject).toMatch(/assigned to you/i);
   });
 
   it("refuses to assign at triage to a user outside the target department", async () => {
@@ -586,6 +725,10 @@ describe("ticket-service integration", () => {
       assigneeId: techAgent.userId,
     });
 
+    const emailCountBeforeTransfer = await db.outboundEmail.count({
+      where: { ticketId: ticket.id },
+    });
+
     const transferred = await transferDepartment(
       triage,
       routed.id,
@@ -597,8 +740,13 @@ describe("ticket-service integration", () => {
     expect(transferred.status).toBe("QUEUED");
     expect(transferred.assigneeId).toBeNull();
 
-    const email = await db.outboundEmail.findFirst({ where: { ticketId: ticket.id } });
-    expect(email).toBeNull();
+    // The earlier triage assignment already sent its own "assigned to you"
+    // email (asserted elsewhere) -- this step, naming no new assignee,
+    // must not add another.
+    const emailCountAfterTransfer = await db.outboundEmail.count({
+      where: { ticketId: ticket.id },
+    });
+    expect(emailCountAfterTransfer).toBe(emailCountBeforeTransfer);
   });
 
   it("refuses to transfer to a new assignee who is not a member of the destination department", async () => {
@@ -720,7 +868,7 @@ describe("ticket-service integration", () => {
     const agentEmail = await db.outboundEmail.findFirst({
       where: { ticketId: ticket.id, toEmail: ideasAgent.email },
     });
-    expect(agentEmail?.subject).toMatch(/transferred to you/i);
+    expect(agentEmail?.subject).toMatch(/assigned to you/i);
   });
 
   it("resolves the franchise from the submitter's Entra department", async () => {

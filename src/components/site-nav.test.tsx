@@ -30,6 +30,7 @@ const ALL_LINKS = [
   "Search tickets",
   "Knowledge",
   "Admin",
+  "Notification settings",
 ] as const;
 
 function navLinkNames() {
@@ -67,13 +68,29 @@ feature("Primary navigation", () => {
 
   scenario.each([
     { role: "CUSTOMER", offered: ["My tickets"] },
-    { role: "TRIAGE_AGENT", offered: ["Triage", "Search tickets"] },
-    { role: "DEPARTMENT_AGENT", offered: ["My department", "Search tickets"] },
-    { role: "DEPARTMENT_MANAGER", offered: ["My department", "Search tickets"] },
-    { role: "KNOWLEDGE_MANAGER", offered: ["Knowledge"] },
+    {
+      role: "TRIAGE_AGENT",
+      offered: ["Triage", "Search tickets", "Notification settings"],
+    },
+    {
+      role: "DEPARTMENT_AGENT",
+      offered: ["My department", "Search tickets", "Notification settings"],
+    },
+    {
+      role: "DEPARTMENT_MANAGER",
+      offered: ["My department", "Search tickets", "Notification settings"],
+    },
+    { role: "KNOWLEDGE_MANAGER", offered: ["Knowledge", "Notification settings"] },
     {
       role: "ADMINISTRATOR",
-      offered: ["Triage", "My department", "Search tickets", "Knowledge", "Admin"],
+      offered: [
+        "Triage",
+        "My department",
+        "Search tickets",
+        "Knowledge",
+        "Admin",
+        "Notification settings",
+      ],
     },
   ])(
     "A $role is offered exactly their own destinations",
@@ -110,7 +127,7 @@ feature("Primary navigation", () => {
 
     await s.then("both sets of destinations appear, without duplicates", () => {
       expect(navLinkNames().sort()).toEqual(
-        ["Knowledge", "Search tickets", "Triage"].sort(),
+        ["Knowledge", "Search tickets", "Triage", "Notification settings"].sort(),
       );
     });
   });

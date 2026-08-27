@@ -9,8 +9,12 @@ import {
 import { LIVE_STATUSES } from "@/lib/tickets/state-machine";
 import { parseDepartmentKey } from "@/lib/validation/ticket-schemas";
 import { canViewDepartmentWorkload, toPolicyActor } from "@/lib/rbac/policies";
+import {
+  attachLastActivityAt,
+  isTicketStale,
+} from "@/lib/tickets/dormant-ticket-service";
 import { AccessDenied } from "@/components/access-denied";
-import { StatusBadge, PriorityBadge } from "@/components/ticket-badges";
+import { StatusBadge, PriorityBadge, DormantBadge } from "@/components/ticket-badges";
 import { Card, CardContent } from "@/components/ui/card";
 import { ForbiddenError, NotFoundError } from "@/lib/rbac/errors";
 import { formatDate, cn } from "@/lib/utils";
@@ -90,6 +94,9 @@ export default async function DepartmentQueuePage({
   const policyActor = toPolicyActor(auth);
   const isManager = canViewDepartmentWorkload(policyActor, department.id);
 
+  const now = new Date();
+  const itemsWithActivity = await attachLastActivityAt(result.items);
+
   const counts = result.items.reduce<Record<string, number>>((acc, t) => {
     acc[t.status] = (acc[t.status] ?? 0) + 1;
     return acc;
@@ -150,32 +157,39 @@ export default async function DepartmentQueuePage({
         </p>
       ) : (
         <div className="grid gap-3">
-          {result.items.map((t) => (
-            <Card key={t.id}>
-              <CardContent
-                data-tour="queue-row"
-                className="flex flex-wrap items-center justify-between gap-3 p-4"
-              >
-                <div>
-                  <Link
-                    href={`/tickets/${t.ticketNumber}`}
-                    data-tour="ticket-link"
-                    className="font-medium hover:underline"
-                  >
-                    {t.ticketNumber} -- {t.subject}
-                  </Link>
-                  <p className="text-xs text-muted-foreground">
-                    {t.assignee ? `Assigned to ${t.assignee.displayName}` : "Unassigned"}{" "}
-                    · Created {formatDate(t.createdAt)}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <StatusBadge status={t.status} />
-                  <PriorityBadge priority={t.priority} />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {itemsWithActivity.map((t) => {
+            const isDormant =
+              t.assigneeId != null && isTicketStale(t.lastActivityAt, now);
+            return (
+              <Card key={t.id}>
+                <CardContent
+                  data-tour="queue-row"
+                  className="flex flex-wrap items-center justify-between gap-3 p-4"
+                >
+                  <div>
+                    <Link
+                      href={`/tickets/${t.ticketNumber}`}
+                      data-tour="ticket-link"
+                      className="font-medium hover:underline"
+                    >
+                      {t.ticketNumber} -- {t.subject}
+                    </Link>
+                    <p className="text-xs text-muted-foreground">
+                      {t.assignee
+                        ? `Assigned to ${t.assignee.displayName}`
+                        : "Unassigned"}{" "}
+                      · Created {formatDate(t.createdAt)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isDormant && <DormantBadge />}
+                    <StatusBadge status={t.status} />
+                    <PriorityBadge priority={t.priority} />
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

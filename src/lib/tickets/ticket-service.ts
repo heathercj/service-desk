@@ -27,6 +27,11 @@ import {
 } from "@/lib/rbac/errors";
 import { recordAuditEvent } from "@/lib/audit/audit-log";
 import { getEmailProvider } from "@/lib/email/provider";
+import {
+  ticketAssignedEmail,
+  ticketCommentedByCustomerEmail,
+} from "@/lib/email/templates";
+import { getNotificationPreferences } from "@/lib/notifications/preferences-service";
 import { evaluateResolutionGate } from "@/lib/knowledge/resolution-gate";
 import { validateSubmittedUrls } from "@/lib/validation/url-safety";
 import type { CreateTicketInput } from "@/lib/validation/ticket-schemas";
@@ -421,6 +426,30 @@ async function notifyImprovementIdeaSubmission(ticket: {
   });
 }
 
+/**
+ * Shared by every path that gives a ticket a new assignee (triage,
+ * reassignment, department transfer) -- one preference check, one template,
+ * so "assigned to you" always reads the same regardless of which flow
+ * caused it. Silently skipped if the preference is off or the user record
+ * has gone missing; never called for a self-assignment.
+ */
+async function notifyTicketAssigned(
+  ticket: { id: string; ticketNumber: string; subject: string },
+  assigneeId: string,
+) {
+  const preferences = await getNotificationPreferences(assigneeId);
+  if (!preferences.ticketAssignedEmail) return;
+
+  const assignee = await db.user.findUnique({ where: { id: assigneeId } });
+  if (!assignee) return;
+
+  await getEmailProvider().send({
+    ticketId: ticket.id,
+    toEmail: assignee.email,
+    ...ticketAssignedEmail(ticket),
+  });
+}
+
 export interface ConfirmTriageInput {
   ticketId: string;
   version: number;
@@ -590,6 +619,10 @@ export async function confirmTriage(actor: AuthContext, input: ConfirmTriageInpu
     await notifyImprovementIdeaSubmission(updated);
   }
 
+  if (input.assigneeId && input.assigneeId !== actor.userId) {
+    await notifyTicketAssigned(updated, input.assigneeId);
+  }
+
   return updated;
 }
 
@@ -658,7 +691,7 @@ export async function reassignTicket(
 ) {
   const policyActor = toPolicyActor(actor);
 
-  return db.$transaction(async (tx) => {
+  const updated = await db.$transaction(async (tx) => {
     const ticket = await loadTicketOrThrow(ticketId, tx);
     assertAuthorized(canReassign(policyActor, ticket), "You cannot reassign this ticket");
     if (ticket.version !== version)
@@ -708,6 +741,14 @@ export async function reassignTicket(
 
     return updated;
   });
+
+  // Deliberately after the transaction commits -- see addConversationMessage
+  // below for why external side effects don't belong inside a DB transaction.
+  if (targetUserId !== actor.userId) {
+    await notifyTicketAssigned(updated, targetUserId);
+  }
+
+  return updated;
 }
 
 export interface TransitionInput {
@@ -889,18 +930,8 @@ export async function transferDepartment(
   // Deliberately after the transaction commits -- see addConversationMessage
   // above for why an external side effect (and here, a lookup outside the
   // transaction's connection) has no business inside a DB transaction.
-  if (newAssigneeId) {
-    const newAssignee = await db.user.findUnique({ where: { id: newAssigneeId } });
-    if (newAssignee) {
-      await getEmailProvider().send({
-        ticketId: result.id,
-        toEmail: newAssignee.email,
-        subject: `[${result.ticketNumber}] Ticket transferred to you`,
-        bodyText:
-          `${result.ticketNumber} (${result.subject}) has been transferred to ${newDepartment.name} ` +
-          `and assigned to you.\n\nReason: ${reason}`,
-      });
-    }
+  if (newAssigneeId && newAssigneeId !== actor.userId) {
+    await notifyTicketAssigned(result, newAssigneeId);
   }
   if (newDepartmentKey === "IMPROVEMENT_IDEAS") {
     await notifyImprovementIdeaSubmission(result);
@@ -966,7 +997,7 @@ export async function addConversationMessage(
       });
     }
 
-    return { message, ticket: updated, notifyCustomer: !isFromCustomer };
+    return { message, ticket: updated, notifyCustomer: !isFromCustomer, isFromCustomer };
   });
 
   // Deliberately after the transaction commits: the email provider records
@@ -983,6 +1014,23 @@ export async function addConversationMessage(
       subject: `[${result.ticket.ticketNumber}] ${result.ticket.subject}`,
       bodyText: input.body,
     });
+  }
+
+  if (result.isFromCustomer && result.ticket.assigneeId) {
+    const preferences = await getNotificationPreferences(result.ticket.assigneeId);
+    if (preferences.ticketCommentedEmail) {
+      const assignee = await db.user.findUnique({
+        where: { id: result.ticket.assigneeId },
+      });
+      if (assignee) {
+        await getEmailProvider().send({
+          ticketId: result.ticket.id,
+          conversationMessageId: result.message.id,
+          toEmail: assignee.email,
+          ...ticketCommentedByCustomerEmail(result.ticket, actor.displayName),
+        });
+      }
+    }
   }
 
   return { message: result.message, ticket: result.ticket };

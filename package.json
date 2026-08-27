@@ -39,6 +39,7 @@
     "sim:run": "tsx --tsconfig scripts/tsconfig.json scripts/sim-run.ts",
     "demo:clean": "tsx --tsconfig scripts/tsconfig.json scripts/demo-clean.ts",
     "graph:subscribe": "tsx --tsconfig scripts/tsconfig.json scripts/graph-subscribe.ts",
+    "dormant:check": "tsx --tsconfig scripts/tsconfig.json scripts/check-dormant-tickets.ts",
     "demo:prep": "tsx --tsconfig scripts/tsconfig.json scripts/demo-prep.ts",
     "demo:build": "cross-env ENABLE_DEV_AUTH=true ENABLE_DEMO_TOUR=true next build",
     "demo:serve": "tsx --tsconfig scripts/tsconfig.json scripts/demo-serve.ts",

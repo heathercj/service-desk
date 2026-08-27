@@ -30,12 +30,12 @@ nothing here surprises you mid-launch.
 
 ### Real gaps that are still open — decide how to handle each before real users depend on this
 
-| Gap                                                                                                                                                                                | What happens if you launch anyway                                                                                                                                                                                                                            | Fix                                                                                                                                                                                                     |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **No real outbound email.** `ConsoleEmailProvider` is the only `EmailProvider` implemented — it never sends anything, only writes a row to a dev-only mailbox.                     | Every notification this app already sends (staff replies to customers, mis-route transfer alerts, the Improvement Ideas thank-you) **will not reach anyone**. Nobody gets emailed, ever, until this is built.                                                | Implement a real provider (Microsoft Graph `sendMail`, reusing the app-only Graph client already built for email intake). This is real, scoped, buildable work — ask if you want it done before launch. |
-| **Object storage is a local disk path.** `OBJECT_STORAGE_ROOT` defaults to `./storage/uploads`, and nothing in the Dockerfile mounts a persistent volume for it.                   | App Runner instances are ephemeral — **every uploaded screenshot/attachment is lost on the next redeploy or restart.** Since every push to `main` triggers a redeploy (that's the whole point of "connected to your repo"), this could mean daily data loss. | Implement an S3-backed `ObjectStorageProvider`. Scoped, buildable — ask if you want it done before launch.                                                                                              |
-| **No admin UI for department membership.** `/admin/users` can toggle a user's _roles_, but nothing puts a `DEPARTMENT_AGENT`/`DEPARTMENT_MANAGER` into an actual department queue. | A user granted the DEPARTMENT_AGENT role still can't see or work any queue until someone adds a `DepartmentMembership` row directly in the database.                                                                                                         | Either build a small admin UI for this, or use the manual database step in **Part 5**.                                                                                                                  |
-| **Rate limiter is in-memory**, not shared (e.g. Redis).                                                                                                                            | Fine on a single App Runner instance (the default). If you ever scale to more than one instance, each gets its own independent budget — a bug that _silently allows more traffic through_, not less.                                                         | Not a launch blocker at 1 instance. Revisit before adding instances.                                                                                                                                    |
+| Gap                                                                                                                                                                                | What happens if you launch anyway                                                                                                                                                                                                                                                | Fix                                                                                                                                                                                                                                                                 |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **No real outbound email.** `ConsoleEmailProvider` is the only `EmailProvider` implemented — it never sends anything, only writes a row to a dev-only mailbox.                     | Every notification this app already sends (staff replies to customers, mis-route transfer alerts, the Improvement Ideas thank-you, ticket-assigned/customer-reply/KB-published/dormant-ticket alerts) **will not reach anyone**. Nobody gets emailed, ever, until this is built. | Implement a real provider (Microsoft Graph `sendMail`, reusing the app-only Graph client already built for email intake — see `docs/ENTRA_SETUP.md` §9 for the permissions it needs). This is real, scoped, buildable work — ask if you want it done before launch. |
+| **Object storage is a local disk path.** `OBJECT_STORAGE_ROOT` defaults to `./storage/uploads`, and nothing in the Dockerfile mounts a persistent volume for it.                   | App Runner instances are ephemeral — **every uploaded screenshot/attachment is lost on the next redeploy or restart.** Since every push to `main` triggers a redeploy (that's the whole point of "connected to your repo"), this could mean daily data loss.                     | Implement an S3-backed `ObjectStorageProvider`. Scoped, buildable — ask if you want it done before launch.                                                                                                                                                          |
+| **No admin UI for department membership.** `/admin/users` can toggle a user's _roles_, but nothing puts a `DEPARTMENT_AGENT`/`DEPARTMENT_MANAGER` into an actual department queue. | A user granted the DEPARTMENT_AGENT role still can't see or work any queue until someone adds a `DepartmentMembership` row directly in the database.                                                                                                                             | Either build a small admin UI for this, or use the manual database step in **Part 5**.                                                                                                                                                                              |
+| **Rate limiter is in-memory**, not shared (e.g. Redis).                                                                                                                            | Fine on a single App Runner instance (the default). If you ever scale to more than one instance, each gets its own independent budget — a bug that _silently allows more traffic through_, not less.                                                                             | Not a launch blocker at 1 instance. Revisit before adding instances.                                                                                                                                                                                                |
 
 Full list, including lower-priority items: `docs/PRODUCTION_READINESS.md`.
 
@@ -380,7 +380,34 @@ ready — nothing here depends on it.
 
 ---
 
-## Part 8 — Pre-launch smoke test
+## Part 8 — Dormant-ticket alerts: schedule the sweep
+
+An assigned ticket with no activity (no update, no internal note, no
+message) for 3 days emails its assignee — mandatory, no opt-out — and shows
+a bell icon on the queue and ticket-detail pages. Nothing in this repo runs
+that check on its own: there's no in-process job runner, the same reason
+Graph subscription renewal (Part 7) works without a cron job elsewhere. Set
+one up yourself:
+
+- **What to run**: `pnpm dormant:check` (`scripts/check-dormant-tickets.ts`)
+  from the deployed app's environment (needs the same `DATABASE_URL`/
+  `APP_BASE_URL` it runs with).
+- **How often**: daily is enough — the threshold is 3 days, so an extra few
+  hours of latency doesn't matter. Hourly is harmless too; the sweep is
+  idempotent (a ticket already alerted since its last activity is skipped).
+- **Where**: whatever your hosting platform offers for scheduled tasks —
+  an App Runner/ECS scheduled task, a GitHub Actions workflow on a `cron:`
+  trigger hitting the deployed environment, or plain OS cron/Task Scheduler
+  if you're running this somewhere with a persistent host. Pick whichever
+  your team already uses for other recurring jobs rather than introducing a
+  new mechanism just for this one script.
+- **Verify it's wired up**: run it once by hand right after deploying
+  (`pnpm dormant:check`) and confirm it completes without error, then check
+  back after the first scheduled run actually fires.
+
+---
+
+## Part 9 — Pre-launch smoke test
 
 Work through this in order once Parts 1–6 are done:
 
@@ -403,10 +430,14 @@ Work through this in order once Parts 1–6 are done:
       anywhere yet (Part 0) — don't be alarmed when a staff reply or
       transfer notification doesn't reach an inbox. That's the tracked
       gap, not a new bug.
+- [ ] Visit `/settings/notifications` as a staff account and confirm the
+      three toggles save and reload correctly.
+- [ ] Confirm the Part 8 sweep is actually scheduled somewhere, not just
+      run once by hand.
 
 ---
 
-## Part 9 — Rollback
+## Part 10 — Rollback
 
 - **Code**: App Runner keeps prior deployments. Fastest rollback is
   reverting the bad commit and pushing to `main` — the same pipeline that

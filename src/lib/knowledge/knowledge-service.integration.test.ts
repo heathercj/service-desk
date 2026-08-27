@@ -13,6 +13,7 @@ vi.mock("@/lib/graph/client", () => ({
 }));
 import { ForbiddenError } from "@/lib/rbac/errors";
 import { createFranchise, createTestUser } from "@/test-support/fixtures";
+import { updateNotificationPreferences } from "@/lib/notifications/preferences-service";
 import {
   confirmTriage,
   createTicket,
@@ -266,5 +267,48 @@ describe("knowledge-service integration", () => {
     await expect(getArticleByIdForActor(customer, draft.id)).rejects.toBeInstanceOf(
       ForbiddenError,
     );
+  });
+
+  it("emails opted-in staff when an article is published", async () => {
+    const km = await createTestUser({ roles: ["KNOWLEDGE_MANAGER"] });
+    const agent = await createTestUser({ roles: ["DEPARTMENT_AGENT"] });
+
+    const draft = await createDraftArticle(km, {
+      title: `Printer offline recovery ${randomUUID().slice(0, 8)}`,
+      summary: "Steps to bring a printer back online.",
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      tags: [],
+      body: "## Steps\n\n1. Restart the print spooler.",
+    });
+    const published = await publishArticle(km, draft.id);
+
+    const email = await db.outboundEmail.findFirst({
+      where: { toEmail: agent.email, subject: { contains: published.title } },
+    });
+    expect(email?.bodyText).toContain(published.slug);
+  });
+
+  it("does not email staff who have opted out of KB-publish notifications", async () => {
+    const km = await createTestUser({ roles: ["KNOWLEDGE_MANAGER"] });
+    const agent = await createTestUser({ roles: ["DEPARTMENT_AGENT"] });
+    await updateNotificationPreferences(agent, {
+      ticketAssignedEmail: true,
+      ticketCommentedEmail: true,
+      knowledgeArticlePublishedEmail: false,
+    });
+
+    const draft = await createDraftArticle(km, {
+      title: `Wi-Fi reconnect steps ${randomUUID().slice(0, 8)}`,
+      summary: "Steps to reconnect to office Wi-Fi.",
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      tags: [],
+      body: "## Steps\n\n1. Forget the network. 2. Reconnect.",
+    });
+    const published = await publishArticle(km, draft.id);
+
+    const email = await db.outboundEmail.findFirst({
+      where: { toEmail: agent.email, subject: { contains: published.title } },
+    });
+    expect(email).toBeNull();
   });
 });

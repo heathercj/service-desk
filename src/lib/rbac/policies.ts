@@ -172,6 +172,15 @@ export function canViewAuditEvents(actor: PolicyActor): boolean {
   return isAdministrator(actor);
 }
 
+export function canManageNotificationPreferences(actor: PolicyActor): boolean {
+  return (
+    isAdministrator(actor) ||
+    isKnowledgeManager(actor) ||
+    isTriageAgent(actor) ||
+    isDepartmentAgentRole(actor)
+  );
+}
+
 export function canDownloadAttachment(
   actor: PolicyActor,
   ticket: TicketAccessShape,

@@ -14,6 +14,9 @@ import {
 } from "@/lib/rbac/policies";
 import { assertAuthorized, NotFoundError } from "@/lib/rbac/errors";
 import { recordAuditEvent } from "@/lib/audit/audit-log";
+import { getEmailProvider } from "@/lib/email/provider";
+import { knowledgeArticlePublishedEmail } from "@/lib/email/templates";
+import { listStaffOptedIntoNotification } from "@/lib/notifications/preferences-service";
 import { requireActiveDepartment } from "@/lib/tickets/department-lookup";
 import { retryResolutionAfterKnowledgeOutcome } from "@/lib/tickets/ticket-service";
 import { slugify, type KnowledgeFrontMatter } from "./front-matter-schema";
@@ -189,6 +192,18 @@ export async function publishArticle(
     previousValue: { status: article.status },
     newValue: { status: "PUBLISHED" },
   });
+
+  const recipients = await listStaffOptedIntoNotification(
+    "knowledgeArticlePublishedEmail",
+  );
+  await Promise.all(
+    recipients.map((staff) =>
+      getEmailProvider().send({
+        toEmail: staff.email,
+        ...knowledgeArticlePublishedEmail(updated),
+      }),
+    ),
+  );
 
   return updated;
 }

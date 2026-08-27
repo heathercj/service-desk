@@ -11,7 +11,12 @@
 import { expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { feature, scenario } from "@/test/bdd";
-import { StatusBadge, PriorityBadge, DepartmentBadge } from "./ticket-badges";
+import {
+  StatusBadge,
+  PriorityBadge,
+  DepartmentBadge,
+  DormantBadge,
+} from "./ticket-badges";
 
 feature("Ticket status badge", () => {
   scenario.each([
@@ -93,6 +98,19 @@ feature("Department badge", () => {
       expect(badge.className).not.toMatch(
         /\bbg-(primary|secondary|success|warning|destructive)\b/,
       );
+    });
+  });
+});
+
+feature("Dormant ticket badge", () => {
+  scenario("A dormant ticket is flagged with an accessible bell", async (s) => {
+    const badge = await s.given("a ticket with no activity for 3+ days", () => {
+      render(<DormantBadge />);
+      return screen.getByRole("img", { name: /dormant/i });
+    });
+
+    await s.then("a reader is told why it's flagged, not just shown an icon", () => {
+      expect(badge).toHaveAccessibleName(/no activity for 3\+ days/i);
     });
   });
 });

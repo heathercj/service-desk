@@ -5,8 +5,17 @@ import { listAgentsByDepartment } from "@/lib/tickets/department-lookup";
 import { getAllowedNextStatuses } from "@/lib/tickets/state-machine";
 import { ForbiddenError, NotFoundError } from "@/lib/rbac/errors";
 import { canRecordKnowledgeException, toPolicyActor } from "@/lib/rbac/policies";
+import {
+  attachLastActivityAt,
+  isTicketStale,
+} from "@/lib/tickets/dormant-ticket-service";
 import { AccessDenied } from "@/components/access-denied";
-import { StatusBadge, PriorityBadge, DepartmentBadge } from "@/components/ticket-badges";
+import {
+  StatusBadge,
+  PriorityBadge,
+  DepartmentBadge,
+  DormantBadge,
+} from "@/components/ticket-badges";
 import { SafeExternalLink } from "@/components/safe-external-link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateTime } from "@/lib/utils";
@@ -49,6 +58,12 @@ export default async function TicketDetailPage({
 
   const departmentAgents = isStaffView ? await listAgentsByDepartment() : {};
 
+  const [ticketActivity] = await attachLastActivityAt([ticket]);
+  const isDormant =
+    isStaffView &&
+    ticket.assigneeId != null &&
+    isTicketStale(ticketActivity!.lastActivityAt, new Date());
+
   return (
     <div className="space-y-6">
       <Card>
@@ -72,6 +87,7 @@ export default async function TicketDetailPage({
               <PriorityBadge priority={ticket.priority} />
             ) : null}
             <DepartmentBadge name={ticket.department.name} />
+            {isDormant && <DormantBadge />}
           </div>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">

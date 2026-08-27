@@ -37,7 +37,7 @@ Leave the default "User.Read" delegated permission Azure adds
 automatically if you want, but the app never uses it; removing it is also
 fine and matches least-privilege intent (Section 3).
 
-Franchise resolution and email intake (§8 below) add a *second*, separate
+Franchise resolution and email intake (§8 below) add a _second_, separate
 set of permissions to this same app registration -- Application (app-only)
 permissions, not delegated ones. That's a deliberate widening beyond the
 "OIDC only" posture above, done for two specific features, not a general
@@ -180,3 +180,67 @@ or external scheduler is needed.
    email being silently dropped -- check the server logs for the
    "no local account or Entra match" warning this logs as an anomaly to
    investigate.
+
+## 9. Outbound notification email -- Entra permissions for a future Graph mail-send provider
+
+This does **not** apply yet. `EmailProvider` (`src/lib/email/provider.ts`)
+has exactly one implementation, `ConsoleEmailProvider` -- it captures every
+outbound email (ticket-assigned, customer-reply, KB-published,
+dormant-ticket alert included) as an `OutboundEmail` row and surfaces it on
+`/dev-mailbox` rather than delivering it, by design (ADR 0005). Nothing in
+this repo sends real mail. This section exists so that when a real
+`GraphEmailProvider` implementing the same interface is written, the Entra
+side is already documented rather than reverse-engineered under deadline
+pressure.
+
+### 9.1 Application permission
+
+On the **same** app registration as §1/§8, add one more Microsoft Graph
+**Application permission**:
+
+- `Mail.Send` -- lets the app send mail as a specific mailbox via
+  client-credentials, the same OAuth flow §8 already uses for `Mail.Read`.
+
+**Grant admin consent** the same way as §8.1 -- this is an Application
+permission, so a user's own sign-in consent never covers it.
+
+### 9.2 Scope it to one mailbox -- do not skip this
+
+Exactly the same problem as §8.2: `Mail.Send` as an Application permission
+with no policy lets the app send mail **as any mailbox in the tenant**, not
+just the one it's meant to send from. Reuse the same Application Access
+Policy mechanism, adding `Mail.Send` alongside `Mail.Read` for the same
+`support@alairhomes.com` scope (a single policy can cover both permissions
+for the same mailbox -- there's no need for a second policy):
+
+```powershell
+Connect-ExchangeOnline
+
+New-ApplicationAccessPolicy `
+  -AppId "<Application (client) ID from §1>" `
+  -PolicyScopeGroupId "support@alairhomes.com" `
+  -AccessRight RestrictAccess `
+  -Description "Service desk outbound notifications -- support mailbox only"
+
+Test-ApplicationAccessPolicy -AppId "<client ID>" -Identity "support@alairhomes.com"
+```
+
+If §8's policy already exists for this mailbox, Graph enforces `Mail.Send`
+under that same policy automatically -- there's nothing further to do.
+
+### 9.3 What the provider would send as
+
+No new environment variable is needed: the existing `SUPPORT_MAILBOX_ADDRESS`
+(§8.3) is the natural "From" address for a `GraphEmailProvider`, since it's
+already the one mailbox the app registration is scoped to send and read as.
+
+### 9.4 Verifying it worked (once the provider exists)
+
+1. Trigger one of the four notification emails (assign a ticket to a
+   colleague, reply as a customer, publish a KB article, or run
+   `pnpm dormant:check` against a stale ticket).
+2. Confirm the recipient actually receives it, rather than checking
+   `/dev-mailbox` -- that page only reflects `ConsoleEmailProvider`.
+3. Send from/to an account outside the policy's scope (if you can arrange
+   one) and confirm Graph refuses it, the same check as §8.2's
+   `Test-ApplicationAccessPolicy` line but for the send direction.
