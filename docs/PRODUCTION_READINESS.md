@@ -3,6 +3,30 @@
 This prototype is architected for production hardening, not deployed to it.
 Track these items before any real deployment.
 
+## Business decisions required before any test instance
+
+Surfaced by a five-perspective readiness review (business, engineering,
+database, performance, security) on 2026-08-26, commit `7bd0873`. These are
+not code changes -- no amount of engineering work resolves them, and
+everything else in this document sequences off them.
+
+- [ ] **Name an application owner, a data owner, and a support contact.**
+      Nothing in this repo or its docs names who is accountable once real
+      people depend on this -- who gets contacted if it breaks, who approves
+      changes, who owns the data in it.
+- [ ] **Decide who the test users are.** The seeded roles (`CUSTOMER`,
+      `TRIAGE_AGENT`, `DEPARTMENT_AGENT`, `DEPARTMENT_MANAGER`,
+      `KNOWLEDGE_MANAGER`, `ADMINISTRATOR`) and single-tenant Entra ID auth
+      suggest internal-only, but nothing states whether "Customer" means an
+      external party or an Alair Homes employee. This changes the data-
+      classification answer below.
+- [ ] **Decide real vs. synthetic data for the test round**, given the app
+      may hold ticket text, screenshots, and employee PII (see
+      `THREAT_MODEL.md` "Assets"). Do not default to "it's just a test."
+- [ ] **Ratify or override the recommendation to fix email + object storage
+      before onboarding testers** (see below), rather than leaving it
+      implicit.
+
 ## Must fix before production
 
 - [ ] **Remaining `pnpm audit` findings** (13, incl. 1 critical / 4 high as
@@ -46,6 +70,36 @@ Track these items before any real deployment.
       test a restore, not just a backup job succeeding.
 
 ## Should fix / revisit
+
+- [ ] **No database connection-pool limit is set anywhere** (`src/lib/db.ts`
+      constructs a bare `new PrismaClient()`; `.env.example`'s
+      `DATABASE_URL` has no `connection_limit`). Prisma's default pool size
+      is computed per-process and unbounded across instances -- set
+      `connection_limit`/`pool_timeout` explicitly on `DATABASE_URL`, sized
+      against the target database's `max_connections`, before pointing at a
+      shared hosted instance.
+- [ ] **`pnpm db:reset`'s safety guard is a fragile substring match**, not a
+      real safeguard (`scripts/db-reset.ts`): it only refuses to run against
+      `NODE_ENV=production` or a URL containing `localhost`/`127.0.0.1`/
+      `postgres:5432`. A hosted test database's connection string won't
+      match any of those, so the guard silently doesn't apply. Harden it
+      (e.g. an explicit `ALLOW_DB_RESET=true` opt-in, or a hostname
+      allowlist) before more than one machine has a `.env` pointing at a
+      shared database.
+- [ ] **No route tests exist for admin authorization boundaries**
+      (`/api/admin/departments/**`, `/api/admin/users/[userId]/role`),
+      despite every other route family being tested per the project's own
+      convention. A regression in the 401/403/400 boundary on these routes
+      wouldn't be caught by CI.
+- [ ] **Coverage percentage is misleading, not just low.**
+      `vitest.config.ts` excludes `*.integration.test.ts` from coverage
+      with no include-scoping, so `ticket-service.ts` (1,100+ lines of core
+      logic) reports 0% despite being covered by integration tests. Scope
+      the coverage config to reflect what's actually tested before using
+      the number to prioritize future test-writing effort.
+- [ ] **Confirm the SAST/DAST/secret/dependency-scan CI workflows are
+      required branch-protection checks**, not just workflows that run.
+      They currently gate nothing if a merge can bypass a red check.
 
 - [ ] `createDraftArticle` has no collision handling if two articles slugify
       to the same `(department, slug)`/`filePath` (e.g. two workers drafting
