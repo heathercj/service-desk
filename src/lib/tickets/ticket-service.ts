@@ -29,6 +29,7 @@ import { recordAuditEvent } from "@/lib/audit/audit-log";
 import { getEmailProvider } from "@/lib/email/provider";
 import {
   ticketAssignedEmail,
+  ticketAssignedSubmitterEmail,
   ticketCommentedByCustomerEmail,
 } from "@/lib/email/templates";
 import { getNotificationPreferences } from "@/lib/notifications/preferences-service";
@@ -450,6 +451,26 @@ async function notifyTicketAssigned(
   });
 }
 
+/**
+ * Mandatory, not preference-gated -- customers have no notification
+ * settings of their own. Only fired from the triage-assignment path
+ * (confirmTriage naming an assignee), not later reassignment/transfer:
+ * this is specifically "your ticket has been picked up," not every
+ * subsequent handoff between agents.
+ */
+async function notifySubmitterOfAssignment(ticket: {
+  id: string;
+  ticketNumber: string;
+  subject: string;
+  submittedEmail: string;
+}) {
+  await getEmailProvider().send({
+    ticketId: ticket.id,
+    toEmail: ticket.submittedEmail,
+    ...ticketAssignedSubmitterEmail(ticket),
+  });
+}
+
 export interface ConfirmTriageInput {
   ticketId: string;
   version: number;
@@ -621,6 +642,10 @@ export async function confirmTriage(actor: AuthContext, input: ConfirmTriageInpu
 
   if (input.assigneeId && input.assigneeId !== actor.userId) {
     await notifyTicketAssigned(updated, input.assigneeId);
+  }
+
+  if (input.assigneeId) {
+    await notifySubmitterOfAssignment(updated);
   }
 
   return updated;

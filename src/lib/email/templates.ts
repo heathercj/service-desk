@@ -41,6 +41,20 @@ export function ticketAssignedEmail(ticket: TicketEmailInput): EmailContent {
   };
 }
 
+export function ticketAssignedSubmitterEmail(ticket: TicketEmailInput): EmailContent {
+  return {
+    subject: `[${ticket.ticketNumber}] Your ticket has been assigned`,
+    bodyText:
+      `Your ticket ${ticket.ticketNumber} -- ${ticket.subject} has been assigned to one of ` +
+      `our agents and is now being worked on.\n\n` +
+      `A reminder of how this works: your agent will review what you've submitted, and if ` +
+      `they need more information from you to resolve it, they'll follow up on this ticket. ` +
+      `Please keep an eye on your email and reply promptly if you're contacted -- it helps us ` +
+      `get to a resolution faster.\n\n` +
+      `You can view your ticket at any time here: ${ticketUrl(ticket.ticketNumber)}`,
+  };
+}
+
 export function ticketCommentedByCustomerEmail(
   ticket: TicketEmailInput,
   customerName: string,

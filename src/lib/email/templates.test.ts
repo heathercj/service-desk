@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   knowledgeArticlePublishedEmail,
   ticketAssignedEmail,
+  ticketAssignedSubmitterEmail,
   ticketCommentedByCustomerEmail,
   ticketDormantEmail,
 } from "./templates";
@@ -16,6 +17,21 @@ describe("ticketAssignedEmail", () => {
     expect(bodyText).toContain("T-000123");
     expect(bodyText).toContain(ticket.subject);
     expect(bodyText).toContain("/tickets/T-000123");
+  });
+});
+
+describe("ticketAssignedSubmitterEmail", () => {
+  it("tells the submitter their ticket has been assigned, by number, with a link", () => {
+    const { subject, bodyText } = ticketAssignedSubmitterEmail(ticket);
+    expect(subject).toContain("T-000123");
+    expect(bodyText).toContain("T-000123");
+    expect(bodyText).toContain("/tickets/T-000123");
+  });
+
+  it("reminds them an agent may follow up and to watch for that", () => {
+    const { bodyText } = ticketAssignedSubmitterEmail(ticket);
+    expect(bodyText.toLowerCase()).toMatch(/follow up|contact|reach out/);
+    expect(bodyText.toLowerCase()).toMatch(/keep an eye on your email|watch for/);
   });
 });
 

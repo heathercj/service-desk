@@ -185,13 +185,18 @@ or external scheduler is needed.
 
 This does **not** apply yet. `EmailProvider` (`src/lib/email/provider.ts`)
 has exactly one implementation, `ConsoleEmailProvider` -- it captures every
-outbound email (ticket-assigned, customer-reply, KB-published,
-dormant-ticket alert included) as an `OutboundEmail` row and surfaces it on
-`/dev-mailbox` rather than delivering it, by design (ADR 0005). Nothing in
-this repo sends real mail. This section exists so that when a real
+outbound email (agent-facing ticket-assigned/KB-published/dormant-ticket
+alerts, and customer-facing staff-reply and ticket-assigned notices
+included) as an `OutboundEmail` row and surfaces it on `/dev-mailbox`
+rather than delivering it, by design (ADR 0005). Nothing in this repo
+sends real mail. This section exists so that when a real
 `GraphEmailProvider` implementing the same interface is written, the Entra
 side is already documented rather than reverse-engineered under deadline
-pressure.
+pressure. Every notification listed above goes through this same
+interface, so nothing here is per-notification-type -- a single
+`GraphEmailProvider` covers all of them, including the "your ticket has
+been assigned" email the submitter gets once triage names an agent
+(`notifySubmitterOfAssignment` in `src/lib/tickets/ticket-service.ts`).
 
 ### 9.1 Application permission
 

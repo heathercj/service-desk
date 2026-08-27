@@ -390,6 +390,57 @@ describe("ticket-service integration", () => {
     expect(email?.subject).toMatch(/assigned to you/i);
   });
 
+  it("tells the submitter their ticket has been assigned, by ticket number", async () => {
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+    const agent = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+    });
+
+    const ticket = await createTicket(customer, await baseTicketInput(franchise.id));
+
+    await confirmTriage(triage, {
+      ticketId: ticket.id,
+      version: ticket.version,
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      priority: "MEDIUM",
+      tags: [],
+      assigneeId: agent.userId,
+    });
+
+    const email = await db.outboundEmail.findFirst({
+      where: { ticketId: ticket.id, toEmail: customer.email },
+      orderBy: { createdAt: "desc" },
+    });
+    expect(email?.subject).toContain(ticket.ticketNumber);
+    expect(email?.subject).toMatch(/assigned/i);
+    expect(email?.bodyText).toContain(ticket.ticketNumber);
+    expect(email?.bodyText).toMatch(/follow up|contact|reach out/i);
+  });
+
+  it("does not tell the submitter anything when triage routes without naming an assignee", async () => {
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+
+    const ticket = await createTicket(customer, await baseTicketInput(franchise.id));
+
+    await confirmTriage(triage, {
+      ticketId: ticket.id,
+      version: ticket.version,
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      priority: "MEDIUM",
+      tags: [],
+    });
+
+    const email = await db.outboundEmail.findFirst({
+      where: { ticketId: ticket.id, toEmail: customer.email },
+    });
+    expect(email).toBeNull();
+  });
+
   it("does not email the assignee when they have turned off assignment notifications", async () => {
     const franchise = await createFranchise();
     const customer = await createTestUser({ roles: ["CUSTOMER"] });
@@ -860,10 +911,16 @@ describe("ticket-service integration", () => {
       ideasAgent.userId,
     );
 
-    const submitterEmail = await db.outboundEmail.findFirst({
+    // The customer gets two emails in this flow: the "your ticket has been
+    // assigned" notice from the initial triage assignment, and this
+    // Improvement-Ideas thank-you from the transfer -- find this one by its
+    // content rather than assuming an order.
+    const submitterEmails = await db.outboundEmail.findMany({
       where: { ticketId: ticket.id, toEmail: customer.email },
     });
-    expect(submitterEmail?.bodyText).toMatch(/improvement catalogue/i);
+    expect(submitterEmails.some((e) => /improvement catalogue/i.test(e.bodyText))).toBe(
+      true,
+    );
 
     const agentEmail = await db.outboundEmail.findFirst({
       where: { ticketId: ticket.id, toEmail: ideasAgent.email },
