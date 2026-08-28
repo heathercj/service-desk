@@ -1,13 +1,41 @@
-import { describe, afterAll, beforeAll, expect, it } from "vitest";
+import { randomUUID } from "node:crypto";
+import { describe, afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
-import { ForbiddenError } from "@/lib/rbac/errors";
-import { createTestUser, ensureRolesAndDepartments } from "@/test-support/fixtures";
+import { ForbiddenError, NotFoundError } from "@/lib/rbac/errors";
+import {
+  createTestUser,
+  ensureRolesAndDepartments,
+  getDepartmentId,
+} from "@/test-support/fixtures";
 import {
   listAuditEventsForAdmin,
   listUsersForAdmin,
+  provisionUserByEmail,
   setDepartmentActive,
+  setDepartmentMembership,
+  setUserActive,
   setUserRole,
 } from "./admin-service";
+
+// provisionUserByEmail looks up unknown emails via app-only Graph
+// (User.Read.All) -- stubbed the same way ticket-service.integration.test.ts
+// stubs it, so the suite never depends on real network access.
+vi.mock("@/lib/graph/client", () => ({ graphFetch: vi.fn() }));
+const { graphFetch } = await import("@/lib/graph/client");
+
+function mockGraphUser(
+  profile: {
+    id: string;
+    displayName: string;
+    mail: string;
+    department: string | null;
+  } | null,
+) {
+  vi.mocked(graphFetch).mockResolvedValue({
+    ok: profile !== null,
+    json: async () => profile ?? {},
+  } as Response);
+}
 
 /**
  * Requires a live Postgres connection -- see README.
@@ -29,6 +57,11 @@ describe("admin-service integration", () => {
     // but the row must not be left closed for the next run.
     await db.department.update({ where: { key: "LEGAL" }, data: { isActive: true } });
     await db.$disconnect();
+  });
+
+  beforeEach(() => {
+    vi.mocked(graphFetch).mockReset();
+    mockGraphUser(null);
   });
 
   async function rolesOf(userId: string): Promise<string[]> {
@@ -214,6 +247,201 @@ describe("admin-service integration", () => {
       const manager = await createTestUser({ roles: ["KNOWLEDGE_MANAGER"] });
 
       await expect(listAuditEventsForAdmin(manager)).rejects.toBeInstanceOf(
+        ForbiddenError,
+      );
+    });
+  });
+
+  describe("provisioning an agent by email", () => {
+    it("returns an existing local user by email, without creating a duplicate", async () => {
+      const admin = await createTestUser({ roles: ["ADMINISTRATOR"] });
+      const existing = await createTestUser({ roles: ["CUSTOMER"] });
+
+      const result = await provisionUserByEmail(admin, existing.email);
+
+      expect(result.id).toBe(existing.userId);
+      expect(await db.user.count({ where: { email: existing.email } })).toBe(1);
+    });
+
+    it("provisions a new user found in the Entra directory", async () => {
+      const admin = await createTestUser({ roles: ["ADMINISTRATOR"] });
+      const email = `new-hire-${randomUUID()}@alairhomes.com`;
+      const entraId = randomUUID();
+      mockGraphUser({
+        id: entraId,
+        displayName: "New Hire",
+        mail: email,
+        department: null,
+      });
+
+      const result = await provisionUserByEmail(admin, email);
+
+      expect(result.email).toBe(email);
+      expect(result.entraObjectId).toBe(entraId);
+      expect(
+        await db.user.findUnique({ where: { entraObjectId: entraId } }),
+      ).not.toBeNull();
+    });
+
+    it("throws NotFoundError when there is no local account or Entra match", async () => {
+      const admin = await createTestUser({ roles: ["ADMINISTRATOR"] });
+
+      await expect(
+        provisionUserByEmail(admin, `nobody-${randomUUID()}@alairhomes.com`),
+      ).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    it("records an audit event only when a new user is actually created", async () => {
+      const admin = await createTestUser({ roles: ["ADMINISTRATOR"] });
+      const existing = await createTestUser({ roles: ["CUSTOMER"] });
+
+      await provisionUserByEmail(admin, existing.email);
+      expect(
+        await db.auditEvent.count({
+          where: { action: "USER_PROVISIONED", entityId: existing.userId },
+        }),
+      ).toBe(0);
+
+      const email = `new-hire-${randomUUID()}@alairhomes.com`;
+      mockGraphUser({
+        id: randomUUID(),
+        displayName: "New Hire",
+        mail: email,
+        department: null,
+      });
+      const created = await provisionUserByEmail(admin, email);
+      expect(
+        await db.auditEvent.count({
+          where: { action: "USER_PROVISIONED", entityId: created.id },
+        }),
+      ).toBe(1);
+    });
+
+    it("refuses a non-administrator", async () => {
+      const agent = await createTestUser({ roles: ["DEPARTMENT_AGENT"] });
+
+      await expect(
+        provisionUserByEmail(agent, `whoever-${randomUUID()}@alairhomes.com`),
+      ).rejects.toBeInstanceOf(ForbiddenError);
+    });
+  });
+
+  describe("assigning department membership", () => {
+    it("grants membership with the requested manager flag", async () => {
+      const admin = await createTestUser({ roles: ["ADMINISTRATOR"] });
+      const agent = await createTestUser({ roles: ["DEPARTMENT_AGENT"] });
+      const deptId = await getDepartmentId("TECHNOLOGY_SUPPORT");
+
+      await setDepartmentMembership(admin, agent.userId, deptId, {
+        isMember: true,
+        isManager: true,
+      });
+
+      const membership = await db.departmentMembership.findUnique({
+        where: { userId_departmentId: { userId: agent.userId, departmentId: deptId } },
+      });
+      expect(membership?.isManager).toBe(true);
+    });
+
+    it("updates the manager flag on an existing membership without duplicating the row", async () => {
+      const admin = await createTestUser({ roles: ["ADMINISTRATOR"] });
+      const agent = await createTestUser({
+        roles: ["DEPARTMENT_AGENT"],
+        departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+      });
+      const deptId = await getDepartmentId("TECHNOLOGY_SUPPORT");
+
+      await setDepartmentMembership(admin, agent.userId, deptId, {
+        isMember: true,
+        isManager: true,
+      });
+
+      const rows = await db.departmentMembership.findMany({
+        where: { userId: agent.userId, departmentId: deptId },
+      });
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.isManager).toBe(true);
+    });
+
+    it("revokes membership", async () => {
+      const admin = await createTestUser({ roles: ["ADMINISTRATOR"] });
+      const agent = await createTestUser({
+        roles: ["DEPARTMENT_AGENT"],
+        departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+      });
+      const deptId = await getDepartmentId("TECHNOLOGY_SUPPORT");
+
+      await setDepartmentMembership(admin, agent.userId, deptId, {
+        isMember: false,
+        isManager: false,
+      });
+
+      const membership = await db.departmentMembership.findUnique({
+        where: { userId_departmentId: { userId: agent.userId, departmentId: deptId } },
+      });
+      expect(membership).toBeNull();
+    });
+
+    it("revoking a membership that never existed is harmless", async () => {
+      const admin = await createTestUser({ roles: ["ADMINISTRATOR"] });
+      const agent = await createTestUser({ roles: ["DEPARTMENT_AGENT"] });
+      const deptId = await getDepartmentId("TECHNOLOGY_SUPPORT");
+
+      await expect(
+        setDepartmentMembership(admin, agent.userId, deptId, {
+          isMember: false,
+          isManager: false,
+        }),
+      ).resolves.not.toThrow();
+    });
+
+    it("refuses a non-administrator", async () => {
+      const manager = await createTestUser({ roles: ["DEPARTMENT_MANAGER"] });
+      const agent = await createTestUser({ roles: ["DEPARTMENT_AGENT"] });
+      const deptId = await getDepartmentId("TECHNOLOGY_SUPPORT");
+
+      await expect(
+        setDepartmentMembership(manager, agent.userId, deptId, {
+          isMember: true,
+          isManager: false,
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenError);
+    });
+  });
+
+  describe("activating and deactivating a user", () => {
+    it("deactivates a user", async () => {
+      const admin = await createTestUser({ roles: ["ADMINISTRATOR"] });
+      const agent = await createTestUser({ roles: ["DEPARTMENT_AGENT"] });
+
+      const updated = await setUserActive(admin, agent.userId, false);
+
+      expect(updated.isActive).toBe(false);
+    });
+
+    it("reactivates a user", async () => {
+      const admin = await createTestUser({ roles: ["ADMINISTRATOR"] });
+      const agent = await createTestUser({ roles: ["DEPARTMENT_AGENT"] });
+      await setUserActive(admin, agent.userId, false);
+
+      const updated = await setUserActive(admin, agent.userId, true);
+
+      expect(updated.isActive).toBe(true);
+    });
+
+    it("refuses to let an administrator deactivate themselves", async () => {
+      const admin = await createTestUser({ roles: ["ADMINISTRATOR"] });
+
+      await expect(setUserActive(admin, admin.userId, false)).rejects.toBeInstanceOf(
+        ForbiddenError,
+      );
+    });
+
+    it("refuses a non-administrator", async () => {
+      const manager = await createTestUser({ roles: ["DEPARTMENT_MANAGER"] });
+      const agent = await createTestUser({ roles: ["DEPARTMENT_AGENT"] });
+
+      await expect(setUserActive(manager, agent.userId, false)).rejects.toBeInstanceOf(
         ForbiddenError,
       );
     });

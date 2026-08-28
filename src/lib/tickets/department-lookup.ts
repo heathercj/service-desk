@@ -30,6 +30,7 @@ export async function listAgentsByDepartment(): Promise<
   Record<string, DepartmentAgentOption[]>
 > {
   const memberships = await db.departmentMembership.findMany({
+    where: { user: { isActive: true } },
     include: { user: true, department: true },
   });
 

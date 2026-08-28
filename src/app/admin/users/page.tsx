@@ -1,10 +1,14 @@
 import { redirect } from "next/navigation";
 import { getAuthContext } from "@/lib/auth/session";
 import { listUsersForAdmin } from "@/lib/admin/admin-service";
+import { db } from "@/lib/db";
 import { AccessDenied } from "@/components/access-denied";
 import { ForbiddenError } from "@/lib/rbac/errors";
 import { Card, CardContent } from "@/components/ui/card";
 import { RoleToggles } from "./role-toggles";
+import { AddAgentForm } from "./add-agent-form";
+import { DepartmentMembershipToggles } from "./department-membership-toggles";
+import { UserActiveToggle } from "./user-active-toggle";
 
 const ALL_ROLES = [
   "CUSTOMER",
@@ -27,6 +31,8 @@ export default async function AdminUsersPage() {
     throw err;
   }
 
+  const departments = await db.department.findMany({ orderBy: { name: "asc" } });
+
   return (
     <div className="space-y-6">
       <div>
@@ -37,9 +43,11 @@ export default async function AdminUsersPage() {
         </p>
       </div>
 
+      <AddAgentForm />
+
       <div className="grid gap-3">
         {users.map((u) => (
-          <Card key={u.id}>
+          <Card key={u.id} className={u.isActive ? undefined : "opacity-60"}>
             <CardContent className="space-y-2 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -48,18 +56,30 @@ export default async function AdminUsersPage() {
                     {u.isDevAccount && (
                       <span className="text-xs text-muted-foreground">(dev account)</span>
                     )}
+                    {!u.isActive && (
+                      <span className="text-xs text-muted-foreground"> (inactive)</span>
+                    )}
                   </p>
                   <p className="text-xs text-muted-foreground">{u.email}</p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {u.departmentMemberships.map((m) => m.department.name).join(", ") ||
-                    "No department memberships"}
-                </p>
+                <UserActiveToggle
+                  userId={u.id}
+                  isActive={u.isActive}
+                  isSelf={u.id === auth.userId}
+                />
               </div>
               <RoleToggles
                 userId={u.id}
                 currentRoles={u.roles.map((r) => r.role.name)}
                 allRoles={[...ALL_ROLES]}
+              />
+              <DepartmentMembershipToggles
+                userId={u.id}
+                currentMemberships={u.departmentMemberships.map((m) => ({
+                  departmentId: m.departmentId,
+                  isManager: m.isManager,
+                }))}
+                allDepartments={departments}
               />
             </CardContent>
           </Card>

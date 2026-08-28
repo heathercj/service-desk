@@ -506,6 +506,42 @@ describe("ticket-service integration", () => {
     expect(email?.subject).toMatch(/assigned to you/i);
   });
 
+  it("refuses to reassign to a deactivated department member", async () => {
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+    const manager = await createTestUser({
+      roles: ["DEPARTMENT_MANAGER"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT", isManager: true }],
+    });
+    const agentA = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+    });
+    const deactivatedAgent = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+    });
+    await db.user.update({
+      where: { id: deactivatedAgent.userId },
+      data: { isActive: false },
+    });
+
+    const ticket = await createTicket(customer, await baseTicketInput(franchise.id));
+    const routed = await confirmTriage(triage, {
+      ticketId: ticket.id,
+      version: ticket.version,
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      priority: "MEDIUM",
+      tags: [],
+      assigneeId: agentA.userId,
+    });
+
+    await expect(
+      reassignTicket(manager, routed.id, routed.version, deactivatedAgent.userId),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
   it("refuses to assign at triage to a user outside the target department", async () => {
     const franchise = await createFranchise();
     const customer = await createTestUser({ roles: ["CUSTOMER"] });
@@ -525,6 +561,33 @@ describe("ticket-service integration", () => {
         priority: "MEDIUM",
         tags: [],
         assigneeId: outsider.userId,
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("refuses to assign at triage to a deactivated department member", async () => {
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+    const deactivatedAgent = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+    });
+    await db.user.update({
+      where: { id: deactivatedAgent.userId },
+      data: { isActive: false },
+    });
+
+    const ticket = await createTicket(customer, await baseTicketInput(franchise.id));
+
+    await expect(
+      confirmTriage(triage, {
+        ticketId: ticket.id,
+        version: ticket.version,
+        departmentKey: "TECHNOLOGY_SUPPORT",
+        priority: "MEDIUM",
+        tags: [],
+        assigneeId: deactivatedAgent.userId,
       }),
     ).rejects.toBeInstanceOf(ForbiddenError);
   });
@@ -827,6 +890,45 @@ describe("ticket-service integration", () => {
         "TRAINING",
         "Wrong department.",
         techAgent.userId, // not a member of TRAINING
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("refuses to transfer to a deactivated member of the destination department", async () => {
+    const franchise = await createFranchise();
+    const customer = await createTestUser({ roles: ["CUSTOMER"] });
+    const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+    const techAgent = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TECHNOLOGY_SUPPORT" }],
+    });
+    const deactivatedTrainingAgent = await createTestUser({
+      roles: ["DEPARTMENT_AGENT"],
+      departments: [{ key: "TRAINING" }],
+    });
+    await db.user.update({
+      where: { id: deactivatedTrainingAgent.userId },
+      data: { isActive: false },
+    });
+
+    const ticket = await createTicket(customer, await baseTicketInput(franchise.id));
+    const routed = await confirmTriage(triage, {
+      ticketId: ticket.id,
+      version: ticket.version,
+      departmentKey: "TECHNOLOGY_SUPPORT",
+      priority: "MEDIUM",
+      tags: [],
+      assigneeId: techAgent.userId,
+    });
+
+    await expect(
+      transferDepartment(
+        techAgent,
+        routed.id,
+        routed.version,
+        "TRAINING",
+        "Training question.",
+        deactivatedTrainingAgent.userId,
       ),
     ).rejects.toBeInstanceOf(ForbiddenError);
   });

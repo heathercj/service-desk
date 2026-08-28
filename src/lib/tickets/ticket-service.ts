@@ -519,12 +519,11 @@ export async function confirmTriage(actor: AuthContext, input: ConfirmTriageInpu
     assertTransition("IN_TRIAGE", "QUEUED", policyActor.roles);
 
     if (input.assigneeId) {
-      const membership = await tx.departmentMembership.findUnique({
+      const membership = await tx.departmentMembership.findFirst({
         where: {
-          userId_departmentId: {
-            userId: input.assigneeId,
-            departmentId: targetDepartment.id,
-          },
+          userId: input.assigneeId,
+          departmentId: targetDepartment.id,
+          user: { isActive: true },
         },
       });
       assertAuthorized(
@@ -722,9 +721,11 @@ export async function reassignTicket(
     if (ticket.version !== version)
       throw new ConflictError("This ticket was changed by someone else.");
 
-    const membership = await tx.departmentMembership.findUnique({
+    const membership = await tx.departmentMembership.findFirst({
       where: {
-        userId_departmentId: { userId: targetUserId, departmentId: ticket.departmentId },
+        userId: targetUserId,
+        departmentId: ticket.departmentId,
+        user: { isActive: true },
       },
     });
     assertAuthorized(
@@ -876,9 +877,11 @@ export async function transferDepartment(
     );
 
     if (newAssigneeId) {
-      const membership = await tx.departmentMembership.findUnique({
+      const membership = await tx.departmentMembership.findFirst({
         where: {
-          userId_departmentId: { userId: newAssigneeId, departmentId: newDepartment.id },
+          userId: newAssigneeId,
+          departmentId: newDepartment.id,
+          user: { isActive: true },
         },
       });
       assertAuthorized(
