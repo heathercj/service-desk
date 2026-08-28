@@ -1,5 +1,4 @@
 import type {
-  DepartmentKey,
   KnowledgeOutcomeType,
   Prisma,
   PrismaClient,
@@ -89,7 +88,7 @@ async function simNextTicketNumber(tx: Executor): Promise<string> {
   return `SD-${String(counter.value).padStart(6, "0")}`;
 }
 
-async function simRequireActiveDepartment(db: PrismaClient, key: DepartmentKey) {
+async function simRequireActiveDepartment(db: PrismaClient, key: string) {
   const department = await db.department.findUnique({ where: { key } });
   if (!department || !department.isActive) {
     throw new NotFoundError(`Department "${key}" is not available`);
@@ -107,7 +106,7 @@ export interface SimCreateTicketInput {
   franchiseId: string;
   subject: string;
   description: string;
-  departmentKey: DepartmentKey;
+  departmentKey: string;
 }
 
 export async function simCreateTicket(
@@ -171,7 +170,7 @@ export async function simCreateTicket(
 export interface SimConfirmTriageInput {
   ticketId: string;
   version: number;
-  departmentKey: DepartmentKey;
+  departmentKey: string;
   category: string;
   priority: TicketPriority;
 }

@@ -1,4 +1,4 @@
-import type { RoleName, DepartmentKey } from "@prisma/client";
+import type { RoleName } from "@prisma/client";
 
 /**
  * The baseline reference rows every environment needs -- roles,
@@ -20,7 +20,7 @@ export const ROLE_NAMES: RoleName[] = [
   "ADMINISTRATOR",
 ];
 
-export const DEPARTMENTS: Array<{ key: DepartmentKey; name: string }> = [
+export const DEPARTMENTS: Array<{ key: string; name: string }> = [
   { key: "TECHNOLOGY_SUPPORT", name: "Technology Support" },
   { key: "TRAINING", name: "Training" },
   { key: "ACCOUNTING_SERVICES", name: "Accounting Services" },

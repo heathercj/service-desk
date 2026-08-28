@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DEPARTMENT_KEYS } from "@/lib/validation/ticket-schemas";
+import { departmentKeySchema } from "@/lib/validation/ticket-schemas";
 
 export const KNOWLEDGE_STATUSES = [
   "draft",
@@ -26,7 +26,7 @@ export const knowledgeFrontMatterSchema = z.object({
       "Slug must be lowercase, hyphenated, no spaces or path separators",
     ),
   summary: z.string().min(10).max(500),
-  department: z.enum(DEPARTMENT_KEYS),
+  department: departmentKeySchema,
   audience: z.string().max(80).optional(),
   internalOnly: z.boolean().default(false),
   status: z.enum(KNOWLEDGE_STATUSES),

@@ -1,19 +1,32 @@
+import "dotenv/config";
+import { PrismaClient } from "@prisma/client";
 import { listAllArticleFiles, readArticleFile } from "../src/lib/knowledge/markdown-repo";
-import {
-  folderToDepartmentKey,
-  isKnownDepartmentFolder,
-} from "../src/lib/knowledge/department-folders";
+import { departmentKeyToFolder } from "../src/lib/knowledge/department-folders";
 import path from "node:path";
 
 /**
  * CI content check (Section 11): fails the build on invalid front matter,
  * duplicate IDs, duplicate slugs within a department, unsafe links, or
  * malformed Markdown. Run via `pnpm kb:validate`.
+ *
+ * "Is this a recognized department folder" is checked against real
+ * Department rows, not a hand-maintained allow-list or a guessed reverse
+ * transform -- departments are created by administrators at runtime
+ * (Section: self-service departments), so a fixed list would either reject
+ * a legitimately new department or (worse, if merely computed rather than
+ * looked up) let a typo'd folder validate against itself.
  */
+
+const db = new PrismaClient();
 
 const UNSAFE_LINK_PATTERN = /\]\(\s*(javascript|data|file|vbscript):/i;
 
 async function main() {
+  const departments = await db.department.findMany({ select: { key: true } });
+  const departmentKeyByFolder = new Map(
+    departments.map((d) => [departmentKeyToFolder(d.key), d.key]),
+  );
+
   const files = await listAllArticleFiles();
   const errors: string[] = [];
   const seenIds = new Map<string, string>();
@@ -25,7 +38,8 @@ async function main() {
 
   for (const relativePath of files) {
     const topFolder = relativePath.split(path.sep)[0] ?? "";
-    if (!isKnownDepartmentFolder(topFolder)) {
+    const expectedDeptKeyFromFolder = departmentKeyByFolder.get(topFolder);
+    if (!expectedDeptKeyFromFolder) {
       errors.push(`${relativePath}: not under a recognized department folder`);
       continue;
     }
@@ -40,8 +54,7 @@ async function main() {
 
     const { frontMatter, body } = parsed;
 
-    const expectedDeptKey = folderToDepartmentKey(topFolder);
-    if (frontMatter.department !== expectedDeptKey) {
+    if (frontMatter.department !== expectedDeptKeyFromFolder) {
       errors.push(
         `${relativePath}: front matter department "${frontMatter.department}" does not match folder "${topFolder}"`,
       );
@@ -86,7 +99,9 @@ async function main() {
   console.log(`Knowledge-base validation passed for ${files.length} article(s).`);
 }
 
-main().catch((err) => {
-  console.error("kb:validate crashed:", err);
-  process.exit(1);
-});
+main()
+  .catch((err) => {
+    console.error("kb:validate crashed:", err);
+    process.exit(1);
+  })
+  .finally(() => db.$disconnect());

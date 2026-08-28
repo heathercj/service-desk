@@ -5,6 +5,8 @@ import { AccessDenied } from "@/components/access-denied";
 import { db } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { DepartmentToggle } from "./department-toggle";
+import { CreateDepartmentForm } from "./create-department-form";
+import { RenameDepartmentForm } from "./rename-department-form";
 
 export default async function AdminDepartmentsPage() {
   const auth = await getAuthContext();
@@ -23,12 +25,23 @@ export default async function AdminDepartmentsPage() {
           existing ticket history.
         </p>
       </div>
+      <Card>
+        <CardContent className="p-4">
+          <CreateDepartmentForm />
+        </CardContent>
+      </Card>
       <div className="grid gap-3">
         {departments.map((d) => (
           <Card key={d.id}>
-            <CardContent className="flex items-center justify-between p-4">
-              <span className="font-medium">{d.name}</span>
-              <DepartmentToggle departmentId={d.id} isActive={d.isActive} />
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+              <div>
+                <div className="font-medium">{d.name}</div>
+                <div className="text-xs text-muted-foreground">{d.key}</div>
+              </div>
+              <div className="flex flex-wrap items-end gap-3">
+                <RenameDepartmentForm departmentId={d.id} name={d.name} />
+                <DepartmentToggle departmentId={d.id} isActive={d.isActive} />
+              </div>
             </CardContent>
           </Card>
         ))}

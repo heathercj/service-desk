@@ -33,6 +33,11 @@ const DEPARTMENT_AGENTS = {
   TRAINING: [{ id: "training-agent-1", displayName: "Tom Trainer" }],
 };
 
+const DEPARTMENTS = [
+  { key: "TECHNOLOGY_SUPPORT", name: "Technology Support" },
+  { key: "TRAINING", name: "Training" },
+];
+
 const BASE_TICKET = {
   id: "ticket-1",
   ticketNumber: "SD-000001",
@@ -54,6 +59,7 @@ function renderActions(overrides: {
       allowedNextStatuses={[]}
       knowledgeLinks={[]}
       departmentAgents={DEPARTMENT_AGENTS}
+      departments={DEPARTMENTS}
     />,
   );
 }
@@ -64,6 +70,42 @@ beforeEach(() => {
   fetchMock.mockReset();
   fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) });
   vi.stubGlobal("fetch", fetchMock);
+});
+
+feature("Department pickers show real department names, not raw keys", () => {
+  scenario(
+    "The confirm-triage department picker reads from real departments",
+    async (s) => {
+      await s.given("a triage agent viewing a ticket awaiting triage", () =>
+        renderActions({
+          roles: ["TRIAGE_AGENT"],
+          isAssignee: false,
+          status: "SUBMITTED",
+        }),
+      );
+
+      await s.then("the picker offers each department by its display name", () => {
+        expect(
+          screen.getByRole("option", { name: "Technology Support" }),
+        ).toBeInTheDocument();
+        expect(screen.getByRole("option", { name: "Training" })).toBeInTheDocument();
+      });
+    },
+  );
+
+  scenario("The transfer department picker reads from real departments", async (s) => {
+    await s.given("the ticket's assignee viewing the transfer form", async () => {
+      renderActions({ roles: ["DEPARTMENT_AGENT"], isAssignee: true });
+      await userEvent.click(screen.getByRole("button", { name: "Transfer department" }));
+    });
+
+    await s.then("the picker offers each department by its display name", () => {
+      expect(
+        screen.getByRole("option", { name: "Technology Support" }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "Training" })).toBeInTheDocument();
+    });
+  });
 });
 
 feature("Mis-route transfer", () => {

@@ -8,12 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog, type ConfirmDialogHandle } from "@/components/ui/confirm-dialog";
-import { DEPARTMENT_KEYS } from "@/lib/validation/ticket-schemas";
 import { titleCase } from "@/lib/utils";
 
 interface DepartmentAgentOption {
   id: string;
   displayName: string;
+}
+
+interface DepartmentOption {
+  key: string;
+  name: string;
 }
 
 interface TicketActionsProps {
@@ -30,6 +34,8 @@ interface TicketActionsProps {
   allowedNextStatuses: string[];
   knowledgeLinks: Array<{ id: string; outcomeType: string; articleTitle: string | null }>;
   departmentAgents: Record<string, DepartmentAgentOption[]>;
+  /** Active departments, for the confirm-triage and transfer pickers. */
+  departments: DepartmentOption[];
 }
 
 const CANCEL_ROLES = new Set(["TRIAGE_AGENT", "DEPARTMENT_MANAGER", "ADMINISTRATOR"]);
@@ -62,9 +68,12 @@ export function TicketActions({
   allowedNextStatuses,
   knowledgeLinks,
   departmentAgents,
+  departments,
 }: TicketActionsProps) {
   const router = useRouter();
   const roleSet = new Set(roles);
+  const departmentNameByKey = new Map(departments.map((d) => [d.key, d.name]));
+  const departmentName = (key: string) => departmentNameByKey.get(key) ?? key;
   const [error, setError] = useState<string | null>(null);
   const [messageBody, setMessageBody] = useState("");
   const [noteBody, setNoteBody] = useState("");
@@ -208,9 +217,9 @@ export function TicketActions({
                 }}
                 className="mt-1"
               >
-                {DEPARTMENT_KEYS.map((k) => (
-                  <option key={k} value={k}>
-                    {titleCase(k)}
+                {departments.map((d) => (
+                  <option key={d.key} value={d.key}>
+                    {d.name}
                   </option>
                 ))}
               </Select>
@@ -246,8 +255,8 @@ export function TicketActions({
               }
             >
               {triageAssigneeId
-                ? `Confirm triage, route to ${titleCase(triageDept)}, and assign`
-                : `Confirm triage & route to ${titleCase(triageDept)}`}
+                ? `Confirm triage, route to ${departmentName(triageDept)}, and assign`
+                : `Confirm triage & route to ${departmentName(triageDept)}`}
             </Button>
           </CardContent>
         </Card>
@@ -461,9 +470,9 @@ export function TicketActions({
                   }}
                   className="mt-1"
                 >
-                  {DEPARTMENT_KEYS.map((k) => (
-                    <option key={k} value={k}>
-                      {titleCase(k)}
+                  {departments.map((d) => (
+                    <option key={d.key} value={d.key}>
+                      {d.name}
                     </option>
                   ))}
                 </Select>

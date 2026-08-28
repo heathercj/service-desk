@@ -1,6 +1,6 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
-import type { DepartmentKey, KnowledgeOutcomeType } from "@prisma/client";
+import type { KnowledgeOutcomeType } from "@prisma/client";
 import { db } from "@/lib/db";
 import type { AuthContext } from "@/lib/auth/session";
 import {
@@ -31,7 +31,7 @@ function newArticleKey(): string {
 export interface CreateDraftArticleInput {
   title: string;
   summary: string;
-  departmentKey: DepartmentKey;
+  departmentKey: string;
   tags: string[];
   body: string;
   sourceTicketId?: string;
@@ -407,7 +407,7 @@ export async function recordDeflectionEvent(articleId: string, userId?: string) 
 export async function getArticleForActor(
   actor: AuthContext | null,
   slug: string,
-  departmentKey?: DepartmentKey,
+  departmentKey?: string,
 ) {
   const article = departmentKey
     ? await db.knowledgeArticle.findFirst({

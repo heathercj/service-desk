@@ -1,12 +1,16 @@
-import type { DepartmentKey } from "@prisma/client";
-
 /**
  * Deterministic department suggestion shown to triage (Section 7:
  * "Suggested department with rationale"). Keyword-based and fully local --
  * no AI/embedding call. This is intentionally a starting point the triage
  * agent can override, not an autonomous routing decision.
+ *
+ * Keyed by string, not the old fixed `DepartmentKey` enum: departments are
+ * created by administrators at runtime (Section: self-service
+ * departments), so this can no longer be an exhaustive compile-time map --
+ * a newly created department simply has no keyword rule and is never
+ * auto-suggested, which is correct (triage still routes it manually).
  */
-const DEPARTMENT_KEYWORDS: Record<DepartmentKey, string[]> = {
+const DEPARTMENT_KEYWORDS: Record<string, string[]> = {
   TECHNOLOGY_SUPPORT: [
     "password",
     "login",
@@ -90,10 +94,10 @@ const DEPARTMENT_KEYWORDS: Record<DepartmentKey, string[]> = {
  * existing "Confirm triage & route" action -- this is only the intake
  * default, not a final decision.
  */
-export const DEFAULT_DEPARTMENT_KEY: DepartmentKey = "TECHNOLOGY_SUPPORT";
+export const DEFAULT_DEPARTMENT_KEY = "TECHNOLOGY_SUPPORT";
 
 export interface DepartmentSuggestion {
-  departmentKey: DepartmentKey;
+  departmentKey: string;
   rationale: string;
   matchedKeywords: string[];
 }
@@ -104,12 +108,9 @@ export function suggestDepartment(
 ): DepartmentSuggestion | null {
   const text = `${subject} ${description}`.toLowerCase();
 
-  let best: { key: DepartmentKey; matches: string[] } | null = null;
+  let best: { key: string; matches: string[] } | null = null;
 
-  for (const [key, keywords] of Object.entries(DEPARTMENT_KEYWORDS) as [
-    DepartmentKey,
-    string[],
-  ][]) {
+  for (const [key, keywords] of Object.entries(DEPARTMENT_KEYWORDS)) {
     const matches = keywords.filter((kw) => text.includes(kw));
     if (matches.length > 0 && (!best || matches.length > best.matches.length)) {
       best = { key, matches };

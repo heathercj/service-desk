@@ -1,10 +1,5 @@
 import "dotenv/config";
-import {
-  PrismaClient,
-  type RoleName,
-  type DepartmentKey,
-  type TicketStatus,
-} from "@prisma/client";
+import { PrismaClient, type RoleName, type TicketStatus } from "@prisma/client";
 import { DEV_IDENTITIES } from "../src/lib/dev-auth/dev-identities";
 import { writeArticleFile } from "../src/lib/knowledge/markdown-repo";
 import type { KnowledgeFrontMatter } from "../src/lib/knowledge/front-matter-schema";
@@ -49,7 +44,7 @@ async function assignRole(userId: string, name: RoleName) {
   });
 }
 
-async function assignDepartment(userId: string, key: DepartmentKey, isManager: boolean) {
+async function assignDepartment(userId: string, key: string, isManager: boolean) {
   const dept = await db.department.findUniqueOrThrow({ where: { key } });
   await db.departmentMembership.upsert({
     where: { userId_departmentId: { userId, departmentId: dept.id } },
@@ -105,7 +100,7 @@ const SEED_ARTICLE_DATE = "2026-06-01";
 interface SeedArticleInput {
   title: string;
   summary: string;
-  departmentKey: DepartmentKey;
+  departmentKey: string;
   tags: string[];
   status: "draft" | "in_review" | "published" | "archived";
   createdById: string;
@@ -277,7 +272,7 @@ interface SeedTicketInput {
    * eleven tickets filed in the same second.
    */
   ageHours: number;
-  departmentKey: DepartmentKey;
+  departmentKey: string;
   submittedById: string;
   franchiseCode: string;
   assigneeId?: string;

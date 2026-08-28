@@ -23,34 +23,39 @@ in the service layer for every route regardless).
 
 ## API routes (mutations; JSON in, JSON out)
 
-| Route                                  | Method           | Who                              | Purpose                               | Rate limit                  |
-| -------------------------------------- | ---------------- | -------------------------------- | ------------------------------------- | --------------------------- |
-| `/api/auth/[...nextauth]`              | GET/POST         | public                           | Auth.js handlers                      | sign-in paths limited by IP |
-| `/api/health`                          | GET              | public                           | Liveness                              | --                          |
-| `/api/ready`                           | GET              | public                           | Readiness (DB reachable)              | --                          |
-| `/api/tickets`                         | POST             | Customer                         | Create ticket                         | 10/min/user                 |
-| `/api/tickets/[id]/messages`           | POST             | scoped                           | Add customer-visible message          | 20/min/user                 |
-| `/api/tickets/[id]/notes`              | POST             | staff                            | Add internal note                     | --                          |
-| `/api/tickets/[id]/triage`             | POST             | Triage/Admin                     | Confirm triage + route                | --                          |
-| `/api/tickets/[id]/assign-self`        | POST             | Dept Agent/Manager/Admin         | Self-assign                           | --                          |
-| `/api/tickets/[id]/reassign`           | POST             | Dept Manager/Admin               | Reassign within department            | --                          |
-| `/api/tickets/[id]/transition`         | POST             | role-gated by state machine      | Generic status transition             | --                          |
-| `/api/tickets/[id]/transfer`           | POST             | Triage/Dept Manager/Admin        | Department transfer (reason required) | --                          |
-| `/api/tickets/[id]/resolve`            | POST             | Dept Agent/Manager/Admin         | Enter resolution, attempt gate        | --                          |
-| `/api/tickets/[id]/knowledge-outcome`  | POST             | staff (exception: KM/Admin only) | Record resolution-gate outcome        | --                          |
-| `/api/tickets/[id]/attachments`        | POST (multipart) | scoped                           | Upload attachment                     | 15/min/user                 |
-| `/api/attachments/[id]/download`       | GET              | scoped                           | Download (only if `scanStatus=CLEAN`) | --                          |
-| `/api/knowledge/suggestions`           | POST             | any                              | Pre-ticket knowledge suggestions      | 60/min/user                 |
-| `/api/knowledge/similar`               | POST             | staff                            | Author-facing duplicate check         | 60/min/user                 |
-| `/api/knowledge/articles`              | POST             | staff                            | Create draft article                  | --                          |
-| `/api/knowledge/articles/[id]/publish` | POST             | Knowledge Manager/Admin          | Publish                               | --                          |
-| `/api/knowledge/articles/[id]/archive` | POST             | Knowledge Manager/Admin          | Archive                               | --                          |
-| `/api/knowledge/articles/[id]/restore` | POST             | Knowledge Manager/Admin          | Restore from archive                  | --                          |
-| `/api/knowledge/feedback`              | POST             | any                              | Helpful/not-helpful                   | --                          |
-| `/api/knowledge/deflection`            | POST             | any                              | Record deflection event               | --                          |
-| `/api/chat`                            | POST             | any                              | Retrieval-only knowledge chat         | 30/min/user                 |
-| `/api/admin/users/[id]/role`           | POST             | Administrator                    | Grant/revoke a role                   | --                          |
-| `/api/admin/departments/[id]/active`   | POST             | Administrator                    | Activate/deactivate department        | --                          |
+| Route                                        | Method           | Who                              | Purpose                               | Rate limit                  |
+| -------------------------------------------- | ---------------- | -------------------------------- | ------------------------------------- | --------------------------- |
+| `/api/auth/[...nextauth]`                    | GET/POST         | public                           | Auth.js handlers                      | sign-in paths limited by IP |
+| `/api/health`                                | GET              | public                           | Liveness                              | --                          |
+| `/api/ready`                                 | GET              | public                           | Readiness (DB reachable)              | --                          |
+| `/api/tickets`                               | POST             | Customer                         | Create ticket                         | 10/min/user                 |
+| `/api/tickets/[id]/messages`                 | POST             | scoped                           | Add customer-visible message          | 20/min/user                 |
+| `/api/tickets/[id]/notes`                    | POST             | staff                            | Add internal note                     | --                          |
+| `/api/tickets/[id]/triage`                   | POST             | Triage/Admin                     | Confirm triage + route                | --                          |
+| `/api/tickets/[id]/assign-self`              | POST             | Dept Agent/Manager/Admin         | Self-assign                           | --                          |
+| `/api/tickets/[id]/reassign`                 | POST             | Dept Manager/Admin               | Reassign within department            | --                          |
+| `/api/tickets/[id]/transition`               | POST             | role-gated by state machine      | Generic status transition             | --                          |
+| `/api/tickets/[id]/transfer`                 | POST             | Triage/Dept Manager/Admin        | Department transfer (reason required) | --                          |
+| `/api/tickets/[id]/resolve`                  | POST             | Dept Agent/Manager/Admin         | Enter resolution, attempt gate        | --                          |
+| `/api/tickets/[id]/knowledge-outcome`        | POST             | staff (exception: KM/Admin only) | Record resolution-gate outcome        | --                          |
+| `/api/tickets/[id]/attachments`              | POST (multipart) | scoped                           | Upload attachment                     | 15/min/user                 |
+| `/api/attachments/[id]/download`             | GET              | scoped                           | Download (only if `scanStatus=CLEAN`) | --                          |
+| `/api/knowledge/suggestions`                 | POST             | any                              | Pre-ticket knowledge suggestions      | 60/min/user                 |
+| `/api/knowledge/similar`                     | POST             | staff                            | Author-facing duplicate check         | 60/min/user                 |
+| `/api/knowledge/articles`                    | POST             | staff                            | Create draft article                  | --                          |
+| `/api/knowledge/articles/[id]/publish`       | POST             | Knowledge Manager/Admin          | Publish                               | --                          |
+| `/api/knowledge/articles/[id]/archive`       | POST             | Knowledge Manager/Admin          | Archive                               | --                          |
+| `/api/knowledge/articles/[id]/restore`       | POST             | Knowledge Manager/Admin          | Restore from archive                  | --                          |
+| `/api/knowledge/feedback`                    | POST             | any                              | Helpful/not-helpful                   | --                          |
+| `/api/knowledge/deflection`                  | POST             | any                              | Record deflection event               | --                          |
+| `/api/chat`                                  | POST             | any                              | Retrieval-only knowledge chat         | 30/min/user                 |
+| `/api/admin/users`                           | POST             | Administrator                    | Provision an agent by email           | --                          |
+| `/api/admin/users/[id]/role`                 | POST             | Administrator                    | Grant/revoke a role                   | --                          |
+| `/api/admin/users/[id]/active`               | POST             | Administrator                    | Activate/deactivate a user            | --                          |
+| `/api/admin/users/[id]/departments/[deptId]` | POST             | Administrator                    | Set department membership             | --                          |
+| `/api/admin/departments`                     | POST             | Administrator                    | Create department                     | --                          |
+| `/api/admin/departments/[id]/rename`         | POST             | Administrator                    | Rename department                     | --                          |
+| `/api/admin/departments/[id]/active`         | POST             | Administrator                    | Activate/deactivate department        | --                          |
 
 Every non-GET route validates its body with a Zod schema
 (`src/lib/validation/`) and returns `400` with issue details on failure,

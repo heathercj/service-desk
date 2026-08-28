@@ -7,7 +7,6 @@ import {
   type TicketListFilters,
 } from "@/lib/tickets/ticket-service";
 import { LIVE_STATUSES } from "@/lib/tickets/state-machine";
-import { parseDepartmentKey } from "@/lib/validation/ticket-schemas";
 import { canViewDepartmentWorkload, toPolicyActor } from "@/lib/rbac/policies";
 import {
   attachLastActivityAt,
@@ -69,13 +68,12 @@ export default async function DepartmentQueuePage({
       ? (rawView as ViewKey)
       : "all";
 
-  // Narrowed before it reaches Prisma: an out-of-enum value is a thrown
-  // PrismaClientValidationError there, not a miss, so the raw segment would
-  // turn a mistyped link into the "Something went wrong" boundary.
-  const key = parseDepartmentKey(departmentKey);
-  const department = key
-    ? await db.department.findFirst({ where: { key, isActive: true } })
-    : null;
+  // key is a plain string column now, not an enum, so an unmatched segment
+  // is just a miss (zero rows) -- no PrismaClientValidationError to guard
+  // against, unlike when this looked up an enum column.
+  const department = await db.department.findFirst({
+    where: { key: departmentKey, isActive: true },
+  });
   if (!department) return <AccessDenied message="Department not found or inactive." />;
 
   let result;

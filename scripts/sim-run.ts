@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { PrismaClient, type DepartmentKey, type RoleName } from "@prisma/client";
+import { PrismaClient, type RoleName } from "@prisma/client";
 import { DEV_IDENTITIES } from "@/lib/dev-auth/dev-identities";
 import {
   TRIAGE_PERSONA,
@@ -89,7 +89,7 @@ async function assignRole(userId: string, name: RoleName) {
   });
 }
 
-async function assignDepartment(userId: string, key: DepartmentKey, isManager: boolean) {
+async function assignDepartment(userId: string, key: string, isManager: boolean) {
   const dept = await db.department.findUniqueOrThrow({ where: { key } });
   await db.departmentMembership.upsert({
     where: { userId_departmentId: { userId, departmentId: dept.id } },

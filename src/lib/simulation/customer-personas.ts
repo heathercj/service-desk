@@ -1,4 +1,4 @@
-import type { DepartmentKey, TicketPriority } from "@prisma/client";
+import type { TicketPriority } from "@prisma/client";
 
 /**
  * Local, deterministic "customer" personas for the simulation harness
@@ -10,7 +10,7 @@ import type { DepartmentKey, TicketPriority } from "@prisma/client";
 export interface TicketScenario {
   subject: string;
   description: string;
-  departmentKey: DepartmentKey;
+  departmentKey: string;
   category: string;
   priority: TicketPriority;
 }
@@ -28,7 +28,7 @@ export interface CustomerPersona {
   email: string;
   description: string;
   skills: string[];
-  commonDepartments: DepartmentKey[];
+  commonDepartments: string[];
   scenarios: TicketScenario[];
   behavior: CustomerBehavior;
 }

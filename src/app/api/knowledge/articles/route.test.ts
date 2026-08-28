@@ -132,7 +132,6 @@ feature("Drafting a knowledge article", () => {
   scenario.each([
     { field: "a too-short title", body: validDraft({ title: "no" }) },
     { field: "a too-short summary", body: validDraft({ summary: "short" }) },
-    { field: "an unknown department", body: validDraft({ departmentKey: "FACILITIES" }) },
     { field: "a too-short body", body: validDraft({ body: "thin" }) },
     {
       field: "a source ticket id that is not a uuid",

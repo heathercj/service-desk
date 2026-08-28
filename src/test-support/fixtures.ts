@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { RoleName, DepartmentKey } from "@prisma/client";
+import type { RoleName } from "@prisma/client";
 import { db } from "@/lib/db";
 import type { AuthContext } from "@/lib/auth/session";
 import { ROLE_NAMES, DEPARTMENTS, FRANCHISES } from "@/lib/reference-data";
@@ -38,7 +38,7 @@ export async function createFranchise(namePrefix = "Test Franchise") {
 
 export interface CreateTestUserOptions {
   roles?: RoleName[];
-  departments?: Array<{ key: DepartmentKey; isManager?: boolean }>;
+  departments?: Array<{ key: string; isManager?: boolean }>;
   displayName?: string;
 }
 
@@ -93,7 +93,7 @@ export async function createTestUser(
   };
 }
 
-export async function getDepartmentId(key: DepartmentKey): Promise<string> {
+export async function getDepartmentId(key: string): Promise<string> {
   const department = await db.department.findUniqueOrThrow({ where: { key } });
   return department.id;
 }

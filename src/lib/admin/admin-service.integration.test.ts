@@ -1,16 +1,19 @@
 import { randomUUID } from "node:crypto";
 import { describe, afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
-import { ForbiddenError, NotFoundError } from "@/lib/rbac/errors";
+import { ConflictError, ForbiddenError, NotFoundError } from "@/lib/rbac/errors";
 import {
   createTestUser,
   ensureRolesAndDepartments,
   getDepartmentId,
 } from "@/test-support/fixtures";
+import { confirmTriage, createTicket } from "@/lib/tickets/ticket-service";
 import {
+  createDepartment,
   listAuditEventsForAdmin,
   listUsersForAdmin,
   provisionUserByEmail,
+  renameDepartment,
   setDepartmentActive,
   setDepartmentMembership,
   setUserActive,
@@ -444,6 +447,132 @@ describe("admin-service integration", () => {
       await expect(setUserActive(manager, agent.userId, false)).rejects.toBeInstanceOf(
         ForbiddenError,
       );
+    });
+  });
+
+  describe("creating a department (flagship: create, then actually use it)", () => {
+    it("a newly created department can immediately receive a routed ticket", async () => {
+      const admin = await createTestUser({ roles: ["ADMINISTRATOR"] });
+      const triage = await createTestUser({ roles: ["TRIAGE_AGENT"] });
+      const customer = await createTestUser({ roles: ["CUSTOMER"] });
+
+      const department = await createDepartment(
+        admin,
+        `Alair Performance Team ${randomUUID().slice(0, 8)}`,
+      );
+      expect(department.key).toMatch(/^ALAIR_PERFORMANCE_TEAM_/);
+
+      const ticket = await createTicket(customer, {
+        subject: "Where do I submit my performance review?",
+        description:
+          "I can't find where to submit my quarterly performance review documents.",
+        isProjectRelated: false,
+        urls: [],
+        consentAcknowledged: true,
+        attemptedArticleIds: [],
+      });
+
+      const routed = await confirmTriage(triage, {
+        ticketId: ticket.id,
+        version: ticket.version,
+        departmentKey: department.key,
+        priority: "MEDIUM",
+        tags: [],
+      });
+
+      expect(routed.departmentId).toBe(department.id);
+      expect(routed.status).toBe("QUEUED");
+    });
+
+    it("derives an uppercase-snake-case key from the name", async () => {
+      const admin = await createTestUser({ roles: ["ADMINISTRATOR"] });
+
+      const department = await createDepartment(
+        admin,
+        `Sales & Marketing -- EMEA ${randomUUID().slice(0, 8)}`,
+      );
+
+      expect(department.key).toMatch(/^SALES_MARKETING_EMEA_[0-9A-F]{8}$/);
+      expect(department.isActive).toBe(true);
+    });
+
+    it("refuses a name that collides with an existing department's derived key", async () => {
+      const admin = await createTestUser({ roles: ["ADMINISTRATOR"] });
+      const uniqueSuffix = randomUUID().slice(0, 8);
+      await createDepartment(admin, `Facilities ${uniqueSuffix}`);
+
+      await expect(
+        createDepartment(admin, `Facilities ${uniqueSuffix}`),
+      ).rejects.toBeInstanceOf(ConflictError);
+    });
+
+    it("refuses a name with no letters or digits (empty derived key)", async () => {
+      const admin = await createTestUser({ roles: ["ADMINISTRATOR"] });
+
+      await expect(createDepartment(admin, "!!! ---")).rejects.toThrow();
+    });
+
+    it("records who created it", async () => {
+      const admin = await createTestUser({
+        roles: ["ADMINISTRATOR"],
+        displayName: "Ada Admin",
+      });
+
+      const department = await createDepartment(
+        admin,
+        `New Department ${randomUUID().slice(0, 8)}`,
+      );
+
+      const event = await db.auditEvent.findFirst({
+        where: { action: "DEPARTMENT_CREATED", entityId: department.id },
+      });
+      expect(event?.actorId).toBe(admin.userId);
+    });
+
+    it("refuses a non-administrator", async () => {
+      const manager = await createTestUser({ roles: ["DEPARTMENT_MANAGER"] });
+
+      await expect(
+        createDepartment(manager, `Should Not Exist ${randomUUID().slice(0, 8)}`),
+      ).rejects.toBeInstanceOf(ForbiddenError);
+    });
+  });
+
+  describe("renaming a department", () => {
+    it("updates the name without changing the key", async () => {
+      const admin = await createTestUser({ roles: ["ADMINISTRATOR"] });
+      const department = await createDepartment(
+        admin,
+        `Original Name ${randomUUID().slice(0, 8)}`,
+      );
+
+      const renamed = await renameDepartment(admin, department.id, "Renamed Department");
+
+      expect(renamed.name).toBe("Renamed Department");
+      expect(renamed.key).toBe(department.key);
+    });
+
+    it("refuses a non-administrator", async () => {
+      const manager = await createTestUser({ roles: ["DEPARTMENT_MANAGER"] });
+      const techDeptId = await getDepartmentId("TECHNOLOGY_SUPPORT");
+
+      await expect(
+        renameDepartment(manager, techDeptId, "Hijacked Name"),
+      ).rejects.toBeInstanceOf(ForbiddenError);
+    });
+  });
+
+  describe("protecting the default intake department", () => {
+    it("refuses to deactivate Technology Support, the default routing target", async () => {
+      const admin = await createTestUser({ roles: ["ADMINISTRATOR"] });
+      const techDeptId = await getDepartmentId("TECHNOLOGY_SUPPORT");
+
+      await expect(setDepartmentActive(admin, techDeptId, false)).rejects.toBeInstanceOf(
+        ForbiddenError,
+      );
+
+      const after = await db.department.findUniqueOrThrow({ where: { id: techDeptId } });
+      expect(after.isActive).toBe(true);
     });
   });
 });

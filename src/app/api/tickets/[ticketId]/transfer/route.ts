@@ -1,12 +1,12 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { DEPARTMENT_KEYS } from "@/lib/validation/ticket-schemas";
+import { departmentKeySchema } from "@/lib/validation/ticket-schemas";
 import { transferDepartment } from "@/lib/tickets/ticket-service";
 import { withAuth } from "@/lib/http/route-helpers";
 
 const schema = z.object({
   version: z.number().int().positive(),
-  departmentKey: z.enum(DEPARTMENT_KEYS),
+  departmentKey: departmentKeySchema,
   reason: z.string().trim().min(1, "A reason is required to transfer a ticket").max(2000),
   newAssigneeId: z.string().uuid().optional(),
 });

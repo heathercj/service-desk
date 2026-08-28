@@ -141,10 +141,6 @@ feature("Confirming a ticket's triage", () => {
   });
 
   scenario.each([
-    {
-      payload: "an unknown department",
-      body: validTriage({ departmentKey: "FACILITIES" }),
-    },
     { payload: "an unknown priority", body: validTriage({ priority: "SEVERE" }) },
     { payload: "no version", body: validTriage({ version: undefined }) },
     {
@@ -199,6 +195,24 @@ feature("Confirming a ticket's triage", () => {
     await s.then("the attempt is refused as a conflict", () =>
       expect(res.status).toBe(409),
     );
+  });
+
+  scenario("Triaging into an unknown department reports not found", async (s) => {
+    await s.given("a signed-in triage agent", () =>
+      setCurrentActor(actors.triageAgent()),
+    );
+
+    await s.and("the department does not exist or is inactive", () => {
+      vi.mocked(confirmTriage).mockRejectedValue(
+        new NotFoundError('Department "FACILITIES" is not available'),
+      );
+    });
+
+    const res = await s.when("they attempt to triage it", () =>
+      triage(validTriage({ departmentKey: "FACILITIES" })),
+    );
+
+    await s.then("the response is not found", () => expect(res.status).toBe(404));
   });
 
   scenario("Triaging an unknown ticket reports not found", async (s) => {

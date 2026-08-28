@@ -1,7 +1,10 @@
 import { redirect, notFound } from "next/navigation";
 import { getAuthContext } from "@/lib/auth/session";
 import { getTicketByNumberForActor } from "@/lib/tickets/ticket-service";
-import { listAgentsByDepartment } from "@/lib/tickets/department-lookup";
+import {
+  listActiveDepartments,
+  listAgentsByDepartment,
+} from "@/lib/tickets/department-lookup";
 import { getAllowedNextStatuses } from "@/lib/tickets/state-machine";
 import { ForbiddenError, NotFoundError } from "@/lib/rbac/errors";
 import { canRecordKnowledgeException, toPolicyActor } from "@/lib/rbac/policies";
@@ -57,6 +60,7 @@ export default async function TicketDetailPage({
   const allowedNextStatuses = getAllowedNextStatuses(ticket.status, auth.roles);
 
   const departmentAgents = isStaffView ? await listAgentsByDepartment() : {};
+  const departments = isStaffView ? await listActiveDepartments() : [];
 
   const [ticketActivity] = await attachLastActivityAt([ticket]);
   const isDormant =
@@ -237,6 +241,7 @@ export default async function TicketDetailPage({
             ticketDescription={ticket.description}
             departmentKey={ticket.department.key}
             canRecordException={canRecordKnowledgeException(toPolicyActor(auth))}
+            departments={departments}
           />
         )}
 
@@ -257,6 +262,7 @@ export default async function TicketDetailPage({
           articleTitle: l.article?.title ?? null,
         }))}
         departmentAgents={departmentAgents}
+        departments={departments}
       />
 
       <Card>

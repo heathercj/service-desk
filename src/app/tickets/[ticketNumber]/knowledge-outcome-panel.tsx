@@ -12,7 +12,6 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { DEPARTMENT_KEYS } from "@/lib/validation/ticket-schemas";
 import { Select } from "@/components/ui/select";
 
 interface SimilarArticle {
@@ -23,18 +22,26 @@ interface SimilarArticle {
   matchReasons: string[];
 }
 
+interface DepartmentOption {
+  key: string;
+  name: string;
+}
+
 export function KnowledgeOutcomePanel({
   ticketId,
   ticketSubject,
   ticketDescription,
   departmentKey,
   canRecordException,
+  departments,
 }: {
   ticketId: string;
   ticketSubject: string;
   ticketDescription: string;
   departmentKey: string;
   canRecordException: boolean;
+  /** Active departments, for the new-draft-article department picker. */
+  departments: DepartmentOption[];
 }) {
   const router = useRouter();
   const [results, setResults] = useState<SimilarArticle[] | null>(null);
@@ -203,9 +210,9 @@ export function KnowledgeOutcomePanel({
                     value={draftDept}
                     onChange={(e) => setDraftDept(e.target.value)}
                   >
-                    {DEPARTMENT_KEYS.map((k) => (
-                      <option key={k} value={k}>
-                        {k.replaceAll("_", " ")}
+                    {departments.map((d) => (
+                      <option key={d.key} value={d.key}>
+                        {d.name}
                       </option>
                     ))}
                   </Select>

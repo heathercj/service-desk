@@ -176,10 +176,6 @@ feature("Checking a proposed article for duplicates", () => {
     { payload: "an empty title", body: validCheck({ proposedTitle: "" }) },
     { payload: "an empty summary", body: validCheck({ proposedSummary: "" }) },
     {
-      payload: "an unknown department",
-      body: validCheck({ departmentKey: "FACILITIES" }),
-    },
-    {
       payload: "a ticket that is not a uuid",
       body: validCheck({ ticketId: "ticket-7" }),
     },

@@ -43,14 +43,15 @@ test("an agent outside the ticket's department gets a safe forbidden response", 
 });
 
 /**
- * A department key that is not one of the five is a mistyped or stale link,
- * and the page has a notice for exactly that. It used to be a 500 instead:
- * the segment went to Prisma unnarrowed, and Prisma treats a value outside an
- * enum as a thrown PrismaClientValidationError rather than as no match -- so
- * the "Something went wrong" boundary answered for what is really a 404. See
- * `parseDepartmentKey` in src/lib/validation/ticket-schemas.ts.
+ * An unrecognized department key is a mistyped or stale link, and the page
+ * has a notice for exactly that -- it must never be a 500. Before
+ * `Department.key` was widened from an enum to plain text, this really was
+ * a 500: the segment went to Prisma unnarrowed, and Prisma treated a value
+ * outside the enum as a thrown PrismaClientValidationError rather than as
+ * no match. Now it's just a lookup that finds zero rows, but the notice
+ * this guards is still worth pinning down.
  */
-test("a department key outside the enum is a notice, not a server error", async ({
+test("a department key that doesn't match anything is a notice, not a server error", async ({
   page,
 }) => {
   await signInAsDevIdentity(page, DEV_IDENTITIES.deptAgent);

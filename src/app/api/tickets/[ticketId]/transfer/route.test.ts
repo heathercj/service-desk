@@ -10,7 +10,7 @@ import { feature, scenario } from "@/test/bdd";
 import { actors } from "@/test/actors";
 import { setCurrentActor, signOut } from "@/test/session-mock";
 import { jsonRequest, readResponse, routeContext } from "@/test/route-harness";
-import { ForbiddenError } from "@/lib/rbac/errors";
+import { ForbiddenError, NotFoundError } from "@/lib/rbac/errors";
 
 vi.mock("@/lib/auth/session", () => import("@/test/session-mock"));
 vi.mock("@/lib/tickets/ticket-service", () => ({ transferDepartment: vi.fn() }));
@@ -136,18 +136,30 @@ feature("Transferring a mis-routed ticket", () => {
     await s.then("the request is unauthenticated", () => expect(res.status).toBe(401));
   });
 
+  scenario("A transfer to an unknown department reports not found", async (s) => {
+    await s.given("a triage agent", () => setCurrentActor(actors.triageAgent()));
+
+    await s.and("the department does not exist or is inactive", () => {
+      vi.mocked(transferDepartment).mockRejectedValue(
+        new NotFoundError('Department "NOT_A_DEPARTMENT" is not available'),
+      );
+    });
+
+    const res = await s.when("they submit the transfer", () =>
+      transfer({
+        version: 2,
+        departmentKey: "NOT_A_DEPARTMENT",
+        reason: "Wrong department.",
+      }),
+    );
+
+    await s.then("the response is not found", () => expect(res.status).toBe(404));
+  });
+
   scenario.each([
     {
       why: "a blank reason",
       body: { version: 2, departmentKey: "TRAINING", reason: "   " },
-    },
-    {
-      why: "an unknown department key",
-      body: {
-        version: 2,
-        departmentKey: "NOT_A_DEPARTMENT",
-        reason: "Wrong department.",
-      },
     },
     {
       why: "a non-UUID newAssigneeId",

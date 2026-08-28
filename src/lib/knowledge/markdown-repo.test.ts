@@ -16,8 +16,10 @@ describe("articleRelativePath", () => {
     expect(() => articleRelativePath("TECHNOLOGY_SUPPORT", "foo/bar")).toThrow();
   });
 
-  it("rejects an unknown department key", () => {
-    expect(() => articleRelativePath("FINANCE", "some-slug")).toThrow();
+  it("does not itself gate on whether a department is real -- that's requireActiveDepartment's job (createDraftArticle calls it first)", () => {
+    expect(articleRelativePath("FINANCE", "some-slug").replace(/\\/g, "/")).toBe(
+      "finance/some-slug.md",
+    );
   });
 });
 
@@ -25,5 +27,10 @@ describe("department folder mapping", () => {
   it("round-trips department key <-> folder name", () => {
     expect(departmentKeyToFolder("LEGAL")).toBe("legal");
     expect(folderToDepartmentKey("legal")).toBe("LEGAL");
+  });
+
+  it("round-trips a department with no hand-maintained folder entry (regression: this used to throw)", () => {
+    expect(departmentKeyToFolder("IMPROVEMENT_IDEAS")).toBe("improvement-ideas");
+    expect(folderToDepartmentKey("improvement-ideas")).toBe("IMPROVEMENT_IDEAS");
   });
 });

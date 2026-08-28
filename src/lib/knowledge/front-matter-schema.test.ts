@@ -38,12 +38,25 @@ describe("knowledgeFrontMatterSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects an unknown department", () => {
+  it("rejects a department value that isn't shaped like a key (lowercase, spaces, hyphens)", () => {
+    expect(
+      knowledgeFrontMatterSchema.safeParse({ ...validFrontMatter, department: "finance" })
+        .success,
+    ).toBe(false);
+    expect(
+      knowledgeFrontMatterSchema.safeParse({
+        ...validFrontMatter,
+        department: "New Finance Team",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts a well-formed department value that isn't one of the original six -- membership is checked at the service layer (requireActiveDepartment), not here, since departments are created at runtime", () => {
     const result = knowledgeFrontMatterSchema.safeParse({
       ...validFrontMatter,
       department: "FINANCE",
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it("rejects an unknown status", () => {

@@ -1,12 +1,17 @@
 import "server-only";
 import type { RoleName } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import type { AuthContext } from "@/lib/auth/session";
 import { canAdminister, toPolicyActor } from "@/lib/rbac/policies";
-import { assertAuthorized, NotFoundError } from "@/lib/rbac/errors";
+import { assertAuthorized, ConflictError, NotFoundError } from "@/lib/rbac/errors";
 import { recordAuditEvent } from "@/lib/audit/audit-log";
 import { env } from "@/lib/env";
 import { lookupEntraUser } from "@/lib/tickets/franchise-lookup";
+import { slugifyDepartmentKey } from "@/lib/tickets/department-lookup";
+import { DEFAULT_DEPARTMENT_KEY } from "@/lib/tickets/department-suggestion";
+
+const UNIQUE_CONSTRAINT_VIOLATION = "P2002";
 
 export async function listUsersForAdmin(actor: AuthContext) {
   assertAuthorized(canAdminister(toPolicyActor(actor)), "Administrator access required");
@@ -55,6 +60,14 @@ export async function setDepartmentActive(
   isActive: boolean,
 ) {
   assertAuthorized(canAdminister(toPolicyActor(actor)), "Administrator access required");
+
+  if (!isActive) {
+    const target = await db.department.findUnique({ where: { id: departmentId } });
+    assertAuthorized(
+      target?.key !== DEFAULT_DEPARTMENT_KEY,
+      "Cannot deactivate the default intake department -- unrouted tickets fall back to it",
+    );
+  }
 
   const updated = await db.department.update({
     where: { id: departmentId },
@@ -156,6 +169,93 @@ export async function setDepartmentMembership(
     entityId: userId,
     newValue: { departmentId, isManager: input.isManager },
   });
+}
+
+const MAX_DEPARTMENT_NAME_LENGTH = 60;
+
+/**
+ * Creates a department from just a display name -- the key (and therefore
+ * its `/queue/[key]` URL and knowledge-base folder) is derived once here
+ * and never recomputed, so a later rename never breaks an existing link.
+ * Refuses rather than auto-suffixing on a key collision: the key is
+ * immutable by design, and a suffix like `_2` would be a permanent,
+ * confusing artifact nobody chose. Catching the unique-constraint error
+ * from the real insert (rather than checking-then-creating) also means
+ * there's no race between two admins creating similarly-named departments
+ * at once.
+ */
+export async function createDepartment(actor: AuthContext, name: string) {
+  assertAuthorized(canAdminister(toPolicyActor(actor)), "Administrator access required");
+
+  const trimmedName = name.trim();
+  assertAuthorized(
+    trimmedName.length > 0 && trimmedName.length <= MAX_DEPARTMENT_NAME_LENGTH,
+    `Department name must be between 1 and ${MAX_DEPARTMENT_NAME_LENGTH} characters`,
+  );
+
+  const key = slugifyDepartmentKey(trimmedName);
+  assertAuthorized(
+    key.length > 0,
+    "That name doesn't contain any letters or digits to build a department key from",
+  );
+
+  let created;
+  try {
+    created = await db.department.create({ data: { key, name: trimmedName } });
+  } catch (err) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === UNIQUE_CONSTRAINT_VIOLATION
+    ) {
+      throw new ConflictError(
+        "A department with a similar name already exists -- choose a more distinct name",
+      );
+    }
+    throw err;
+  }
+
+  await recordAuditEvent({
+    actorId: actor.userId,
+    actorDisplayName: actor.displayName,
+    action: "DEPARTMENT_CREATED",
+    entityType: "Department",
+    entityId: created.id,
+    newValue: { key: created.key, name: created.name },
+  });
+
+  return created;
+}
+
+export async function renameDepartment(
+  actor: AuthContext,
+  departmentId: string,
+  name: string,
+) {
+  assertAuthorized(canAdminister(toPolicyActor(actor)), "Administrator access required");
+
+  const trimmedName = name.trim();
+  assertAuthorized(
+    trimmedName.length > 0 && trimmedName.length <= MAX_DEPARTMENT_NAME_LENGTH,
+    `Department name must be between 1 and ${MAX_DEPARTMENT_NAME_LENGTH} characters`,
+  );
+
+  const previous = await db.department.findUniqueOrThrow({ where: { id: departmentId } });
+  const updated = await db.department.update({
+    where: { id: departmentId },
+    data: { name: trimmedName },
+  });
+
+  await recordAuditEvent({
+    actorId: actor.userId,
+    actorDisplayName: actor.displayName,
+    action: "DEPARTMENT_RENAMED",
+    entityType: "Department",
+    entityId: departmentId,
+    previousValue: { name: previous.name },
+    newValue: { name: updated.name },
+  });
+
+  return updated;
 }
 
 export async function setUserActive(

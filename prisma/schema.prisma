@@ -106,22 +106,19 @@ model UserRole {
   @@index([roleId])
 }
 
-enum DepartmentKey {
-  TECHNOLOGY_SUPPORT
-  TRAINING
-  ACCOUNTING_SERVICES
-  MARKETING
-  LEGAL
-  IMPROVEMENT_IDEAS
-}
-
+// key is a plain string, not an enum: departments are created and renamed
+// by administrators at runtime (Section: self-service departments), so the
+// set of valid keys can't be fixed at schema/migration time. It still
+// carries a shape constraint (uppercase snake_case) enforced by
+// `departmentKeySchema` in src/lib/validation/ticket-schemas.ts, since it
+// doubles as a URL segment and a knowledge-base folder name.
 model Department {
-  id        String        @id @default(uuid())
-  key       DepartmentKey @unique
+  id        String   @id @default(uuid())
+  key       String   @unique
   name      String
-  isActive  Boolean       @default(true)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   memberships           DepartmentMembership[]
   ticketsCurrent        Ticket[]                  @relation("TicketDepartment")

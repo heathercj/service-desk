@@ -1,27 +1,24 @@
-const KEY_TO_FOLDER: Record<string, string> = {
-  TECHNOLOGY_SUPPORT: "technology-support",
-  TRAINING: "training",
-  ACCOUNTING_SERVICES: "accounting-services",
-  MARKETING: "marketing",
-  LEGAL: "legal",
-};
-
-const FOLDER_TO_KEY: Record<string, string> = Object.fromEntries(
-  Object.entries(KEY_TO_FOLDER).map(([key, folder]) => [folder, key]),
-);
+// Computed rather than a hand-maintained map: departments are created at
+// runtime by administrators (Section: self-service departments), so a
+// fixed lookup table can't know about one that didn't exist at deploy
+// time. The transform is deterministic and reversible for any key shaped
+// by `departmentKeySchema` (uppercase, digits, underscores only).
+//
+// Whether a given key/folder actually corresponds to a *real* department
+// is a question for the database, not this module -- callers that need
+// that guarantee (creating a KB article, validating the knowledge-base/
+// folder layout in CI) resolve it themselves via `requireActiveDepartment`
+// or a direct query, the same "shape here, reality at the service layer"
+// split used throughout department handling.
 
 export function departmentKeyToFolder(key: string): string {
-  const folder = KEY_TO_FOLDER[key];
-  if (!folder) throw new Error(`Unknown department key: ${key}`);
-  return folder;
+  return key.toLowerCase().replace(/_/g, "-");
 }
 
 export function folderToDepartmentKey(folder: string): string {
-  const key = FOLDER_TO_KEY[folder];
-  if (!key) throw new Error(`Unknown department folder: ${folder}`);
-  return key;
+  return folder.toUpperCase().replace(/-/g, "_");
 }
 
 export function isKnownDepartmentFolder(folder: string): boolean {
-  return folder in FOLDER_TO_KEY;
+  return /^[a-z0-9-]+$/.test(folder);
 }

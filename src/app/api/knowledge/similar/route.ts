@@ -5,13 +5,13 @@ import {
   recordSimilarityCheck,
 } from "@/lib/knowledge/similarity";
 import { requireActiveDepartment } from "@/lib/tickets/department-lookup";
-import { DEPARTMENT_KEYS } from "@/lib/validation/ticket-schemas";
+import { departmentKeySchema } from "@/lib/validation/ticket-schemas";
 import { withAuth } from "@/lib/http/route-helpers";
 
 const schema = z.object({
   proposedTitle: z.string().min(1),
   proposedSummary: z.string().min(1),
-  departmentKey: z.enum(DEPARTMENT_KEYS).optional(),
+  departmentKey: departmentKeySchema.optional(),
   tags: z.array(z.string()).default([]),
   ticketId: z.string().uuid().optional(),
 });

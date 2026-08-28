@@ -1,5 +1,5 @@
 import "server-only";
-import type { DepartmentKey, Prisma, TicketPriority, TicketStatus } from "@prisma/client";
+import type { Prisma, TicketPriority, TicketStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import type { AuthContext } from "@/lib/auth/session";
 import {
@@ -50,6 +50,11 @@ const ACTIVE_STATUSES_FOR_TRANSFER: TicketStatus[] = [
   "IN_PROGRESS",
   "PENDING",
 ];
+
+// A department key is now a plain string, not a Prisma enum member, so
+// this comparison is no longer backed by the type system -- named here
+// rather than repeated as a bare string literal at each call site.
+const IMPROVEMENT_IDEAS_KEY = "IMPROVEMENT_IDEAS";
 
 export async function createTicket(actor: AuthContext, input: CreateTicketInput) {
   const policyActor = toPolicyActor(actor);
@@ -475,7 +480,7 @@ export interface ConfirmTriageInput {
   ticketId: string;
   version: number;
   franchiseId?: string;
-  departmentKey: DepartmentKey;
+  departmentKey: string;
   category?: string;
   priority: TicketPriority;
   tags: string[];
@@ -635,7 +640,7 @@ export async function confirmTriage(actor: AuthContext, input: ConfirmTriageInpu
     return updated;
   });
 
-  if (input.departmentKey === "IMPROVEMENT_IDEAS") {
+  if (input.departmentKey === IMPROVEMENT_IDEAS_KEY) {
     await notifyImprovementIdeaSubmission(updated);
   }
 
@@ -852,7 +857,7 @@ export async function transferDepartment(
   actor: AuthContext,
   ticketId: string,
   version: number,
-  newDepartmentKey: DepartmentKey,
+  newDepartmentKey: string,
   reason: string,
   newAssigneeId?: string,
 ) {
@@ -961,7 +966,7 @@ export async function transferDepartment(
   if (newAssigneeId && newAssigneeId !== actor.userId) {
     await notifyTicketAssigned(result, newAssigneeId);
   }
-  if (newDepartmentKey === "IMPROVEMENT_IDEAS") {
+  if (newDepartmentKey === IMPROVEMENT_IDEAS_KEY) {
     await notifyImprovementIdeaSubmission(result);
   }
 

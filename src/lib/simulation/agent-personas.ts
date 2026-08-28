@@ -1,4 +1,5 @@
-import type { DepartmentKey, RoleName } from "@prisma/client";
+import type { RoleName } from "@prisma/client";
+import { departmentKeyToFolder } from "@/lib/knowledge/department-folders";
 
 /**
  * Local, deterministic staff personas for the simulation harness
@@ -12,7 +13,7 @@ import type { DepartmentKey, RoleName } from "@prisma/client";
 export interface AgentPersona {
   key: string;
   roleName: RoleName;
-  departmentKey?: DepartmentKey;
+  departmentKey?: string;
   isManager?: boolean;
   displayName: string;
   email: string;
@@ -37,7 +38,7 @@ export const TRIAGE_PERSONA: AgentPersona = {
 };
 
 interface DepartmentSkillSet {
-  departmentKey: DepartmentKey;
+  departmentKey: string;
   departmentName: string;
   agentSkills: string[];
   managerSkillAdditions: string[];
@@ -132,18 +133,14 @@ const DEPARTMENT_SKILL_SETS: DepartmentSkillSet[] = [
   },
 ];
 
-function slug(departmentKey: DepartmentKey): string {
-  return departmentKey.toLowerCase().replace(/_/g, "-");
-}
-
 export const DEPARTMENT_AGENT_PERSONAS: AgentPersona[] = DEPARTMENT_SKILL_SETS.map(
   (d) => ({
-    key: `sim-agent-${slug(d.departmentKey)}`,
+    key: `sim-agent-${departmentKeyToFolder(d.departmentKey)}`,
     roleName: "DEPARTMENT_AGENT",
     departmentKey: d.departmentKey,
     isManager: false,
     displayName: `Sim ${d.departmentName} Agent`,
-    email: `sim.agent.${slug(d.departmentKey)}@sim.example.test`,
+    email: `sim.agent.${departmentKeyToFolder(d.departmentKey)}@sim.example.test`,
     description: `${d.departmentName} agent working assigned tickets.`,
     skills: d.agentSkills,
   }),
@@ -151,12 +148,12 @@ export const DEPARTMENT_AGENT_PERSONAS: AgentPersona[] = DEPARTMENT_SKILL_SETS.m
 
 export const DEPARTMENT_MANAGER_PERSONAS: AgentPersona[] = DEPARTMENT_SKILL_SETS.map(
   (d) => ({
-    key: `sim-manager-${slug(d.departmentKey)}`,
+    key: `sim-manager-${departmentKeyToFolder(d.departmentKey)}`,
     roleName: "DEPARTMENT_MANAGER",
     departmentKey: d.departmentKey,
     isManager: true,
     displayName: `Sim ${d.departmentName} Manager`,
-    email: `sim.manager.${slug(d.departmentKey)}@sim.example.test`,
+    email: `sim.manager.${departmentKeyToFolder(d.departmentKey)}@sim.example.test`,
     description: `Manages the ${d.departmentName} queue and workload.`,
     skills: [...d.agentSkills, ...d.managerSkillAdditions],
   }),
@@ -168,7 +165,7 @@ export const ALL_AGENT_PERSONAS: AgentPersona[] = [
   ...DEPARTMENT_MANAGER_PERSONAS,
 ];
 
-export function findDepartmentAgentPersona(departmentKey: DepartmentKey): AgentPersona {
+export function findDepartmentAgentPersona(departmentKey: string): AgentPersona {
   const persona = DEPARTMENT_AGENT_PERSONAS.find(
     (p) => p.departmentKey === departmentKey,
   );
@@ -176,7 +173,7 @@ export function findDepartmentAgentPersona(departmentKey: DepartmentKey): AgentP
   return persona;
 }
 
-export function findDepartmentManagerPersona(departmentKey: DepartmentKey): AgentPersona {
+export function findDepartmentManagerPersona(departmentKey: string): AgentPersona {
   const persona = DEPARTMENT_MANAGER_PERSONAS.find(
     (p) => p.departmentKey === departmentKey,
   );
