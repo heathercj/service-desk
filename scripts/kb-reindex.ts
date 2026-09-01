@@ -75,6 +75,10 @@ async function main() {
         internalOnly: frontMatter.internalOnly,
         contentHash,
         revision: frontMatter.revision,
+        // Reaching the update branch means contentHash changed (the guard
+        // above skips no-ops), so this is exactly the moment the article's
+        // content actually changed -- see the reporting-portal KB report.
+        contentUpdatedAt: new Date(),
       },
     });
     updated++;

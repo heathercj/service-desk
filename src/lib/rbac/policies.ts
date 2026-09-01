@@ -181,6 +181,18 @@ export function canManageNotificationPreferences(actor: PolicyActor): boolean {
   );
 }
 
+export function isManagerOfAnyDepartment(actor: PolicyActor): boolean {
+  return isAdministrator(actor) || [...actor.departments.values()].some(Boolean);
+}
+
+export function canViewTeamReports(actor: PolicyActor): boolean {
+  return isManagerOfAnyDepartment(actor);
+}
+
+export function canViewKnowledgeReports(actor: PolicyActor): boolean {
+  return isKnowledgeManager(actor);
+}
+
 export function canDownloadAttachment(
   actor: PolicyActor,
   ticket: TicketAccessShape,

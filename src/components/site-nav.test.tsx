@@ -30,6 +30,7 @@ const ALL_LINKS = [
   "Search tickets",
   "Knowledge",
   "Admin",
+  "Reports",
   "Notification settings",
 ] as const;
 
@@ -78,9 +79,12 @@ feature("Primary navigation", () => {
     },
     {
       role: "DEPARTMENT_MANAGER",
-      offered: ["My department", "Search tickets", "Notification settings"],
+      offered: ["My department", "Search tickets", "Reports", "Notification settings"],
     },
-    { role: "KNOWLEDGE_MANAGER", offered: ["Knowledge", "Notification settings"] },
+    {
+      role: "KNOWLEDGE_MANAGER",
+      offered: ["Knowledge", "Reports", "Notification settings"],
+    },
     {
       role: "ADMINISTRATOR",
       offered: [
@@ -89,6 +93,7 @@ feature("Primary navigation", () => {
         "Search tickets",
         "Knowledge",
         "Admin",
+        "Reports",
         "Notification settings",
       ],
     },
@@ -127,7 +132,13 @@ feature("Primary navigation", () => {
 
     await s.then("both sets of destinations appear, without duplicates", () => {
       expect(navLinkNames().sort()).toEqual(
-        ["Knowledge", "Search tickets", "Triage", "Notification settings"].sort(),
+        [
+          "Knowledge",
+          "Search tickets",
+          "Triage",
+          "Reports",
+          "Notification settings",
+        ].sort(),
       );
     });
   });

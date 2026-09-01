@@ -52,6 +52,13 @@ export function SiteNav({ auth }: SiteNavProps) {
   }
   if (roles.has("ADMINISTRATOR")) links.push({ href: "/admin", label: "Admin" });
   if (
+    roles.has("DEPARTMENT_MANAGER") ||
+    roles.has("KNOWLEDGE_MANAGER") ||
+    roles.has("ADMINISTRATOR")
+  ) {
+    links.push({ href: "/reports", label: "Reports" });
+  }
+  if (
     roles.has("TRIAGE_AGENT") ||
     roles.has("DEPARTMENT_AGENT") ||
     roles.has("DEPARTMENT_MANAGER") ||

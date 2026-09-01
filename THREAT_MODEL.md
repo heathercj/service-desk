@@ -76,6 +76,14 @@ authenticated users acting outside their granted role/department.
 - **Mitigation**: magic-byte detection + blocked-extension list + no inline
   rendering of any upload; `Content-Disposition: attachment` for
   non-image/PDF types.
+- **Threat**: CSV-injection (formula injection) via the reports CSV
+  exports -- a display name or article title beginning with `=`, `+`,
+  `-`, or `@` executes as a live formula when the file is opened in
+  Excel/Sheets.
+- **Mitigation**: `src/lib/reports/csv.ts` prefixes any such cell with a
+  leading `'` before RFC4180 quoting, applied to every cell of both
+  export routes (`/api/reports/team/[departmentKey]/export`,
+  `/api/reports/knowledge/export`).
 
 ### Denial of service
 

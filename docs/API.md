@@ -20,6 +20,9 @@ in the service layer for every route regardless).
 | `/knowledge/manage`                                            | staff roles               | Draft/review/publish/archive console                     |
 | `/dev-mailbox`                                                 | staff roles               | Captured outbound email (dev-only concept, always local) |
 | `/admin`, `/admin/users`, `/admin/departments`, `/admin/audit` | Administrator             | User/role, department, audit management                  |
+| `/reports`                                                     | Dept Manager, KM, Admin   | Reports index (links shown per role)                     |
+| `/reports/team`, `/reports/team/[departmentKey]`               | Dept Manager, Admin       | Per-agent ticket/resolution metrics for a department     |
+| `/reports/knowledge`                                           | Knowledge Manager, Admin  | KB article staleness/usage/tickets-solved report         |
 
 ## API routes (mutations; JSON in, JSON out)
 
@@ -56,6 +59,8 @@ in the service layer for every route regardless).
 | `/api/admin/departments`                     | POST             | Administrator                    | Create department                     | --                          |
 | `/api/admin/departments/[id]/rename`         | POST             | Administrator                    | Rename department                     | --                          |
 | `/api/admin/departments/[id]/active`         | POST             | Administrator                    | Activate/deactivate department        | --                          |
+| `/api/reports/team/[departmentKey]/export`   | GET (CSV)        | Dept Manager/Admin               | Team report, CSV download             | --                          |
+| `/api/reports/knowledge/export`              | GET (CSV)        | Knowledge Manager/Admin          | KB report, CSV download               | --                          |
 
 Every non-GET route validates its body with a Zod schema
 (`src/lib/validation/`) and returns `400` with issue details on failure,

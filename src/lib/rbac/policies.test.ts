@@ -17,6 +17,8 @@ import {
   canViewDepartmentWorkload,
   canViewInternalNotes,
   canViewKnowledgeArticle,
+  canViewKnowledgeReports,
+  canViewTeamReports,
   canViewTicket,
   type PolicyActor,
 } from "./policies";
@@ -235,5 +237,42 @@ describe("notification preferences access", () => {
 
   it("blocks a customer-only actor", () => {
     expect(canManageNotificationPreferences(actor(["CUSTOMER"]))).toBe(false);
+  });
+});
+
+describe("reports access", () => {
+  it("lets a manager of at least one department view team reports", () => {
+    const manager = actor(["DEPARTMENT_MANAGER"], [[TECH, true]]);
+    expect(canViewTeamReports(manager)).toBe(true);
+  });
+
+  it("blocks a department member who is not a manager anywhere", () => {
+    const agent = actor(["DEPARTMENT_AGENT"], [[TECH, false]]);
+    expect(canViewTeamReports(agent)).toBe(false);
+  });
+
+  it("lets an administrator view team reports even with no department memberships", () => {
+    const admin = actor(["ADMINISTRATOR"], []);
+    expect(canViewTeamReports(admin)).toBe(true);
+  });
+
+  it("lets a manager of one department (among several memberships) view team reports", () => {
+    const manager = actor(
+      ["DEPARTMENT_MANAGER", "DEPARTMENT_AGENT"],
+      [
+        [TECH, false],
+        [TRAINING, true],
+      ],
+    );
+    expect(canViewTeamReports(manager)).toBe(true);
+  });
+
+  it("restricts knowledge reports to knowledge managers and admins", () => {
+    const km = actor(["KNOWLEDGE_MANAGER"]);
+    const admin = actor(["ADMINISTRATOR"]);
+    const agent = actor(["DEPARTMENT_AGENT"], [[TECH, false]]);
+    expect(canViewKnowledgeReports(km)).toBe(true);
+    expect(canViewKnowledgeReports(admin)).toBe(true);
+    expect(canViewKnowledgeReports(agent)).toBe(false);
   });
 });
