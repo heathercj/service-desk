@@ -1,0 +1,736 @@
+page:
+  title: Customer Service Guide
+  file_name: CustomerServiceGuide.aspx
+  url: https://alairhomesna.sharepoint.com/sites/AlairKnowledgeBase/SitePages/CustomerServiceGuide.aspx
+  list_item_id: 358
+  department:
+  - Home Office IS
+  - HO AS
+  - Performance
+  - Learning Dev
+  description: A practical guide for Alair Homes support teams to confidently manage customer service
+    tickets, communicate clearly, and resolve issues efficientlyâempowering IT, Accounting, APT, Development
+    & Training teams to deliver exceptional support.
+  created: '2026-06-16T15:05:15Z'
+  created_by: Heather Capper Jones
+  modified: '2026-06-19T20:45:59Z'
+  modified_by: Heather Capper Jones
+conversion:
+  block_counts:
+    paragraph: 100
+    table: 11
+    heading: 40
+    bullet_list: 17
+    ordered_list: 1
+  has_unconverted_dynamic_content: false
+  unconverted: null
+outline:
+- level: 1
+  text: Introduction â Why This Guide Exists
+- level: 1
+  text: Section 1 â The Mindset of Good Support
+- level: 2
+  text: You Are the Expert â Act Like One
+- level: 2
+  text: Assume Good Intent
+- level: 2
+  text: You Are the Owner When the Ticket is Assigned to you
+- level: 1
+  text: Section 2 â How to Communicate with Users
+- level: 2
+  text: 'Tone: Friendly, Clear, and Professional'
+- level: 2
+  text: Keep Messages Focused and Actionable
+- level: 2
+  text: Use the Ticket â Not Your Inbox
+- level: 2
+  text: Setting Expectations Early
+- level: 1
+  text: Section 3 â Email Etiquette and Audience Awareness
+- level: 2
+  text: The Reply-All Problem
+- level: 2
+  text: Sensitive Information and Reduced Audiences
+- level: 2
+  text: Who Should Be on the Thread
+- level: 2
+  text: Forwarding and Routing
+- level: 2
+  text: Subject Lines and Clarity
+- level: 1
+  text: Section 4 â Handling Difficult or Frustrated Users
+- level: 2
+  text: Frustration Is Information
+- level: 2
+  text: The Acknowledge-Respond Framework
+- level: 2
+  text: What Not to Do
+- level: 2
+  text: When to Escalate
+- level: 2
+  text: Specific Course of Action for Upset Clients
+- level: 2
+  text: What if the Complaint by Customer is Not Warranted?
+- level: 1
+  text: Section 5 â Ticket Communication Lifecycle
+- level: 2
+  text: Stage 1 â Acknowledgement and Priority
+- level: 2
+  text: Stage 2 â Progress Updates
+- level: 2
+  text: Stage 3 â Requests for More Information/Meet with the person
+- level: 2
+  text: Stage 4 â Resolution
+- level: 1
+  text: Section 6 â Internal Communication Standards
+- level: 2
+  text: Ticket Notes vs. User-Facing Messages
+- level: 2
+  text: Handoffs and Reassignments
+- level: 2
+  text: Collaboration Within a Ticket
+- level: 2
+  text: The 24-Hour Rule
+- level: 2
+  text: Email Signatures
+- level: 2
+  text: AI-Assisted Responses Must Be Reviewed Before Sending
+- level: 1
+  text: Section 7 â Quick Reference
+- level: 2
+  text: Before You Send Any Message â Ask Yourself
+- level: 2
+  text: Audience Check â Before Hitting Send
+- level: 2
+  text: Escalation Contacts
+- level: 2
+  text: Communication at Each Stage
+content:
+- type: paragraph
+  text: ALAIR HOMES
+- type: paragraph
+  text: Support Team
+- type: paragraph
+  text: Customer Service Guide
+- type: table
+  columns:
+  - Your one-stop guide to handling support tickets with confidence â from the first email to a closed
+    case.
+  rows: []
+- type: paragraph
+  text: 'For: IT, Accounting, APT, Development & Training Teams'
+- type: paragraph
+  text: 'All support requests: support@alairhomes.com'
+- type: heading
+  level: 1
+  text: Introduction â Why This Guide Exists
+- type: paragraph
+  text: Our support team is made up of some brilliant, talented people â developers, accountants, QAs,
+    product owners, and support specialists. What we don't all share is a background in customer-facing
+    communication, and that's completely fine. That's what this guide is for.
+- type: paragraph
+  text: Whether you're resolving a Business Central issue or triaging an access request, the person on
+    the other end of that ticket is a colleague or partner who needs help. How we communicate matters
+    as much as what we resolve.
+- type: paragraph
+  text: 'This guide covers three things:'
+- type: bullet_list
+  items:
+  - text: How to communicate clearly and professionally with users
+  - text: How to handle the email side of tickets â including when not to reply-all
+  - text: How to manage difficult or frustrated users with confidence
+- type: table
+  columns:
+  - The goal Every person who submits a ticket should feel heard, informed, and confident that their issue
+    is in good hands â regardless of who picks it up.
+  rows: []
+- type: heading
+  level: 1
+  text: Section 1 â The Mindset of Good Support
+- type: heading
+  level: 2
+  text: You Are the Expert â Act Like One
+- type: paragraph
+  text: When someone submits a ticket, they're trusting you to know more than they do about the system
+    or process they're stuck on. Even if you're still figuring something out, your job is to project calm
+    competence.
+- type: bullet_list
+  items:
+  - text: Confidence doesn't mean having all the answers immediately â it means owning the ticket and
+      keeping the user informed while you find them.
+  - text: It's always fine to say "I'm looking into this and will come back to you by end of day" â it
+      is not fine to go quiet.
+  - text: If you're genuinely stuck, escalate or reassign. Don't sit on a ticket hoping it resolves itself.
+- type: heading
+  level: 2
+  text: Assume Good Intent
+- type: paragraph
+  text: Most people don't submit tickets because they want to cause trouble. They submit them because
+    something is blocking their work. When a message comes in that seems impatient or blunt, read it as
+    frustration with the problem â not with you personally.
+- type: table
+  columns:
+  - 'A useful frame Before you respond to any ticket, ask: "What does this person actually need right
+    now?" Sometimes the answer is a fix. Sometimes it''s just an update. Often it''s both.'
+  rows: []
+- type: heading
+  level: 2
+  text: You Are the Owner When the Ticket is Assigned to you
+- type: paragraph
+  text: 'When you accept a ticket, you''re committing to seeing it through or at least see it through
+    to the point where another team member takes on the request. That doesn''t mean you have to do everything
+    yourself â collaboration is expected â but it does mean you are responsible for:'
+- type: bullet_list
+  items:
+  - text: Keeping the user informed of progress
+  - text: Making sure handoffs (if needed) include full context
+  - text: Closing the loop when the issue is resolved
+  - text: Letting the user know, personally, when the case is closed
+- type: paragraph
+  text: Our communications should always reflect
+- type: bullet_list
+  items:
+  - text: credibility
+  - text: collaboration
+  - text: craftsmanship
+  - text: empowerment.
+- type: paragraph
+  text: 'Tone: Confident, human, collaborative, and empowering.'
+- type: paragraph
+  text: 'Voice: Approachable, inspiring, and authentic'
+- type: heading
+  level: 1
+  text: Section 2 â How to Communicate with Users
+- type: heading
+  level: 2
+  text: 'Tone: Friendly, Clear, and Professional'
+- type: paragraph
+  text: Think of the tone you'd use when helping a colleague at the desk next to you â warm and helpful,
+    but not overly casual. Avoid jargon, acronyms without explanation, and anything that could read as
+    dismissive.
+- type: table
+  columns:
+  - Avoid
+  - Instead try
+  rows:
+  - Avoid: '"That''s not how it works."'
+    Instead try: '"Here''s what''s actually happening, and how we can address it."'
+  - Avoid: '"This isn''t my area."'
+    Instead try: '"Let me find the right person and make sure this gets to them."'
+  - Avoid: '"We''re looking into it." (and nothing else)'
+    Instead try: '"We''re looking into it â I''ll update you by [time/day]."'
+  - Avoid: '"Done."'
+    Instead try: '"This has been resolved â here''s what we changed, and what to do if you see it again."'
+  - Avoid: '"Per my last email..."'
+    Instead try: Summarise the relevant point again, without the passive-aggressive framing.
+- type: heading
+  level: 2
+  text: Keep Messages Focused and Actionable
+- type: paragraph
+  text: 'Every message you send should leave the user knowing exactly what''s happening and what comes
+    next. As a rule:'
+- type: paragraph
+  text: Open with what you know or have done
+- type: bullet_list
+  items:
+  - text: State the next step â including who owns it and when
+  - text: Close with an invitation to follow up if needed
+- type: paragraph
+  text: Avoid walls of text. If your reply is more than a few short paragraphs, consider whether some
+    of that detail is necessary for the user â or whether it's better suited to internal notes in the
+    ticket.
+- type: heading
+  level: 2
+  text: Use the Ticket â Not Your Inbox
+- type: paragraph
+  text: Whenever you communicate with a user about their ticket, do it from inside the ticket in Dynamics
+    365. Replies sent from Outlook may not attach to the case, which creates gaps in the timeline and
+    makes handoffs harder.
+- type: bullet_list
+  items:
+  - text: Communication inside the ticket is visible to the whole team
+  - text: It protects you â there's a clear record of what was said
+  - text: It protects the user â they don't have to re-explain if ownership changes
+- type: heading
+  level: 2
+  text: Setting Expectations Early
+- type: paragraph
+  text: 'One of the most powerful things you can do in a support interaction is tell someone what to expect
+    before they have to ask. As soon as you pick up a ticket, send a brief acknowledgement that covers:'
+- type: bullet_list
+  items:
+  - text: That you've received and are working on the request
+  - text: Your expected timeframe for a first update
+  - text: Any information you might need from them upfront
+- type: paragraph
+  text: This one step prevents the majority of "just checking in" follow-ups that create noise for everyone.
+- type: heading
+  level: 1
+  text: Section 3 â Email Etiquette and Audience Awareness
+- type: paragraph
+  text: One of the most common mistakes in support communication isn't what you say â it's who you say
+    it to. Before you hit send, take a moment to think about your audience.
+- type: heading
+  level: 2
+  text: The Reply-All Problem
+- type: paragraph
+  text: When a ticket originates from a group message or a reply-all chain, it can be tempting to respond
+    to everyone on the thread. Usually, you shouldn't.
+- type: table
+  columns:
+  - The rule of thumb Reply only to the people who need the information to do something with it. If someone
+    is on copy for awareness only â and the update doesn't change anything for them â they don't need
+    to be in your reply.
+  rows: []
+- type: paragraph
+  text: 'Ask yourself before sending:'
+- type: bullet_list
+  items:
+  - text: Does this person need to action anything based on my reply?
+  - text: Does this update affect them directly?
+  - text: Would they be surprised or concerned to see themselves included?
+- type: paragraph
+  text: If the answer to all three is no â take them off.
+- type: heading
+  level: 2
+  text: Sensitive Information and Reduced Audiences
+- type: paragraph
+  text: 'Some replies need a smaller audience than the original email thread suggests. Common situations
+    where you should actively reduce the recipient list:'
+- type: bullet_list
+  items:
+  - text: Discussing a user's specific access, permissions, or account details
+  - text: Sharing information about errors that could expose system vulnerabilities
+  - text: Providing feedback or updates that involve a specific person's work or mistakes
+  - text: Any financial data, contract details, or client-sensitive information
+- type: paragraph
+  text: 'When in doubt, ask yourself: "Would everyone on this thread be comfortable seeing this reply?"
+    If the answer is no â trim the list.'
+- type: heading
+  level: 2
+  text: Who Should Be on the Thread
+- type: table
+  columns:
+  - Recipient type
+  - When to include
+  - When to remove
+  rows:
+  - Recipient type: 'TO:'
+    When to include: The person who needs to act or the submitter
+    When to remove: When they're just being kept in the loop
+  - Recipient type: 'CC:'
+    When to include: Managers or stakeholders needing awareness
+    When to remove: When the update doesn't affect them
+  - Recipient type: 'BCC:'
+    When to include: Rarely â only when privacy between recipients is needed
+    When to remove: Avoid in standard support replies
+- type: heading
+  level: 2
+  text: Forwarding and Routing
+- type: paragraph
+  text: If a message arrives in your personal inbox that should have come through support, don't just
+    reply from your inbox. Forward it to support@alairhomes.com and let the user know you've done so â
+    this keeps everything tracked and avoids creating a parallel conversation outside the system.
+- type: paragraph
+  text: 'Similarly, if someone reaches out to you directly via Teams about a support issue, redirect them:'
+- type: table
+  columns:
+  - What to say "Thanks for reaching out â to make sure this gets tracked and resolved properly, can you
+    send this to support@alairhomes.com? I'll keep an eye out for it."
+  rows: []
+- type: heading
+  level: 2
+  text: Subject Lines and Clarity
+- type: paragraph
+  text: When sending outbound emails related to a ticket (in situations where email outside the system
+    is necessary), keep subject lines clear. This makes it easy for users to connect your reply to their
+    original request and helps if things need to be re-routed later.
+- type: heading
+  level: 1
+  text: Section 4 â Handling Difficult or Frustrated Users
+- type: heading
+  level: 2
+  text: Frustration Is Information
+- type: paragraph
+  text: 'When someone sends a frustrated or impatient message, it''s easy to read it as an attack. Try
+    instead to read it as data: this person is under pressure, something is blocking them, and they need
+    help.'
+- type: paragraph
+  text: Your job isn't to defend yourself or the system â it's to help them get unstuck. Staying calm
+    and solution-focused in your reply will de-escalate most situations faster than any explanation will.
+- type: heading
+  level: 2
+  text: The Acknowledge-Respond Framework
+- type: paragraph
+  text: 'When handling a difficult message, a simple structure helps:'
+- type: ordered_list
+  items:
+  - text: Acknowledge â Show you've heard them and understand the impact.
+  - text: Clarify â If needed, briefly clarify what's happened without being defensive.
+  - text: Commit â Tell them what you're doing next and when.
+- type: paragraph
+  text: 'What you don''t need to do: apologise excessively, explain every technical detail of why something
+    went wrong, or match their energy if it''s negative.'
+- type: heading
+  level: 2
+  text: What Not to Do
+- type: bullet_list
+  items:
+  - text: Don't get defensive â even if the frustration feels unfair
+  - text: Don't go silent â silence almost always makes things worse
+  - text: Don't over-explain â a focused, reassuring reply is more effective than a lengthy justification
+  - text: Don't make promises you can't keep â if you're unsure of the timeline, say so
+  - text: Don't loop in more people than necessary â escalating an audience can embarrass a user or escalate
+      their concern unnecessarily
+- type: heading
+  level: 2
+  text: When to Escalate
+- type: paragraph
+  text: 'Sometimes a situation goes beyond what you should handle alone. Escalate to Kathryn Scott, Lexington
+    Lai, or Heather Capper Jones when:'
+- type: bullet_list
+  items:
+  - text: A user is persistently hostile or the interaction has broken down
+  - text: The issue has a significant business or financial impact
+  - text: You're being asked to make a decision that's above your authority
+  - text: A complaint is being made about the support process itself
+- type: paragraph
+  text: Escalating isn't a failure â it's good judgment. Just make sure you hand off with full context
+    so the person stepping in doesn't have to start from scratch.
+- type: heading
+  level: 2
+  text: Specific Course of Action for Upset Clients
+- type: paragraph
+  text: Sometimes things donât go as well you want, and the ticket submitter is mad, demanding or degrading.
+    Here are the Best Practices steps for you to follow. We call this the âALAIR Methodâ
+- type: paragraph
+  text: Make a new habit of repeating the âALAIR Methodâ over and over in your mind,
+- type: paragraph
+  text: Making it a habit will make it automatic when a client triggers you. And making it a habit will
+    free you of having to take it personally or feeling bad unnecessarily.
+- type: paragraph
+  text: A â Acknowledge the issue(s)/concern(s)
+- type: paragraph
+  text: Donât just brush it off when they are upset or complaining. âAcknowledgeâ the
+- type: paragraph
+  text: issue(s) or concern(s) â Repeating back the issue(s)/concerns(s) lets them know
+- type: paragraph
+  text: that you have acknowledged them, and their issue(s) or concern(s) and you are
+- type: paragraph
+  text: taking it seriously.
+- type: paragraph
+  text: L â Listen for the details so you fully understand the issue(s)/concern(s)
+- type: paragraph
+  text: Say, I hear that youâre upset because ââ¦ the defect has not been resolved yetâ Repeating their
+    issue back to them lets them know you have listened to them and understand the issue(s) or concern(s)
+- type: paragraph
+  text: A â Action to solve/correct the issue(s)/ concern(s)
+- type: paragraph
+  text: That does not mean you have to personally solve/correct it, but you have access
+- type: paragraph
+  text: to others in the Support Team that can help solve it if necessary. In any case, let the Ticket
+    Submitter know that youâre taking the necessary actions to
+- type: paragraph
+  text: further investigate or correct the issue(s) or concern(s).
+- type: paragraph
+  text: I â Inform the client of the action(s) youâve taken/will take
+- type: paragraph
+  text: Say thanks for pointing that out! We want to deliver the best for you and
+- type: paragraph
+  text: communication like this helps us do our best. Be clear in your intentions on
+- type: paragraph
+  text: further action and give a timeline of the expected outcome if available. If itâs something that
+    canât be fixed, inform them. Let them know the action(s) you have or will take to minimize/reduce
+    the impact of the issue(s) or concern(s).
+- type: paragraph
+  text: R â Retain or rebuild the relationship with the client
+- type: paragraph
+  text: After the interaction try to either rebuild or maintain a positive
+- type: paragraph
+  text: relationship.
+- type: heading
+  level: 2
+  text: What if the Complaint by Customer is Not Warranted?
+- type: paragraph
+  text: Not all situations are easy to deal with. Sometimes the Client is having a bad
+- type: paragraph
+  text: day, and their complaint is not warranted. We can still use the âALAIR Methodâ
+- type: paragraph
+  text: in this situation; the action and explanation will involve being firm with the
+- type: paragraph
+  text: client. If the issue involves building code or Alair Policy, explain that you cannot
+- type: paragraph
+  text: make the change and continue working towards the goal.
+- type: heading
+  level: 1
+  text: Section 5 â Ticket Communication Lifecycle
+- type: paragraph
+  text: Every ticket has a communication arc. Understanding that arc helps you stay proactive rather than
+    reactive.
+- type: heading
+  level: 2
+  text: Stage 1 â Acknowledgement and Priority
+- type: paragraph
+  text: As soon as you accept a ticket, send an acknowledgement. This doesn't need to be detailed â its
+    purpose is to confirm to the user that a real person has picked this up and is working on it. Before
+    assigning the ticket to a person and queue make sure that the below questions are all answered so
+    that the assigned support member is able to work most efficiently
+- type: bullet_list
+  items:
+  - text: Do we need screenshots for better understanding of the situation
+  - text: Do we need a project number for faster assistance
+  - text: Do we need a company number to identify where to work
+  - text: Do we need documentation to identify an issue or start resolving an issue
+  - text: Is the issue explained enough to identify which department should receive this ticket
+- type: paragraph
+  text: From the submitterâs point of view, their issue will often feel like an emergency, and that perspective
+    matters. At the same time, we need to step back and assess the ticket in the context of other active
+    requests, wider business impact, and any system implications. Using the priority rubric in the image
+    will help you make a consistent judgment about how urgent the ticket is and ensure the right work
+    is handled in the right order.
+- type: heading
+  level: 2
+  text: Stage 2 â Progress Updates
+- type: paragraph
+  text: If resolving the ticket takes more than a working day, send at least one update â even if that
+    update is just "still working on this, here's where things stand." Users who receive regular updates
+    almost never chase. Users who don't hear anything almost always do.
+- type: bullet_list
+  items:
+  - text: A brief update prevents a follow-up chase â which takes more time than the update itself
+  - text: If you're waiting on someone else (a vendor, another team), say so â and give a timeframe for
+      when you'll check back
+- type: heading
+  level: 2
+  text: Stage 3 â Requests for More Information/Meet with the person
+- type: paragraph
+  text: If you need more from the user to resolve the issue, ask clearly and specifically. Avoid open-ended
+    questions like "can you tell me more?" â instead, ask for the exact thing you need. Be mindful that
+    asking for information puts a task back on the user. Ask for everything you need at once rather than
+    in multiple rounds. Back-and-forth emails can quickly become frustrating for the user and slow down
+    resolution. If an in-person meeting, screen share, or quick call would help, offer that before sending
+    another email. Not everyone is technical, and some people need more hands-on guidance to work through
+    the issue. In many cases, watching the user complete the task is the fastest way to understand where
+    things are breaking down and what support they require.
+- type: heading
+  level: 2
+  text: Stage 4 â Resolution
+- type: paragraph
+  text: 'When the issue is resolved, don''t just close the ticket in the system. Contact the user directly
+    to let them know:'
+- type: bullet_list
+  items:
+  - text: What was done
+  - text: Whether there's anything they need to do differently going forward
+  - text: How to get back in touch if the issue recurs
+- type: paragraph
+  text: 'Remember: closing the ticket in Dynamics 365 does not automatically notify the user. That communication
+    is on you.'
+- type: table
+  columns:
+  - Closing well matters A well-closed ticket leaves the user feeling looked after. A poorly closed one
+    â where they discover their case is closed before anyone told them â does the opposite. Take thirty
+    seconds to send a proper closure message. It's the last impression you leave.
+  rows: []
+- type: heading
+  level: 1
+  text: Section 6 â Internal Communication Standards
+- type: heading
+  level: 2
+  text: Ticket Notes vs. User-Facing Messages
+- type: paragraph
+  text: 'Not everything you write in a ticket is going to the user. Use internal notes for:'
+- type: bullet_list
+  items:
+  - text: Your working notes and investigation steps
+  - text: Context that's useful for the team but not for the user
+  - text: Handoff notes when reassigning
+- type: paragraph
+  text: Always double-check whether you're writing a user-facing reply or an internal note before you
+    send. Getting this wrong â sending an internal comment to a user, or forgetting to communicate something
+    to a user that they needed â can undermine trust quickly.
+- type: heading
+  level: 2
+  text: Handoffs and Reassignments
+- type: paragraph
+  text: 'If you need to pass a ticket to someone else, set them up for success. Your handoff note should
+    include:'
+- type: bullet_list
+  items:
+  - text: A brief summary of the issue
+  - text: What you've already done or investigated
+  - text: What the next step is
+  - text: Any commitments made to the user (timelines, promised actions)
+- type: paragraph
+  text: The goal is for the next person to pick this up without having to read every message in the thread
+    from scratch â and without having to ask the user to repeat themselves.
+- type: heading
+  level: 2
+  text: Collaboration Within a Ticket
+- type: paragraph
+  text: You can involve others in a ticket without reassigning it. If you need someone's input, loop them
+    in via the ticket â this keeps communication visible and attached to the case. There should always
+    be one clear owner driving the ticket forward, even when multiple people are contributing.
+- type: heading
+  level: 2
+  text: The 24-Hour Rule
+- type: paragraph
+  text: Any ticket without activity for 24 hours will be flagged during the daily review by Kathryn Scott
+    (2:00â3:00 PM Pacific). If your ticket is going to be quiet for a good reason (waiting on an external
+    response, pending a scheduled change), add a note to the ticket explaining the hold so the review
+    team has context.
+- type: heading
+  level: 2
+  text: Email Signatures
+- type: paragraph
+  text: Email signatures are standardized for consistency across our communications. Team members outside
+    of IS do not need to follow this standard if their department has its own prescribed signature format.
+    IS team members are expected to use the standard signature format outlined in the existing Email Signature
+    Instructions document and include their Microsoft Bookings link in their signature so others can book
+    time directly from their email.
+- type: paragraph
+  text: Use the existing âEmail Signature Instructions - Normal Formatâ document as the source for creating
+    and maintaining the standard IS signature.
+  links:
+  - text: âEmail Signature Instructions - Normal Formatâ
+    url: /:w:/r/sites/brand_resources/_layouts/15/Doc.aspx?sourcedoc=%7bB981B109-11FF-4DDF-9182-5457AAA384B3%7d&file=Email%20Signature%20Instructions%20-%20Normal%20Format.docx&action=default&mobileredirect=true
+- type: heading
+  level: 2
+  text: AI-Assisted Responses Must Be Reviewed Before Sending
+- type: paragraph
+  text: AI can be used to help draft replies, summarize information, or suggest wording, but AI output
+    must never be sent as-is. Every AI-assisted response must be reviewed, edited, and adjusted by the
+    person sending it to make sure it is accurate, appropriate for the audience, and aligned with the
+    situation. Before sending, remove anything that feels generic, confirm the facts, correct the tone,
+    and make sure the message reflects your own judgment and accountability. AI is a drafting tool, not
+    a substitute for ownership.
+- type: paragraph
+  text: For those staff that have a M365 Copilot Premium license you can auto assign Copilot to generate
+    in an Alair Friendly response
+- type: paragraph
+  text: 'âVoice & tone: Write as a calm, friendly, and solutionâoriented Be professional without sounding
+    stiff. Use plain English and keep security topâofâmind. Avoid jargon unless the audience is technical;
+    if you must use it, explain briefly in parentheses.'
+- type: paragraph
+  text: 'Greeting rules:'
+- type: paragraph
+  text: 1:1 or small group â start with âHi {FirstName},â.
+- type: paragraph
+  text: Larger group or formal/unknown recipient â âHello,â (no name) or âHello team,â.
+- type: paragraph
+  text: 'Structure I prefer (BLUF):'
+- type: paragraph
+  text: Acknowledge the context in one short sentence (e.g., âThanks for flaggingâ¦â, âFollowing up onâ¦â).
+- type: paragraph
+  text: 'Bottom line up front: my assessment/decision in one crisp sentence.'
+- type: paragraph
+  text: Actions / requests as a short bullet list; lead each bullet with a verb and, when relevant, include
+    owner and due date (e.g., âSend X to Y by Jan 29â).
+- type: paragraph
+  text: 'References/links or where to find things (SharePoint, ticket #, doc name).'
+- type: paragraph
+  text: Offer help / next step (âHappy to jump on a quick call,â âLet me know if youâd like me toâ¦â).
+- type: paragraph
+  text: 'Signâoff: âKind Regards,â and then use my existing Outlook signature; do not duplicate contact
+    details in the body.'
+- type: paragraph
+  text: 'Formatting: Keep paragraphs short (1â3 sentences). Use bullets for steps/requests; avoid walls
+    of text. Bold key dates or âDue byâ when commitments matter. Prefer numerals for dates and counts
+    (e.g., â3 itemsâ).'
+- type: paragraph
+  text: 'Politeness & clarity: Default to âplease/thank you.â Where thereâs risk or ambiguity, state it
+    plainly, then give a safe recommendation and an option to call for sensitive details.'
+- type: paragraph
+  text: 'Emoji & exclamation points: Internal audiences: at most one supportive emoji (ð) if the message
+    is positive or empathetic; none for formal notes. External vendors/customers: no emoji. Limit exclamation
+    points.'
+- type: paragraph
+  text: 'Followâup nudges: Use friendly, specific reminders (reference the prior note and the ask, include
+    the due date). Keep followâups brief; do not repeat full context unless necessary.'
+- type: paragraph
+  text: 'Security posture: If something could be phishing, dataâsensitive, or identityârelated, include
+    a short verification step (e.g., âcall to confirm,â âcheck rule settingsâ) and avoid placing sensitive
+    data in the email body. Offer to move to a call when remediation is needed.'
+- type: paragraph
+  text: 'Audience sensitivity: Adjust formality up for executives/external. For internal technical audiences,
+    itâs fine to be more direct and include oneâline status updates.'
+- type: paragraph
+  text: 'Phrases I like: âThanks for the followâup,â âHappy to help,â âLet me know if I can help,â âCall
+    on me anytime,â âIf helpful, I canâ¦â'
+- type: paragraph
+  text: 'Phrases to avoid: overly salesy language, hype, or alarmist wording.'
+- type: paragraph
+  text: 'Scheduling: When appropriate, suggest âFeel free to book time with meâ and include the link only
+    if not already present in my signature.'
+- type: paragraph
+  text: 'Final check: Ensure the email clearly states the ask, owner, and when. Keep the subject line
+    actionâoriented (e.g., âAction needed: â¦â, âFollowâup: â¦â) when it helps clarity.'
+- type: heading
+  level: 1
+  text: Section 7 â Quick Reference
+- type: heading
+  level: 2
+  text: Before You Send Any Message â Ask Yourself
+- type: bullet_list
+  items:
+  - text: Does this person need this information, or am I copying them out of habit?
+  - text: Is my reply-to list wider than it needs to be?
+  - text: Have I told the user what comes next?
+  - text: Am I communicating from inside the ticket, not my personal inbox?
+  - text: Would I be comfortable if this message were read out loud in a team meeting?
+- type: heading
+  level: 2
+  text: Audience Check â Before Hitting Send
+- type: table
+  columns:
+  - Situation
+  - Action
+  rows:
+  - Situation: Reply to a group thread / reply-all chain
+    Action: Trim the list to only those who need to act
+  - Situation: Discussing access, permissions, or account details
+    Action: Reduce to the individual + their direct manager only if relevant
+  - Situation: Sharing error details or system information
+    Action: Consider whether this needs a wider or narrower audience
+  - Situation: Forwarding a direct message into the system
+    Action: Forward to support@alairhomes.com, notify the user
+  - Situation: Closing a case
+    Action: Contact the user directly â system closure does not auto-notify
+- type: heading
+  level: 2
+  text: Escalation Contacts
+- type: table
+  columns:
+  - Name
+  - Role
+  - When to escalate
+  rows:
+  - Name: Kathryn Scott
+    Role: Intake & Urgency Assessment
+    When to escalate: Priority decisions, initial triage questions
+  - Name: Lexington Lai
+    Role: Support Intake Team
+    When to escalate: Workload, routing, general support queries
+  - Name: Heather Capper Jones
+    Role: Support Intake Team
+    When to escalate: Escalations, difficult user situations
+- type: heading
+  level: 2
+  text: Communication at Each Stage
+- type: table
+  columns:
+  - Ticket Stage
+  - Your Communication Responsibility
+  rows:
+  - Ticket Stage: Ticket accepted
+    Your Communication Responsibility: Send acknowledgement with expected update timeframe
+  - Ticket Stage: Still in progress (>1 day)
+    Your Communication Responsibility: Send a brief progress update even if there's nothing new to report
+  - Ticket Stage: Waiting on information
+    Your Communication Responsibility: Ask clearly, ask once, give a deadline for response
+  - Ticket Stage: Ready to resolve
+    Your Communication Responsibility: Confirm resolution with user before closing
+  - Ticket Stage: Ticket closed
+    Your Communication Responsibility: Contact user to let them know â system does not auto-notify
+  - Ticket Stage: Reassigning
+    Your Communication Responsibility: Leave a full handoff note; honour any promises made to the user
