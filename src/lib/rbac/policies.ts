@@ -193,6 +193,20 @@ export function canViewKnowledgeReports(actor: PolicyActor): boolean {
   return isKnowledgeManager(actor);
 }
 
+export const isProductManager = (actor: PolicyActor): boolean =>
+  actor.roles.has("PRODUCT_MANAGER") || isAdministrator(actor);
+
+export function canViewProductOpsReport(actor: PolicyActor): boolean {
+  return isProductManager(actor);
+}
+
+// Deliberately administrator-only, not opened to product managers even
+// though they consume the rubric's output -- same reasoning as every
+// other /admin page in this app.
+export function canManageReportSettings(actor: PolicyActor): boolean {
+  return isAdministrator(actor);
+}
+
 export function canDownloadAttachment(
   actor: PolicyActor,
   ticket: TicketAccessShape,

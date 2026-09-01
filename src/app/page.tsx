@@ -11,6 +11,7 @@ export default async function HomePage() {
   if (auth.roles.has("DEPARTMENT_AGENT") || auth.roles.has("DEPARTMENT_MANAGER"))
     redirect("/queue");
   if (auth.roles.has("KNOWLEDGE_MANAGER")) redirect("/knowledge/manage");
+  if (auth.roles.has("PRODUCT_MANAGER")) redirect("/reports/product");
 
   redirect("/login");
 }

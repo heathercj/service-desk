@@ -16,8 +16,10 @@ import {
   canViewDepartmentQueue,
   canViewDepartmentWorkload,
   canViewInternalNotes,
+  canManageReportSettings,
   canViewKnowledgeArticle,
   canViewKnowledgeReports,
+  canViewProductOpsReport,
   canViewTeamReports,
   canViewTicket,
   type PolicyActor,
@@ -274,5 +276,23 @@ describe("reports access", () => {
     expect(canViewKnowledgeReports(km)).toBe(true);
     expect(canViewKnowledgeReports(admin)).toBe(true);
     expect(canViewKnowledgeReports(agent)).toBe(false);
+  });
+
+  it("restricts the product-ops report to product managers and admins", () => {
+    const pm = actor(["PRODUCT_MANAGER"]);
+    const admin = actor(["ADMINISTRATOR"]);
+    const agent = actor(["DEPARTMENT_AGENT"], [[TECH, false]]);
+    const km = actor(["KNOWLEDGE_MANAGER"]);
+    expect(canViewProductOpsReport(pm)).toBe(true);
+    expect(canViewProductOpsReport(admin)).toBe(true);
+    expect(canViewProductOpsReport(agent)).toBe(false);
+    expect(canViewProductOpsReport(km)).toBe(false);
+  });
+
+  it("restricts report settings (the rubric) to administrators only, not product managers", () => {
+    const admin = actor(["ADMINISTRATOR"]);
+    const pm = actor(["PRODUCT_MANAGER"]);
+    expect(canManageReportSettings(admin)).toBe(true);
+    expect(canManageReportSettings(pm)).toBe(false);
   });
 });

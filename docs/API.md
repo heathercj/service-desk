@@ -6,23 +6,25 @@ in the service layer for every route regardless).
 
 ## Pages (Server Components)
 
-| Route                                                          | Who                       | Purpose                                                  |
-| -------------------------------------------------------------- | ------------------------- | -------------------------------------------------------- |
-| `/login`                                                       | public                    | Sign-in (Entra + optional dev identities)                |
-| `/`                                                            | any                       | Redirects to the right portal for the user's roles       |
-| `/dashboard`                                                   | Customer                  | My tickets                                               |
-| `/tickets/new`                                                 | Customer                  | Ticket submission form                                   |
-| `/tickets/[ticketNumber]`                                      | scoped                    | Shared ticket detail/workbench (view scoped by role)     |
-| `/triage`                                                      | Triage Agent, Admin       | Triage queue                                             |
-| `/queue`                                                       | Dept Agent/Manager, Admin | Department picker (redirects if only one)                |
-| `/queue/[departmentKey]`                                       | scoped                    | Department queue                                         |
-| `/knowledge/[slug]`                                            | any                       | Article view (published only unless staff)               |
-| `/knowledge/manage`                                            | staff roles               | Draft/review/publish/archive console                     |
-| `/dev-mailbox`                                                 | staff roles               | Captured outbound email (dev-only concept, always local) |
-| `/admin`, `/admin/users`, `/admin/departments`, `/admin/audit` | Administrator             | User/role, department, audit management                  |
-| `/reports`                                                     | Dept Manager, KM, Admin   | Reports index (links shown per role)                     |
-| `/reports/team`, `/reports/team/[departmentKey]`               | Dept Manager, Admin       | Per-agent ticket/resolution metrics for a department     |
-| `/reports/knowledge`                                           | Knowledge Manager, Admin  | KB article staleness/usage/tickets-solved report         |
+| Route                                                          | Who                         | Purpose                                                  |
+| -------------------------------------------------------------- | --------------------------- | -------------------------------------------------------- |
+| `/login`                                                       | public                      | Sign-in (Entra + optional dev identities)                |
+| `/`                                                            | any                         | Redirects to the right portal for the user's roles       |
+| `/dashboard`                                                   | Customer                    | My tickets                                               |
+| `/tickets/new`                                                 | Customer                    | Ticket submission form                                   |
+| `/tickets/[ticketNumber]`                                      | scoped                      | Shared ticket detail/workbench (view scoped by role)     |
+| `/triage`                                                      | Triage Agent, Admin         | Triage queue                                             |
+| `/queue`                                                       | Dept Agent/Manager, Admin   | Department picker (redirects if only one)                |
+| `/queue/[departmentKey]`                                       | scoped                      | Department queue                                         |
+| `/knowledge/[slug]`                                            | any                         | Article view (published only unless staff)               |
+| `/knowledge/manage`                                            | staff roles                 | Draft/review/publish/archive console                     |
+| `/dev-mailbox`                                                 | staff roles                 | Captured outbound email (dev-only concept, always local) |
+| `/admin`, `/admin/users`, `/admin/departments`, `/admin/audit` | Administrator               | User/role, department, audit management                  |
+| `/admin/settings`                                              | Administrator               | Product-signal rubric (slow-to-resolve thresholds)       |
+| `/reports`                                                     | Dept Manager, KM, PM, Admin | Reports index (links shown per role)                     |
+| `/reports/team`, `/reports/team/[departmentKey]`               | Dept Manager, Admin         | Per-agent ticket/resolution metrics for a department     |
+| `/reports/knowledge`                                           | Knowledge Manager, Admin    | KB article staleness/usage/tickets-solved report         |
+| `/reports/product`                                             | Product Manager, Admin      | Raw ticket feed flagged by product-signal criteria       |
 
 ## API routes (mutations; JSON in, JSON out)
 
@@ -61,6 +63,8 @@ in the service layer for every route regardless).
 | `/api/admin/departments/[id]/active`         | POST             | Administrator                    | Activate/deactivate department        | --                          |
 | `/api/reports/team/[departmentKey]/export`   | GET (CSV)        | Dept Manager/Admin               | Team report, CSV download             | --                          |
 | `/api/reports/knowledge/export`              | GET (CSV)        | Knowledge Manager/Admin          | KB report, CSV download               | --                          |
+| `/api/reports/product/export`                | GET (CSV)        | Product Manager/Admin            | Product-signal report, CSV download   | --                          |
+| `/api/admin/settings/rubric`                 | POST             | Administrator                    | Save the product-signal rubric        | --                          |
 
 Every non-GET route validates its body with a Zod schema
 (`src/lib/validation/`) and returns `400` with issue details on failure,

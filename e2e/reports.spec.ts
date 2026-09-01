@@ -48,3 +48,24 @@ test("a knowledge manager can view the knowledge base health report", async ({
   await expect(page.getByRole("link", { name: "Needs review" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Unused" })).toBeVisible();
 });
+
+test("a product manager can view the product-signals report", async ({ page }) => {
+  await signInAsDevIdentity(page, DEV_IDENTITIES.productManager);
+  await page.goto("/reports/product");
+
+  await expect(page.getByRole("heading", { name: /product signals/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Improvement ideas" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Slow to resolve" })).toBeVisible();
+});
+
+test("a department agent cannot reach the product-signals report directly", async ({
+  page,
+}) => {
+  await signInAsDevIdentity(page, DEV_IDENTITIES.deptAgent);
+  const res = await page.goto("/reports/product");
+
+  expect(res?.status(), "must not 500 on an unauthorized report request").toBeLessThan(
+    500,
+  );
+  await expect(page.getByText(/access denied|not authorized|forbidden/i)).toBeVisible();
+});

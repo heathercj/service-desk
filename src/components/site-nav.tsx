@@ -54,6 +54,7 @@ export function SiteNav({ auth }: SiteNavProps) {
   if (
     roles.has("DEPARTMENT_MANAGER") ||
     roles.has("KNOWLEDGE_MANAGER") ||
+    roles.has("PRODUCT_MANAGER") ||
     roles.has("ADMINISTRATOR")
   ) {
     links.push({ href: "/reports", label: "Reports" });

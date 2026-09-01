@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getAuthContext } from "@/lib/auth/session";
 import {
   canViewKnowledgeReports,
+  canViewProductOpsReport,
   canViewTeamReports,
   toPolicyActor,
 } from "@/lib/rbac/policies";
@@ -19,6 +20,9 @@ export default async function ReportsIndexPage() {
     links.push({ href: "/reports/team", label: "Team" });
   if (canViewKnowledgeReports(policyActor)) {
     links.push({ href: "/reports/knowledge", label: "Knowledge base" });
+  }
+  if (canViewProductOpsReport(policyActor)) {
+    links.push({ href: "/reports/product", label: "Product signals" });
   }
 
   if (links.length === 0) {

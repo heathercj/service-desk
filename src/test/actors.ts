@@ -76,6 +76,9 @@ export const actors = {
   knowledgeManager: (o: ActorOverrides = {}) =>
     makeActor({ roles: ["KNOWLEDGE_MANAGER"], ...o }),
 
+  productManager: (o: ActorOverrides = {}) =>
+    makeActor({ roles: ["PRODUCT_MANAGER"], ...o }),
+
   administrator: (o: ActorOverrides = {}) =>
     makeActor({ roles: ["ADMINISTRATOR"], ...o }),
 } as const;
@@ -87,5 +90,6 @@ export const ALL_ROLES: readonly RoleName[] = [
   "DEPARTMENT_AGENT",
   "DEPARTMENT_MANAGER",
   "KNOWLEDGE_MANAGER",
+  "PRODUCT_MANAGER",
   "ADMINISTRATOR",
 ];

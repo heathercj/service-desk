@@ -94,6 +94,14 @@ export const DEV_IDENTITIES: DevIdentity[] = [
     roles: ["ADMINISTRATOR"],
     description: "Manages users, roles, departments, and application settings.",
   },
+  {
+    key: "product-manager",
+    entraObjectId: "00000000-dev0-0000-0000-000000000009",
+    displayName: "Parker Product",
+    email: "parker.product@dev.example.test",
+    roles: ["PRODUCT_MANAGER"],
+    description: "Views the cross-department product-signal ticket feed.",
+  },
 ];
 
 export function findDevIdentity(key: string): DevIdentity | undefined {

@@ -86,6 +86,10 @@ feature("Primary navigation", () => {
       offered: ["Knowledge", "Reports", "Notification settings"],
     },
     {
+      role: "PRODUCT_MANAGER",
+      offered: ["Reports"],
+    },
+    {
       role: "ADMINISTRATOR",
       offered: [
         "Triage",

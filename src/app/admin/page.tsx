@@ -15,6 +15,7 @@ export default async function AdminIndexPage() {
     { href: "/admin/users", label: "Users & roles" },
     { href: "/admin/departments", label: "Departments" },
     { href: "/admin/audit", label: "Audit events" },
+    { href: "/admin/settings", label: "Report settings" },
   ];
 
   return (

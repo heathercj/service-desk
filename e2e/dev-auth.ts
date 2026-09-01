@@ -46,4 +46,5 @@ export const DEV_IDENTITIES = {
   deptManager: "Morgan Manager",
   knowledgeManager: "Kai Knowledge",
   admin: "Robin Admin",
+  productManager: "Parker Product",
 } as const;
