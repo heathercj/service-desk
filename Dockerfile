@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.9
-FROM node:22.17.0-bookworm-slim AS base
+FROM node:26.8.1-bookworm-slim AS base
 # The corepack bundled with the Node base image carries npm's older signing
 # keys, so verifying the pnpm tarball fails with "Cannot find matching keyid"
 # and the install below dies before it starts. Installing a current corepack
@@ -36,7 +36,7 @@ RUN DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build?schema=public" \
 # Deliberately not `FROM base`: base carries the package manager the build
 # stages need, and the runtime does not need one. It only ever runs
 # `node server.js`.
-FROM node:22.17.0-bookworm-slim AS runner
+FROM node:26.8.1-bookworm-slim AS runner
 ENV NODE_ENV=production
 WORKDIR /app
 
